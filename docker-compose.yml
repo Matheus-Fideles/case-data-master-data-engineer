@@ -231,10 +231,11 @@ services:
     ports:
       - "8085:8080"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
-      interval: 20s
-      timeout: 10s
-      retries: 5
+      test: ["CMD", "curl", "-f", "--max-time", "30", "http://localhost:8080/v1/info"]
+      interval: 30s
+      timeout: 35s
+      retries: 10
+      start_period: 120s
     networks:
       - lake
 
