@@ -15,9 +15,16 @@ ADR: docs/architecture/decisions/0006-scd2.md
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import date
+from pathlib import Path
+
+try:
+    import psycopg2
+except ImportError:  # pragma: no cover
+    psycopg2 = None  # type: ignore[assignment]
 
 log = logging.getLogger(__name__)
 
@@ -27,8 +34,6 @@ _SCD2_ATTRS = ("sexo", "ano_nascimento", "cep_regiao", "municipio_codigo_ibge")
 
 
 def _pg_conn(gold: bool = False):
-    import psycopg2
-
     user = (
         os.environ.get("POSTGRES_GOLD_USER", "gold_engineer")
         if gold
@@ -81,9 +86,6 @@ def _read_silver(snapshot_date: str) -> list[dict]:
 
     except Exception as exc:
         log.warning("[dim_paciente] Spark read failed (%s) — falling back to local JSON", exc)
-
-    import json
-    from pathlib import Path
 
     fixture = Path(__file__).parents[2] / "tests" / "fixtures" / "oltp_sample.json"
     if fixture.exists():
