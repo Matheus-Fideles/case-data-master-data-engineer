@@ -50,6 +50,8 @@ CHECKPOINT_PATH = os.environ.get(
 WATERMARK = os.environ.get("STREAM_WATERMARK", "1 hour")
 TRIGGER_SECS = int(os.environ.get("STREAM_TRIGGER_SECS", "30"))
 CI_MODE = os.environ.get("STREAM_CI_MODE", "0") == "1"
+# Optional JSON offset map e.g. '{"notificacoes.raw":{"0":100,"1":0}}'
+STARTING_OFFSETS = os.environ.get("STREAM_STARTING_OFFSETS", "")
 
 _PAYLOAD_SCHEMA = StructType([
     StructField("id_atendimento", StringType(), True),
@@ -203,7 +205,12 @@ def run(spark: SparkSession | None = None) -> None:
 
     spark.sparkContext.setLogLevel("WARN")
 
-    starting_offsets = "earliest" if CI_MODE else "latest"
+    if STARTING_OFFSETS:
+        starting_offsets = STARTING_OFFSETS
+    elif CI_MODE:
+        starting_offsets = "latest"
+    else:
+        starting_offsets = "latest"
 
     raw = (
         spark.readStream
@@ -234,7 +241,12 @@ def run(spark: SparkSession | None = None) -> None:
         KAFKA_TOPIC, TRIGGER_SECS, WATERMARK,
     )
 
-    stream.awaitTermination()
+    if CI_MODE:
+        # availableNow terminates automatically; 120s cap prevents hanging on Kafka errors
+        stream.awaitTermination(timeout=120)
+        stream.stop()
+    else:
+        stream.awaitTermination()
 
 
 if __name__ == "__main__":

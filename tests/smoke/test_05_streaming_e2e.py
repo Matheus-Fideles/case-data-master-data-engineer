@@ -73,8 +73,29 @@ def _produce(producer, topic: str, events: list[dict]) -> None:
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
+def _current_offsets(topic: str) -> str:
+    """Returns a startingOffsets JSON string pointing to the current end of each partition."""
+    from confluent_kafka import Consumer as KConsumer, TopicPartition, OFFSET_END
+    c = KConsumer({"bootstrap.servers": KAFKA_BOOTSTRAP, "group.id": "_smoke_offset_probe"})
+    metadata = c.list_topics(topic, timeout=10)
+    partitions = [
+        TopicPartition(topic, p)
+        for p in metadata.topics[topic].partitions
+    ]
+    offsets = c.get_watermark_offsets
+    parts_with_offsets = {}
+    for tp in partitions:
+        lo, hi = c.get_watermark_offsets(tp, timeout=5)
+        parts_with_offsets[tp.partition] = hi
+    c.close()
+    return json.dumps({topic: {str(p): off for p, off in parts_with_offsets.items()}})
+
+
 def test_kafka_produces_valid_events(kafka_producer):
-    """Produces N_VALID valid events on the main topic."""
+    """Captures current offsets then produces N_VALID valid events on the main topic."""
+    # Save offset snapshot so the CI consumer only reads events produced in THIS test run
+    import pytest
+    pytest.current_stream_offsets = _current_offsets(KAFKA_TOPIC)
     events = [_valid_event(i) for i in range(N_VALID)]
     _produce(kafka_producer, KAFKA_TOPIC, events)
 
@@ -88,11 +109,15 @@ def test_kafka_produces_invalid_events(kafka_producer):
 def test_streaming_consumer_ci_mode(spark_session, s3):
     """Runs the consumer in CI_MODE (AvailableNow) and verifies Bronze write."""
     import os
+    import pytest
+    starting_offsets = getattr(pytest, "current_stream_offsets", "latest")
+
     os.environ["STREAM_CI_MODE"] = "1"
     os.environ["BRONZE_STREAM_PATH"] = BRONZE_STREAM_PATH
     os.environ["KAFKA_BOOTSTRAP_SERVERS"] = KAFKA_BOOTSTRAP
     os.environ["KAFKA_TOPIC"] = KAFKA_TOPIC
     os.environ["KAFKA_DLQ_TOPIC"] = KAFKA_DLQ_TOPIC
+    os.environ["STREAM_STARTING_OFFSETS"] = starting_offsets
 
     try:
         import importlib
@@ -101,7 +126,7 @@ def test_streaming_consumer_ci_mode(spark_session, s3):
         _mod.run(spark=spark_session)
     finally:
         for k in ("STREAM_CI_MODE", "BRONZE_STREAM_PATH", "KAFKA_BOOTSTRAP_SERVERS",
-                  "KAFKA_TOPIC", "KAFKA_DLQ_TOPIC"):
+                  "KAFKA_TOPIC", "KAFKA_DLQ_TOPIC", "STREAM_STARTING_OFFSETS"):
             os.environ.pop(k, None)
 
     df = spark_session.read.format("delta").load(BRONZE_STREAM_PATH)
