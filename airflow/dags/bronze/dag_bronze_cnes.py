@@ -1,11 +1,11 @@
-"""DAG Bronze — CNES (Estabelecimentos de Saúde).
+"""DAG Bronze — CNES (Health Establishments).
 
-Snapshot diário dos estabelecimentos de saúde do CNES, persistido em
-Delta Lake (bronze/cnes/), particionado por snapshot_date.
+Daily snapshot of health establishments from CNES, stored in
+Delta Lake (bronze/cnes/), partitioned by snapshot_date.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -14,12 +14,12 @@ from _common.spark_k8s import make_spark_operator
 
 with DAG(
     dag_id="dag_bronze_cnes",
-    schedule_interval="0 5 * * 1",  # toda segunda-feira
+    schedule_interval="0 5 * * 1",  # every Monday
     start_date=datetime(2024, 1, 1),
     catchup=False,
     max_active_runs=1,
     tags=["bronze", "cnes", "estabelecimentos"],
-    default_args={"retries": 2, "retry_delay": __import__("datetime").timedelta(minutes=5)},
+    default_args={"retries": 2, "retry_delay": timedelta(minutes=5)},
 ) as dag:
 
     def _extract(**context):
@@ -43,4 +43,28 @@ with DAG(
         dag=dag,
     )
 
-    extract >> submit
+    def _emit_lineage(**context):
+        from pipelines.common.lineage import Dataset, emit_complete, emit_start
+
+        run_id = emit_start(
+            job_name="dag_bronze_cnes.extract",
+            inputs=[Dataset.s3("apicnes.datasus.gov.br/estabelecimentos")],
+            outputs=[Dataset.s3(f"s3://landing/cnes/{snapshot_date}/")],
+        )
+        if run_id:
+            row_count = (
+                context["ti"].xcom_pull(task_ids="extract_cnes", key="extraction_result") or {}
+            ).get("row_count", 0)
+            emit_complete(
+                job_name="dag_bronze_cnes.extract",
+                run_id=run_id,
+                output_facets={"rowCount": {"rowCount": row_count}},
+            )
+
+    emit_lineage = PythonOperator(
+        task_id="emit_lineage",
+        python_callable=_emit_lineage,
+        trigger_rule="all_success",
+    )
+
+    extract >> submit >> sensor >> emit_lineage

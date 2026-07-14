@@ -1,14 +1,14 @@
 """DAG Quality Gates — Gold DW.
 
-Roda após cada carga Gold e valida integridade do Star Schema:
+Runs after each Gold load and validates Star Schema integrity:
 
-  dim_check:   Exatamente um is_current=true por NK em cada dimensão (SCD2)
-  fato_check:  Sem SK nulo, sem orphan FKs, contagem mínima de fatos
-  ge_check:    Checkpoint Great Expectations (opcional)
+  dim_check:   Exactly one is_current=true per NK in each dimension (SCD2)
+  fato_check:  No null SK, no orphan FKs, minimum fact count
+  ge_check:    Great Expectations checkpoint (optional)
 
-Falha bloqueia dashboards Metabase e alertas downstream.
+Failure blocks Metabase dashboards and downstream alerts.
 
-Spec: docs/specs/airflow-dags.md — seção "dag_quality_gates_gold"
+Spec: docs/specs/airflow-dags.md — section "dag_quality_gates_gold"
 ADR:  docs/architecture/decisions/0006-scd2.md
 """
 from __future__ import annotations
@@ -45,21 +45,20 @@ def _pg_conn(user: str | None = None, password: str | None = None):
 
 
 def _validate_scd2_integrity(**context) -> dict:
-    """Valida que não há overlap de registros current por NK em nenhuma dimensão."""
-    conn   = _pg_conn()
-    cur    = conn.cursor()
+    """Validates no overlap of current records per NK in any dimension."""
+    conn = _pg_conn()
+    cur = conn.cursor()
     report = {}
 
     dims = [
-        ("dim_paciente",   "id_paciente_hash"),
-        ("dim_municipio",  "codigo_municipio"),
-        ("dim_agravo",     "codigo_agravo"),
-        ("dim_vacina",     "codigo_vacina"),
-        ("dim_tempo",      "data_ref"),
+        ("dim_paciente",        "id_paciente_hash"),
+        ("dim_municipio",       "codigo_municipio"),
+        ("dim_agravo",          "codigo_agravo"),
+        ("dim_vacina",          "codigo_vacina"),
+        ("dim_estabelecimento", "co_cnes"),
     ]
 
-    for table, nk_col in dims:
-        # Verifica se tabela existe
+    for table, natural_key in dims:
         cur.execute(
             "SELECT 1 FROM information_schema.tables "
             "WHERE table_schema='gold_dw' AND table_name=%s",
@@ -69,38 +68,35 @@ def _validate_scd2_integrity(**context) -> dict:
             report[table] = "skipped_not_found"
             continue
 
-        # Overlap: >1 registro is_current=true para o mesmo NK
         cur.execute(f"""
-            SELECT {nk_col}, COUNT(*) as c
+            SELECT {natural_key}, COUNT(*) AS cnt
             FROM gold_dw.{table}
             WHERE is_current = true
-            GROUP BY {nk_col}
+            GROUP BY {natural_key}
             HAVING COUNT(*) > 1
             LIMIT 10
         """)
         overlaps = cur.fetchall()
 
-        # Inversão temporal: dt_inicio > dt_fim
         cur.execute(f"""
             SELECT COUNT(*) FROM gold_dw.{table}
             WHERE dt_inicio > dt_fim
         """)
         inversions = cur.fetchone()[0]
 
-        # Registros current com dt_fim ≠ '9999-12-31'
         cur.execute(f"""
             SELECT COUNT(*) FROM gold_dw.{table}
             WHERE is_current = true AND dt_fim != '9999-12-31'
         """)
-        bad_dtfim = cur.fetchone()[0]
+        bad_end_date = cur.fetchone()[0]
 
         failures = []
         if overlaps:
-            failures.append(f"overlap: {len(overlaps)} NKs com múltiplos current")
+            failures.append(f"overlap: {len(overlaps)} NKs with multiple current rows")
         if inversions > 0:
-            failures.append(f"inversão temporal: {inversions} linhas")
-        if bad_dtfim > 0:
-            failures.append(f"current com dt_fim errado: {bad_dtfim} linhas")
+            failures.append(f"date inversion: {inversions} rows")
+        if bad_end_date > 0:
+            failures.append(f"current rows with wrong dt_fim: {bad_end_date}")
 
         report[table] = {"status": "ok" if not failures else "failed", "failures": failures}
 
@@ -111,24 +107,24 @@ def _validate_scd2_integrity(**context) -> dict:
 
     failed = {t: r for t, r in report.items() if isinstance(r, dict) and r.get("status") == "failed"}
     if failed:
-        raise ValueError(f"SCD2 integrity check falhou:\n{failed}")
+        raise ValueError(f"SCD2 integrity check failed:\n{failed}")
 
     log.info("[quality/gold] SCD2 check: OK (%d dims)", len(report))
     return report
 
 
 def _validate_fato_referential_integrity(**context) -> dict:
-    """Valida FKs dos fatos contra dimensões e ausência de SKs nulos."""
-    conn   = _pg_conn()
-    cur    = conn.cursor()
+    """Validates fact FKs against dimensions and absence of null SKs."""
+    conn = _pg_conn()
+    cur = conn.cursor()
     report = {}
 
-    fatos_checks = [
+    fact_checks = [
         {
             "table": "fato_notificacao",
             "sk_cols": ["sk_agravo", "sk_municipio_notificacao", "sk_tempo"],
             "dim_map": {
-                "sk_agravo":                ("dim_agravo",   "sk_agravo"),
+                "sk_agravo":                ("dim_agravo",    "sk_agravo"),
                 "sk_municipio_notificacao": ("dim_municipio", "sk_municipio"),
                 "sk_tempo":                 ("dim_tempo",     "sk_tempo"),
             },
@@ -137,7 +133,7 @@ def _validate_fato_referential_integrity(**context) -> dict:
             "table": "fato_vacinacao",
             "sk_cols": ["sk_vacina", "sk_municipio_aplicacao"],
             "dim_map": {
-                "sk_vacina":            ("dim_vacina",    "sk_vacina"),
+                "sk_vacina":              ("dim_vacina",    "sk_vacina"),
                 "sk_municipio_aplicacao": ("dim_municipio", "sk_municipio"),
             },
         },
@@ -145,13 +141,13 @@ def _validate_fato_referential_integrity(**context) -> dict:
             "table": "fato_obito",
             "sk_cols": ["sk_agravo", "sk_municipio_residencia"],
             "dim_map": {
-                "sk_agravo":               ("dim_agravo",   "sk_agravo"),
+                "sk_agravo":               ("dim_agravo",    "sk_agravo"),
                 "sk_municipio_residencia": ("dim_municipio", "sk_municipio"),
             },
         },
     ]
 
-    for check in fatos_checks:
+    for check in fact_checks:
         table = check["table"]
 
         cur.execute(
@@ -165,16 +161,12 @@ def _validate_fato_referential_integrity(**context) -> dict:
 
         failures = []
 
-        # SKs nulos
         for sk in check["sk_cols"]:
-            cur.execute(
-                f"SELECT COUNT(*) FROM gold_dw.{table} WHERE {sk} IS NULL"
-            )
-            n = cur.fetchone()[0]
-            if n > 0:
-                failures.append(f"{sk}: {n} nulos")
+            cur.execute(f"SELECT COUNT(*) FROM gold_dw.{table} WHERE {sk} IS NULL")
+            null_count = cur.fetchone()[0]
+            if null_count > 0:
+                failures.append(f"{sk}: {null_count} nulls")
 
-        # Orphan FKs
         for fk_col, (dim_table, dim_pk) in check["dim_map"].items():
             cur.execute(
                 "SELECT 1 FROM information_schema.tables "
@@ -188,9 +180,9 @@ def _validate_fato_referential_integrity(**context) -> dict:
                 LEFT JOIN gold_dw.{dim_table} d ON f.{fk_col} = d.{dim_pk}
                 WHERE f.{fk_col} IS NOT NULL AND d.{dim_pk} IS NULL
             """)
-            orphans = cur.fetchone()[0]
-            if orphans > 0:
-                failures.append(f"{fk_col} → {dim_table}: {orphans} orphan FKs")
+            orphan_count = cur.fetchone()[0]
+            if orphan_count > 0:
+                failures.append(f"{fk_col} → {dim_table}: {orphan_count} orphan FKs")
 
         report[table] = {"status": "ok" if not failures else "failed", "failures": failures}
 
@@ -201,20 +193,20 @@ def _validate_fato_referential_integrity(**context) -> dict:
 
     failed = {t: r for t, r in report.items() if isinstance(r, dict) and r.get("status") == "failed"}
     if failed:
-        raise ValueError(f"Fato referential integrity falhou:\n{failed}")
+        raise ValueError(f"Fact referential integrity check failed:\n{failed}")
 
-    log.info("[quality/gold] FK check: OK (%d fatos)", len(report))
+    log.info("[quality/gold] FK check: OK (%d facts)", len(report))
     return report
 
 
 def _validate_fato_row_counts(**context) -> dict:
-    """Verifica que cada tabela fato tem pelo menos 1 linha (não vazia após carga)."""
+    """Checks that each fact table has at least 1 row (not empty after load)."""
     conn = _pg_conn()
-    cur  = conn.cursor()
+    cur = conn.cursor()
     report = {}
 
-    fatos = ["fato_notificacao", "fato_vacinacao", "fato_obito"]
-    for table in fatos:
+    fact_tables = ["fato_notificacao", "fato_vacinacao", "fato_obito"]
+    for table in fact_tables:
         cur.execute(
             "SELECT 1 FROM information_schema.tables "
             "WHERE table_schema='gold_dw' AND table_name=%s",
@@ -224,8 +216,8 @@ def _validate_fato_row_counts(**context) -> dict:
             report[table] = "skipped"
             continue
         cur.execute(f"SELECT COUNT(*) FROM gold_dw.{table}")
-        n = cur.fetchone()[0]
-        report[table] = {"count": n, "status": "ok" if n > 0 else "empty"}
+        row_count = cur.fetchone()[0]
+        report[table] = {"count": row_count, "status": "ok" if row_count > 0 else "empty"}
 
     cur.close()
     conn.close()
@@ -234,37 +226,36 @@ def _validate_fato_row_counts(**context) -> dict:
 
     empty = {t: r for t, r in report.items() if isinstance(r, dict) and r.get("status") == "empty"}
     if empty:
-        log.warning("[quality/gold] Tabelas fato vazias: %s", list(empty.keys()))
-        # Warning apenas — pode estar vazio em ambiente de dev
+        log.warning("[quality/gold] Empty fact tables: %s", list(empty.keys()))
 
     log.info("[quality/gold] Row count check: %s", report)
     return report
 
 
 def _run_ge_checkpoint(**context) -> str:
-    """Roda checkpoint Great Expectations para Gold se disponível."""
+    """Runs Great Expectations checkpoint for Gold if available."""
     try:
         import great_expectations as gx
 
-        ctx    = gx.get_context()
+        ctx = gx.get_context()
         result = ctx.run_checkpoint(checkpoint_name="gold_dw_checkpoint")
         if not result.success:
-            raise ValueError(f"GE checkpoint Gold falhou: {result.statistics}")
+            raise ValueError(f"GE checkpoint Gold failed: {result.statistics}")
         log.info("[quality/gold] GE checkpoint: OK")
         return "ge_passed"
     except ImportError:
-        log.info("[quality/gold] Great Expectations não instalado — pulando")
+        log.info("[quality/gold] Great Expectations not installed — skipping")
         return "ge_skipped"
-    except Exception as e:
-        if "does not exist" in str(e) or "not found" in str(e).lower():
-            log.info("[quality/gold] GE checkpoint não configurado — pulando")
+    except Exception as exc:
+        if "does not exist" in str(exc) or "not found" in str(exc).lower():
+            log.info("[quality/gold] GE checkpoint not configured — skipping")
             return "ge_skipped"
         raise
 
 
 with DAG(
     dag_id="dag_quality_gates_gold",
-    schedule_interval=None,   # triggera por ExternalTaskSensor dos Gold jobs
+    schedule_interval=None,
     start_date=datetime(2024, 1, 1),
     catchup=False,
     max_active_runs=1,
@@ -273,7 +264,6 @@ with DAG(
     doc_md=__doc__,
 ) as dag:
 
-    # Aguarda a carga de dimensões (pré-requisito dos fatos)
     wait_gold_dims = ExternalTaskSensor(
         task_id="wait_gold_dims",
         external_dag_id="dag_gold_dims",

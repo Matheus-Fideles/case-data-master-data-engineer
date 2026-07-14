@@ -1,10 +1,10 @@
 """DAG Bronze — Chikungunya.
 
-Extrai notificações de chikungunya e persiste em Delta Lake (bronze/arboviroses/chikungunya/).
+Extracts chikungunya notifications and stores them in Delta Lake (bronze/arboviroses/chikungunya/).
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -18,14 +18,14 @@ with DAG(
     catchup=False,
     max_active_runs=1,
     tags=["bronze", "arboviroses", "chikungunya"],
-    default_args={"retries": 2, "retry_delay": __import__("datetime").timedelta(minutes=5)},
+    default_args={"retries": 2, "retry_delay": timedelta(minutes=5)},
 ) as dag:
 
     def _extract(**context):
         from pipelines.extraction.arboviroses import run
 
-        ano = context["data_interval_start"].year
-        result = run(agravo="chikungunya", ano=ano)
+        year = context["data_interval_start"].year
+        result = run(agravo="chikungunya", ano=year)
         context["ti"].xcom_push(key="extraction_result", value=result)
 
     extract = PythonOperator(
@@ -34,12 +34,36 @@ with DAG(
         pool="extraction_pool",
     )
 
-    ano_mes = "{{ data_interval_start.strftime('%Y%m') }}"
+    year_month = "{{ data_interval_start.strftime('%Y%m') }}"
     submit, sensor = make_spark_operator(
         task_id="bronze_chikungunya_spark",
         template_name="bronze-chikungunya.yaml",
-        substitutions={"ANO_MES": ano_mes},
+        substitutions={"ANO_MES": year_month},
         dag=dag,
     )
 
-    extract >> submit
+    def _emit_lineage(**context):
+        from pipelines.common.lineage import Dataset, emit_complete, emit_start
+
+        run_id = emit_start(
+            job_name="dag_bronze_chikungunya.extract",
+            inputs=[Dataset.s3("apidadosabertos.saude.gov.br/api/notif/chikungunya")],
+            outputs=[Dataset.s3(f"s3://landing/arboviroses/chikungunya/{year_month}/")],
+        )
+        if run_id:
+            row_count = (
+                context["ti"].xcom_pull(task_ids="extract_chikungunya", key="extraction_result") or {}
+            ).get("row_count", 0)
+            emit_complete(
+                job_name="dag_bronze_chikungunya.extract",
+                run_id=run_id,
+                output_facets={"rowCount": {"rowCount": row_count}},
+            )
+
+    emit_lineage = PythonOperator(
+        task_id="emit_lineage",
+        python_callable=_emit_lineage,
+        trigger_rule="all_success",
+    )
+
+    extract >> submit >> sensor >> emit_lineage

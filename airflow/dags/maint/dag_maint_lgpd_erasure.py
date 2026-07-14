@@ -1,23 +1,23 @@
-"""DAG de Esquecimento LGPD — Art. 18, inciso VI (direito ao apagamento).
+"""LGPD Erasure DAG — Art. 18, section VI (right to erasure).
 
-Executa sob demanda (trigger manual) quando um titular solicita exclusão de
-seus dados pessoais. Recebe `cpf_hash` como parâmetro e apaga o rastro
-do titular em todas as camadas do Data Lake.
+Runs on demand (manual trigger) when a data subject requests deletion of their
+personal data. Receives `cpf_hash` as a parameter and erases the subject's
+trace across all Data Lake layers.
 
-Fluxo:
-  delete_oltp          → Remove linha de oltp.paciente por CPF real
-  delete_bronze        → Remove partições Bronze com o hash do titular
-  vacuum_bronze_now    → VACUUM RETAIN 0 HOURS — elimina versões Delta
-  reprocess_silver     → Recalcula Silver sem o titular (DROP + re-ingest)
-  delete_gold          → Remove SK do titular de dim_paciente e fatos
-  audit_log            → Registra execução em gold_dw.lgpd_erasure_audit
+Flow:
+  delete_oltp          → Removes row from oltp.paciente by real CPF
+  delete_bronze        → Removes Bronze partitions with the subject's hash
+  vacuum_bronze_now    → VACUUM RETAIN 0 HOURS — purges Delta versions
+  reprocess_silver     → Recalculates Silver without the subject (DROP + re-ingest)
+  delete_gold          → Removes subject SK from dim_paciente and facts
+  audit_log            → Records execution in gold_dw.lgpd_erasure_audit
 
-IMPORTANTE:
-  - CPF real é passado via Airflow Variable 'lgpd_cpf_<run_id>' e apagado
-    após leitura — nunca persiste em XCom nem em log estruturado.
-  - `cpf_hash` no parâmetro é o SHA-256 que identifica o titular no lake.
+IMPORTANT:
+  - Real CPF is passed via Airflow Variable 'lgpd_cpf_<run_id>' and deleted
+    after first read — never persists in XCom or structured logs.
+  - `cpf_hash` parameter is the SHA-256 that identifies the subject in the lake.
 
-Spec: docs/specs/airflow-dags.md — seção "dag_maint_lgpd_erasure"
+Spec: docs/specs/airflow-dags.md — section "dag_maint_lgpd_erasure"
 ADR:  docs/architecture/decisions/0004-pii-masking.md
 """
 from __future__ import annotations
@@ -35,7 +35,7 @@ log = logging.getLogger(__name__)
 
 _DEFAULT_ARGS = {
     "owner": "data-eng",
-    "retries": 0,          # erasure não deve retentar parcialmente
+    "retries": 0,
     "start_date": datetime(2024, 1, 1),
 }
 
@@ -46,10 +46,8 @@ def _hash_cpf(cpf: str) -> str:
     return hashlib.sha256((_PII_SALT + cpf).encode()).hexdigest()
 
 
-# ── Tasks ─────────────────────────────────────────────────────────────────────
-
 def _delete_oltp(**context) -> str:
-    """Remove titular de oltp.paciente usando CPF real (passado via Variable)."""
+    """Removes subject from oltp.paciente using real CPF (passed via Variable)."""
     from airflow.models import Variable
 
     run_id = context["run_id"]
@@ -57,14 +55,11 @@ def _delete_oltp(**context) -> str:
 
     cpf = Variable.get(var_key, default_var=None)
     if cpf:
-        # Apaga a Variable imediatamente após leitura
         Variable.delete(var_key)
-        log.info("[lgpd/oltp] CPF carregado e Variable apagada: %s", var_key)
+        log.info("[lgpd/oltp] CPF loaded and Variable deleted: %s", var_key)
     else:
-        # Fallback: usa cpf_hash do param (não é possível deletar por hash no OLTP)
         log.warning(
-            "[lgpd/oltp] Variable %s não encontrada — "
-            "exclusão OLTP requer CPF real via Variable.",
+            "[lgpd/oltp] Variable %s not found — OLTP deletion requires real CPF via Variable.",
             var_key,
         )
         context["ti"].xcom_push(key="oltp_status", value="skipped_no_cpf")
@@ -81,82 +76,79 @@ def _delete_oltp(**context) -> str:
     )
     cur = conn.cursor()
     cur.execute("DELETE FROM oltp.paciente WHERE cpf = %s", (cpf,))
-    deleted = cur.rowcount
+    deleted_count = cur.rowcount
     conn.commit()
     cur.close()
     conn.close()
 
-    # Deriva o hash para uso nas tasks seguintes (CPF real não vai mais adiante)
     cpf_hash = _hash_cpf(cpf)
     context["ti"].xcom_push(key="cpf_hash", value=cpf_hash)
-    context["ti"].xcom_push(key="oltp_deleted_rows", value=deleted)
-    log.info("[lgpd/oltp] Deletadas %d linhas. Hash derivado para downstream.", deleted)
-    return f"deleted:{deleted}"
+    context["ti"].xcom_push(key="oltp_deleted_rows", value=deleted_count)
+    log.info("[lgpd/oltp] Deleted %d rows. Hash derived for downstream.", deleted_count)
+    return f"deleted:{deleted_count}"
 
 
 def _delete_bronze(**context) -> str:
-    """Remove arquivos Bronze onde _batch_id ou id_paciente_hash bate com o titular."""
+    """Removes Bronze files where id_paciente_hash matches the subject."""
     ti = context["ti"]
     cpf_hash = (
         ti.xcom_pull(task_ids="delete_oltp", key="cpf_hash")
         or context["params"].get("cpf_hash")
     )
     if not cpf_hash:
-        raise ValueError("cpf_hash não disponível — delete_oltp falhou ou parâmetro ausente")
+        raise ValueError("cpf_hash not available — delete_oltp failed or parameter missing")
 
     from pyspark.sql import functions as F
 
-    from _common.spark_local import make_local_spark, BRONZE_TABLES as _BRONZE_TABLES
+    from _common.spark_local import BRONZE_TABLES, make_local_spark
 
     spark = make_local_spark("lgpd_delete_bronze")
     results = {}
-    for path in _BRONZE_TABLES:
+    for path in BRONZE_TABLES:
         try:
             from delta import DeltaTable
 
             if DeltaTable.isDeltaTable(spark, path):
-                dt = DeltaTable.forPath(spark, path)
-                # Bronze tem id_paciente_hash se vier do OLTP; outros usam nu_notific
+                delta_table = DeltaTable.forPath(spark, path)
                 if "id_paciente_hash" in spark.read.format("delta").load(path).columns:
-                    dt.delete(F.col("id_paciente_hash") == cpf_hash)
+                    delta_table.delete(F.col("id_paciente_hash") == cpf_hash)
                     results[path] = "deleted"
                 else:
                     results[path] = "skipped_no_hash_col"
-        except Exception as e:
-            results[path] = f"error: {e}"
-            log.error("[lgpd/bronze] %s: %s", path, e)
+        except Exception as exc:
+            results[path] = f"error: {exc}"
+            log.error("[lgpd/bronze] %s: %s", path, exc)
 
     ti.xcom_push(key="bronze_results", value=results)
     return str(results)
 
 
 def _vacuum_bronze_now(**context) -> str:
-    """VACUUM RETAIN 0 HOURS no Bronze — elimina versões físicas com PII."""
-    from _common.spark_local import make_local_spark, BRONZE_TABLES as _BRONZE_TABLES
+    """VACUUM RETAIN 0 HOURS on Bronze — physically purges versions with PII."""
+    from _common.spark_local import BRONZE_TABLES, make_local_spark
 
     spark = make_local_spark("lgpd_vacuum_bronze")
-    # Desabilita proteção de retenção mínima (necessário para RETAIN 0)
     spark.conf.set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
 
     errors = []
-    for path in _BRONZE_TABLES:
+    for path in BRONZE_TABLES:
         try:
             spark.sql(f"VACUUM delta.`{path}` RETAIN 0 HOURS")
-            log.info("[lgpd/vacuum] VACUUM 0h concluído: %s", path)
-        except Exception as e:
-            log.error("[lgpd/vacuum] falhou %s: %s", path, e)
+            log.info("[lgpd/vacuum] VACUUM 0h complete: %s", path)
+        except Exception as exc:
+            log.error("[lgpd/vacuum] failed %s: %s", path, exc)
             errors.append(path)
 
     if errors:
-        raise RuntimeError(f"VACUUM falhou em {len(errors)} tabela(s): {errors}")
+        raise RuntimeError(f"VACUUM failed on {len(errors)} table(s): {errors}")
     return "vacuum_complete"
 
 
 def _reprocess_silver(**context) -> str:
-    """Marca Silver do titular como deletado via soft-delete (flag is_deleted=true).
+    """Soft-deletes subject rows in Silver (is_deleted=true flag).
 
-    Re-ingestão completa seria custosa — o campo is_deleted permite que queries
-    downstream filtrem o titular sem reprocessamento total.
+    Full re-ingestion would be expensive — is_deleted lets downstream queries
+    filter the subject without full reprocessing.
     """
     ti = context["ti"]
     cpf_hash = (
@@ -164,13 +156,13 @@ def _reprocess_silver(**context) -> str:
         or context["params"].get("cpf_hash")
     )
     if not cpf_hash:
-        raise ValueError("cpf_hash não disponível")
+        raise ValueError("cpf_hash not available")
 
     from pyspark.sql import functions as F
 
     from _common.spark_local import make_local_spark
 
-    _SILVER_TABLES = [
+    silver_tables = [
         "s3a://silver/notificacao/",
         "s3a://silver/sim_obitos/",
         "s3a://silver/vacinacao_pni/",
@@ -180,34 +172,34 @@ def _reprocess_silver(**context) -> str:
     ]
     spark = make_local_spark("lgpd_reprocess_silver")
     results = {}
-    for path in _SILVER_TABLES:
+    for path in silver_tables:
         try:
             from delta import DeltaTable
 
             if DeltaTable.isDeltaTable(spark, path):
                 cols = spark.read.format("delta").load(path).columns
                 if "id_paciente_hash" in cols:
-                    dt = DeltaTable.forPath(spark, path)
-                    dt.delete(F.col("id_paciente_hash") == cpf_hash)
+                    delta_table = DeltaTable.forPath(spark, path)
+                    delta_table.delete(F.col("id_paciente_hash") == cpf_hash)
                     results[path] = "deleted"
                 else:
                     results[path] = "skipped"
-        except Exception as e:
-            results[path] = f"error: {e}"
+        except Exception as exc:
+            results[path] = f"error: {exc}"
 
     ti.xcom_push(key="silver_results", value=results)
     return str(results)
 
 
 def _delete_gold(**context) -> str:
-    """Remove titular de dim_paciente e marca fatos com sk_paciente inválido."""
+    """Removes subject from dim_paciente and nullifies fact FKs."""
     ti = context["ti"]
     cpf_hash = (
         ti.xcom_pull(task_ids="delete_oltp", key="cpf_hash")
         or context["params"].get("cpf_hash")
     )
     if not cpf_hash:
-        raise ValueError("cpf_hash não disponível")
+        raise ValueError("cpf_hash not available")
 
     import psycopg2
 
@@ -220,28 +212,23 @@ def _delete_gold(**context) -> str:
     )
     cur = conn.cursor()
 
-    # Busca SK do titular antes de deletar (para nullificar fatos)
     cur.execute(
         "SELECT sk_paciente FROM gold_dw.dim_paciente WHERE id_paciente_hash = %s",
         (cpf_hash,),
     )
-    sk_rows = cur.fetchall()
-    sks = [r[0] for r in sk_rows]
+    sk_list = [row[0] for row in cur.fetchall()]
 
-    if sks:
-        # Nullifica referência nos fatos (mantém fato, remove identificação)
-        sk_list = tuple(sks) if len(sks) > 1 else f"({sks[0]})"
-        for fato in ("fato_atendimento", "fato_atendimento_stream"):
+    if sk_list:
+        for fact_table in ("fato_atendimento", "fato_atendimento_stream"):
             try:
                 cur.execute(
-                    f"UPDATE gold_dw.{fato} "
+                    f"UPDATE gold_dw.{fact_table} "
                     f"SET sk_paciente = NULL WHERE sk_paciente = ANY(%s)",
-                    (sks,),
+                    (sk_list,),
                 )
             except Exception:
-                pass  # tabela pode não existir
+                pass
 
-        # Remove titular de dim_paciente (todas as versões SCD2)
         cur.execute(
             "DELETE FROM gold_dw.dim_paciente WHERE id_paciente_hash = %s",
             (cpf_hash,),
@@ -251,19 +238,21 @@ def _delete_gold(**context) -> str:
     cur.close()
     conn.close()
 
-    result = {"sks_removed": sks}
+    result = {"sks_removed": sk_list}
     ti.xcom_push(key="gold_results", value=result)
-    log.info("[lgpd/gold] SKs removidos: %s", sks)
+    log.info("[lgpd/gold] SKs removed: %s", sk_list)
     return str(result)
 
 
 def _audit_log(**context) -> str:
-    """Registra execução do erasure em gold_dw.lgpd_erasure_audit."""
+    """Records erasure execution in gold_dw.lgpd_erasure_audit."""
     ti = context["ti"]
     cpf_hash = (
         ti.xcom_pull(task_ids="delete_oltp", key="cpf_hash")
         or context["params"].get("cpf_hash")
     )
+
+    import json
 
     import psycopg2
 
@@ -276,7 +265,6 @@ def _audit_log(**context) -> str:
     )
     cur = conn.cursor()
 
-    # Cria tabela de auditoria se não existir
     cur.execute("""
         CREATE TABLE IF NOT EXISTS gold_dw.lgpd_erasure_audit (
             id              BIGSERIAL PRIMARY KEY,
@@ -290,8 +278,6 @@ def _audit_log(**context) -> str:
             operator        TEXT         DEFAULT current_user
         )
     """)
-
-    import json
 
     cur.execute(
         """
@@ -311,15 +297,13 @@ def _audit_log(**context) -> str:
     conn.commit()
     cur.close()
     conn.close()
-    log.info("[lgpd/audit] Registro criado para run_id=%s", context["run_id"])
+    log.info("[lgpd/audit] Audit record created for run_id=%s", context["run_id"])
     return "audit_logged"
 
 
-# ── DAG ───────────────────────────────────────────────────────────────────────
-
 with DAG(
     dag_id="dag_maint_lgpd_erasure",
-    schedule_interval=None,    # somente trigger manual
+    schedule_interval=None,
     start_date=datetime(2024, 1, 1),
     catchup=False,
     max_active_runs=1,
@@ -331,9 +315,9 @@ with DAG(
             default="",
             type="string",
             description=(
-                "SHA-256 do CPF do titular (64 chars hex). "
-                "Para fornecer o CPF real, crie a Airflow Variable "
-                "'lgpd_cpf_<run_id>' antes de triggerar."
+                "SHA-256 of the subject's CPF (64 hex chars). "
+                "To provide the real CPF, create Airflow Variable "
+                "'lgpd_cpf_<run_id>' before triggering."
             ),
         ),
     },
@@ -375,7 +359,7 @@ with DAG(
     audit_log = PythonOperator(
         task_id="audit_log",
         python_callable=_audit_log,
-        trigger_rule="all_done",   # audita mesmo se alguma task falhar
+        trigger_rule="all_done",
         execution_timeout=timedelta(minutes=5),
     )
 

@@ -1,11 +1,11 @@
-"""DAG Bronze — Municípios.
+"""DAG Bronze — Municipalities.
 
-Snapshot mensal da tabela de municípios (IBGE × regiões de saúde), persistido em
-Delta Lake (bronze/municipios/), particionado por snapshot_date.
+Monthly snapshot of municipalities (IBGE × health regions), stored in
+Delta Lake (bronze/municipios/), partitioned by snapshot_date.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -19,7 +19,7 @@ with DAG(
     catchup=False,
     max_active_runs=1,
     tags=["bronze", "municipios", "ibge"],
-    default_args={"retries": 2, "retry_delay": __import__("datetime").timedelta(minutes=5)},
+    default_args={"retries": 2, "retry_delay": timedelta(minutes=5)},
 ) as dag:
 
     def _extract(**context):
@@ -42,4 +42,28 @@ with DAG(
         dag=dag,
     )
 
-    extract >> submit
+    def _emit_lineage(**context):
+        from pipelines.common.lineage import Dataset, emit_complete, emit_start
+
+        run_id = emit_start(
+            job_name="dag_bronze_municipios.extract",
+            inputs=[Dataset.s3("ibge.gov.br/api/v1/localidades/municipios")],
+            outputs=[Dataset.s3(f"s3://landing/municipios/{snapshot_date}/")],
+        )
+        if run_id:
+            row_count = (
+                context["ti"].xcom_pull(task_ids="extract_municipios", key="extraction_result") or {}
+            ).get("row_count", 0)
+            emit_complete(
+                job_name="dag_bronze_municipios.extract",
+                run_id=run_id,
+                output_facets={"rowCount": {"rowCount": row_count}},
+            )
+
+    emit_lineage = PythonOperator(
+        task_id="emit_lineage",
+        python_callable=_emit_lineage,
+        trigger_rule="all_success",
+    )
+
+    extract >> submit >> sensor >> emit_lineage

@@ -1,15 +1,15 @@
-"""Carga SCD Type 2 de dim_paciente no Gold DW.
+"""SCD Type 2 load for dim_paciente in the Gold DW.
 
-Lê silver/paciente/ filtrado por snapshot_date e aplica lógica SCD2
-diretamente no Postgres via psycopg2 (sem Spark — dado já está mascarado
-e o volume por snapshot é pequeno o suficiente para carga direta).
+Reads silver/paciente/ filtered by snapshot_date and applies SCD2 logic
+directly in Postgres via psycopg2 (no Spark — data is already masked
+and snapshot volume is small enough for direct load).
 
-Algoritmo SCD2:
-  1. Para cada hash no Silver:
-     a. Se não existe em dim_paciente → INSERT (dt_inicio=hoje, dt_fim=9999-12-31)
-     b. Se existe mas atributos mudaram → fechar versão atual + INSERT nova
-     c. Se existe e igual → skip
-  2. Retorna número de linhas inseridas
+SCD2 algorithm:
+  1. For each hash in Silver:
+     a. Does not exist in dim_paciente → INSERT (dt_inicio=today, dt_fim=9999-12-31)
+     b. Exists but attributes changed → close current version + INSERT new
+     c. Exists and unchanged → skip
+  2. Returns number of inserted rows
 
 ADR: docs/architecture/decisions/0006-scd2.md
 """
@@ -23,15 +23,22 @@ log = logging.getLogger(__name__)
 
 _OPEN_DATE = date(9999, 12, 31)
 
-# Atributos que, se mudarem, geram nova versão SCD2
 _SCD2_ATTRS = ("sexo", "ano_nascimento", "cep_regiao", "municipio_codigo_ibge")
 
 
 def _pg_conn(gold: bool = False):
     import psycopg2
 
-    user     = os.environ.get("POSTGRES_GOLD_USER", "gold_engineer") if gold else os.environ.get("POSTGRES_USER", "postgres")
-    password = os.environ.get("POSTGRES_GOLD_PASSWORD", "gold_engineer") if gold else os.environ.get("POSTGRES_PASSWORD", "postgres")
+    user = (
+        os.environ.get("POSTGRES_GOLD_USER", "gold_engineer")
+        if gold
+        else os.environ.get("POSTGRES_USER", "postgres")
+    )
+    password = (
+        os.environ.get("POSTGRES_GOLD_PASSWORD", "gold_engineer")
+        if gold
+        else os.environ.get("POSTGRES_PASSWORD", "postgres")
+    )
     return psycopg2.connect(
         host=os.environ.get("POSTGRES_HOST", "postgres"),
         port=int(os.environ.get("POSTGRES_PORT", "5432")),
@@ -43,7 +50,7 @@ def _pg_conn(gold: bool = False):
 
 
 def _read_silver(snapshot_date: str) -> list[dict]:
-    """Lê silver/paciente/ para a data de snapshot via S3/Delta ou arquivo local."""
+    """Reads silver/paciente/ for the given snapshot_date via S3/Delta or local file."""
     silver_path = os.environ.get("SILVER_PACIENTE_PATH", "s3a://silver/paciente/")
 
     try:
@@ -72,10 +79,9 @@ def _read_silver(snapshot_date: str) -> list[dict]:
         )
         return [row.asDict() for row in df.collect()]
 
-    except Exception as e:
-        log.warning("[dim_paciente] Falha ao ler via Spark (%s) — tentando JSON local", e)
+    except Exception as exc:
+        log.warning("[dim_paciente] Spark read failed (%s) — falling back to local JSON", exc)
 
-    # Fallback: lê fixture local (útil em testes sem Spark)
     import json
     from pathlib import Path
 
@@ -96,39 +102,37 @@ def _read_silver(snapshot_date: str) -> list[dict]:
 
 
 def load_dim_paciente(snapshot_date: str | None = None) -> int:
-    """Executa carga SCD2 de dim_paciente para o snapshot_date informado.
+    """Runs SCD2 load for dim_paciente for the given snapshot_date.
 
-    Retorna o número de linhas inseridas (novas versões).
+    Returns the number of inserted rows (new versions).
     """
-    snap = snapshot_date or date.today().strftime("%Y%m%d")
+    snapshot = snapshot_date or date.today().strftime("%Y%m%d")
     today = date.today()
 
-    silver_rows = _read_silver(snap)
+    silver_rows = _read_silver(snapshot)
     if not silver_rows:
-        log.warning("[dim_paciente] Nenhuma linha no Silver para snapshot_date=%s", snap)
+        log.warning("[dim_paciente] No rows in Silver for snapshot_date=%s", snapshot)
         return 0
 
     conn = _pg_conn(gold=True)
-    cur  = conn.cursor()
+    cur = conn.cursor()
     inserted = 0
 
     try:
         for row in silver_rows:
-            hash_val = row["id_paciente_hash"]
+            patient_hash = row["id_paciente_hash"]
 
-            # Busca versão atual
             cur.execute(
                 """
                 SELECT sk_paciente, sexo, ano_nascimento, cep_regiao, municipio_codigo_ibge
                 FROM gold_dw.dim_paciente
                 WHERE id_paciente_hash = %s AND is_current = TRUE
                 """,
-                (hash_val,),
+                (patient_hash,),
             )
             existing = cur.fetchone()
 
             if existing is None:
-                # Novo titular — INSERT direto
                 cur.execute(
                     """
                     INSERT INTO gold_dw.dim_paciente
@@ -137,39 +141,36 @@ def load_dim_paciente(snapshot_date: str | None = None) -> int:
                     VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, %s)
                     """,
                     (
-                        hash_val,
+                        patient_hash,
                         row.get("sexo"),
                         row.get("ano_nascimento"),
                         row.get("cep_regiao"),
                         row.get("municipio_codigo_ibge"),
                         today,
                         _OPEN_DATE,
-                        snap,
+                        snapshot,
                     ),
                 )
                 inserted += 1
 
             else:
-                # Verifica se algum atributo mudou
-                _, ex_sexo, ex_ano, ex_cep, ex_mun = existing
+                _, curr_sexo, curr_year, curr_cep, curr_city = existing
                 changed = (
-                    ex_sexo != row.get("sexo")
-                    or ex_ano != row.get("ano_nascimento")
-                    or ex_cep != row.get("cep_regiao")
-                    or ex_mun != row.get("municipio_codigo_ibge")
+                    curr_sexo != row.get("sexo")
+                    or curr_year != row.get("ano_nascimento")
+                    or curr_cep != row.get("cep_regiao")
+                    or curr_city != row.get("municipio_codigo_ibge")
                 )
 
                 if changed:
-                    # Fecha versão atual
                     cur.execute(
                         """
                         UPDATE gold_dw.dim_paciente
                         SET dt_fim = %s, is_current = FALSE
                         WHERE id_paciente_hash = %s AND is_current = TRUE
                         """,
-                        (today - __import__("datetime").timedelta(days=1), hash_val),
+                        (today - __import__("datetime").timedelta(days=1), patient_hash),
                     )
-                    # Insere nova versão
                     cur.execute(
                         """
                         INSERT INTO gold_dw.dim_paciente
@@ -178,20 +179,20 @@ def load_dim_paciente(snapshot_date: str | None = None) -> int:
                         VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, %s)
                         """,
                         (
-                            hash_val,
+                            patient_hash,
                             row.get("sexo"),
                             row.get("ano_nascimento"),
                             row.get("cep_regiao"),
                             row.get("municipio_codigo_ibge"),
                             today,
                             _OPEN_DATE,
-                            snap,
+                            snapshot,
                         ),
                     )
                     inserted += 1
 
         conn.commit()
-        log.info("[dim_paciente] SCD2 concluído: %d versões inseridas (snapshot=%s)", inserted, snap)
+        log.info("[dim_paciente] SCD2 complete: %d versions inserted (snapshot=%s)", inserted, snapshot)
         return inserted
 
     except Exception:

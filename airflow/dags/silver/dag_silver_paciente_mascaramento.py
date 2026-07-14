@@ -1,29 +1,30 @@
-"""DAG Silver — Mascaramento de Pacientes (bronze/oltp_paciente → silver/paciente/).
+"""DAG Silver — Patient Masking (bronze/oltp_paciente → silver/paciente/).
 
-Roda 30 min após dag_bronze_oltp_snapshot e aguarda via ExternalTaskSensor.
+Runs 30 min after dag_bronze_oltp_snapshot and waits via ExternalTaskSensor.
 
-O job Spark aplica mascaramento LGPD (ADR-0004):
-  - cpf        → SHA-256 + salt (determinístico para joins)
-  - nome       → suprimido
-  - data_nascimento → generalizado para ano_nascimento
-  - cep        → truncado para 3 dígitos
-  - email/telefone → suprimidos
+The Spark job applies LGPD masking (ADR-0004):
+  - cpf        → SHA-256 + salt (deterministic for joins)
+  - nome       → suppressed
+  - data_nascimento → generalized to ano_nascimento (birth year)
+  - cep        → truncated to 3 digits
+  - email/telefone → suppressed
 
-validate_no_pii() garante que nenhuma coluna PII sobrevive antes de gravar
-no Silver — falha aqui abortará o DAG e bloqueará todos os downstream.
+validate_no_pii() ensures no PII column survives before writing to Silver —
+failure here aborts the DAG and blocks all downstream.
 """
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
 from airflow import DAG
+from airflow.operators.python import PythonOperator
 from airflow.sensors.external_task import ExternalTaskSensor
 
 from _common.spark_k8s import make_spark_operator
 
 with DAG(
     dag_id="dag_silver_paciente_mascaramento",
-    schedule_interval="30 1 * * *",   # 30 min após Bronze OLTP (01h00)
+    schedule_interval="30 1 * * *",   # 30 min after Bronze OLTP (01:00)
     start_date=datetime(2024, 1, 1),
     catchup=False,
     max_active_runs=1,
@@ -52,4 +53,21 @@ with DAG(
         dag=dag,
     )
 
-    wait_bronze >> submit
+    def _emit_lineage(**context):
+        from pipelines.common.lineage import Dataset, emit_complete, emit_start
+
+        run_id = emit_start(
+            job_name="dag_silver_paciente_mascaramento",
+            inputs=[Dataset.s3(f"s3://bronze/oltp_paciente/{snapshot_date}/")],
+            outputs=[Dataset.s3("s3://silver/paciente/")],
+        )
+        if run_id:
+            emit_complete(job_name="dag_silver_paciente_mascaramento", run_id=run_id)
+
+    emit_lineage = PythonOperator(
+        task_id="emit_lineage",
+        python_callable=_emit_lineage,
+        trigger_rule="all_success",
+    )
+
+    wait_bronze >> submit >> sensor >> emit_lineage

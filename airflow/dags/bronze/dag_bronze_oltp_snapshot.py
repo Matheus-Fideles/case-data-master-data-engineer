@@ -1,11 +1,11 @@
 """DAG Bronze — OLTP Snapshot (oltp.paciente → landing/ → bronze/oltp_paciente/).
 
-Diferente dos outros DAGs Bronze (REST API), aqui a extração usa psycopg2
-para ler diretamente do Postgres OLTP. A ingestão Delta segue o mesmo padrão
+Unlike other Bronze DAGs (REST API), extraction uses psycopg2 to read
+directly from the OLTP Postgres. Delta ingestion follows the same pattern
 via SparkKubernetesOperator.
 
-⚠️  Produz Bronze COM PII. Pool separado (oltp_pool) limita concorrência.
-Downstream imediato: dag_silver_paciente_mascaramento (30 min depois).
+WARNING: Produces Bronze WITH PII. Separate pool (oltp_pool) limits concurrency.
+Immediate downstream: dag_silver_paciente_mascaramento (30 min later).
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from _common.spark_k8s import make_spark_operator
 
 with DAG(
     dag_id="dag_bronze_oltp_snapshot",
-    schedule_interval="0 1 * * *",   # todo dia à 01h00
+    schedule_interval="0 1 * * *",   # daily at 01:00
     start_date=datetime(2024, 1, 1),
     catchup=False,
     max_active_runs=1,
@@ -52,4 +52,28 @@ with DAG(
         dag=dag,
     )
 
-    extract >> submit
+    def _emit_lineage(**context):
+        from pipelines.common.lineage import Dataset, emit_complete, emit_start
+
+        run_id = emit_start(
+            job_name="dag_bronze_oltp_snapshot.extract",
+            inputs=[Dataset.postgres("oltp", "paciente")],
+            outputs=[Dataset.s3(f"s3://landing/oltp_paciente/{snapshot_date}/")],
+        )
+        if run_id:
+            row_count = (
+                context["ti"].xcom_pull(task_ids="extract_oltp_paciente", key="extraction_result") or {}
+            ).get("row_count", 0)
+            emit_complete(
+                job_name="dag_bronze_oltp_snapshot.extract",
+                run_id=run_id,
+                output_facets={"rowCount": {"rowCount": row_count}},
+            )
+
+    emit_lineage = PythonOperator(
+        task_id="emit_lineage",
+        python_callable=_emit_lineage,
+        trigger_rule="all_success",
+    )
+
+    extract >> submit >> sensor >> emit_lineage

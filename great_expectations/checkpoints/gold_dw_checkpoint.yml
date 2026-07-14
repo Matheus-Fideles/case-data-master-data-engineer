@@ -1,0 +1,32 @@
+name: gold_dw_checkpoint
+config_version: 1.0
+class_name: SimpleCheckpoint
+run_name_template: "%Y%m%d-%H%M%S-gold-dw"
+
+validations:
+  - batch_request:
+      datasource_name: postgres_gold
+      data_connector_name: default_runtime_data_connector_name
+      data_asset_name: gold_dw.dim_paciente
+      runtime_parameters:
+        query: "SELECT * FROM gold_dw.dim_paciente WHERE is_current = TRUE"
+      batch_identifiers:
+        run_id: manual
+    expectation_suite_name: gold_dw_suite
+    action_list:
+      - name: store_validation_result
+        action:
+          class_name: StoreValidationResultAction
+      - name: update_data_docs
+        action:
+          class_name: UpdateDataDocsAction
+          site_names:
+            - local_site
+      - name: send_slack_notification_on_failure
+        action:
+          class_name: SlackNotificationAction
+          slack_webhook: ${SLACK_WEBHOOK_URL}
+          notify_on: failure
+          renderer:
+            module_name: great_expectations.render.renderer.slack_renderer
+            class_name: SlackRenderer

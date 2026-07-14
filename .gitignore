@@ -63,6 +63,9 @@ docker-compose.override.yml
 *_rsa
 *.p12
 
+# ── Great Expectations (uncommitted não vai ao repo) ─────────
+great_expectations/uncommitted/
+
 # ── Gerado ───────────────────────────────────────────────────
 *.log
 *.pid

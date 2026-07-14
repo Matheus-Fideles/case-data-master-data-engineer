@@ -1,0 +1,110 @@
+{
+  "expectation_suite_name": "silver_paciente_suite",
+  "expectations": [
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": { "min_value": 1 },
+      "meta": { "notes": "Silver paciente não pode estar vazio após carga" }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "id_paciente_hash" }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "snapshot_date" }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "masking_version" }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "ano_nascimento" }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "cep_regiao" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "id_paciente_hash" },
+      "meta": { "notes": "Todo paciente deve ter hash — sem identidade anonimizada" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "snapshot_date" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": { "column": "id_paciente_hash" },
+      "meta": { "notes": "NK único por snapshot — colisão de hash indica bug crítico" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "kwargs": {
+        "column": "id_paciente_hash",
+        "regex": "^[0-9a-f]{64}$"
+      },
+      "meta": { "notes": "SHA-256 deve ser 64 chars hexadecimais lowercase" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "ano_nascimento",
+        "min_value": 1900,
+        "max_value": 2024
+      },
+      "meta": { "notes": "Ano de nascimento deve ser razoável" }
+    },
+    {
+      "expectation_type": "expect_column_value_lengths_to_equal",
+      "kwargs": { "column": "cep_regiao", "value": 3 },
+      "meta": { "notes": "CEP truncado a 3 dígitos (ADR-0004)" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "sexo",
+        "value_set": ["M", "F", "O"]
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "kwargs": {
+        "column": "masking_version",
+        "regex": "^masking-\\d+\\.\\d+\\.\\d+$"
+      },
+      "meta": { "notes": "Versão semântica do mascaramento para auditoria" }
+    },
+    {
+      "expectation_type": "expect_column_to_not_exist",
+      "kwargs": { "column": "cpf" },
+      "meta": { "notes": "CRÍTICO: CPF não pode existir no Silver (LGPD)" }
+    },
+    {
+      "expectation_type": "expect_column_to_not_exist",
+      "kwargs": { "column": "nome" },
+      "meta": { "notes": "LGPD: nome suprimido no Silver" }
+    },
+    {
+      "expectation_type": "expect_column_to_not_exist",
+      "kwargs": { "column": "email" },
+      "meta": { "notes": "LGPD: email suprimido no Silver" }
+    },
+    {
+      "expectation_type": "expect_column_to_not_exist",
+      "kwargs": { "column": "telefone" },
+      "meta": { "notes": "LGPD: telefone suprimido no Silver" }
+    },
+    {
+      "expectation_type": "expect_column_to_not_exist",
+      "kwargs": { "column": "data_nascimento" },
+      "meta": { "notes": "LGPD: data_nascimento generalizada para ano_nascimento" }
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "0.18.0",
+    "notes": "Suite de qualidade Silver paciente — LGPD + integridade de mascaramento"
+  }
+}
