@@ -62,6 +62,39 @@ health-check: ## Verifica saúde de todos os serviços via curl
 	@curl -sf http://localhost:3000/api/health > /dev/null && echo "  ✓ Grafana" || echo "  ✗ Grafana"
 	@curl -sf http://localhost:5000/api/v1/namespaces > /dev/null && echo "  ✓ Marquez" || echo "  ✗ Marquez"
 
+# ── Demo (single command) ────────────────────────────────────────────────────
+.PHONY: demo demo-stop demo-reset
+
+demo: ## One command: compose up + airflow setup + smoke-min + open UIs
+	@printf '\n\033[1;36m━━━  Case Santander — Data Master Demo  ━━━\033[0m\n\n'
+	@echo "[1/4] Starting core services (Postgres, MinIO, Airflow)..."
+	@$(MAKE) --no-print-directory up-core
+	@echo ""
+	@echo "[2/4] Configuring Airflow (connections, pools, variables)..."
+	@$(MAKE) --no-print-directory airflow-setup
+	@echo ""
+	@echo "[3/4] Running smoke tests (quality gates, security invariants)..."
+	@$(MAKE) --no-print-directory smoke-min
+	@echo ""
+	@echo "[4/4] Opening browser tabs..."
+	@open http://localhost:8080 2>/dev/null || xdg-open http://localhost:8080 2>/dev/null || true
+	@open http://localhost:9001 2>/dev/null || xdg-open http://localhost:9001 2>/dev/null || true
+	@printf '\n\033[1;32m━━━  Demo ready!  ━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n'
+	@printf '\n  \033[36mAirflow\033[0m   http://localhost:8080  (admin / admin)\n'
+	@printf '  \033[36mMinIO\033[0m     http://localhost:9001  (minioadmin / minioadmin)\n'
+	@printf '\n  Trigger pipelines :  \033[33mmake run-demo-pipeline\033[0m\n'
+	@printf '  Add lineage UI     :  \033[33mmake up-observability\033[0m  → Marquez :5000\n'
+	@printf '  Stop demo          :  \033[33mmake demo-stop\033[0m\n\n'
+
+demo-stop: ## Stop demo (preserves volumes for next run)
+	$(COMPOSE) --profile core down
+	@echo "Demo stopped. Volumes preserved — run 'make demo' to resume."
+
+demo-reset: ## Wipe volumes and restart a fresh demo
+	$(COMPOSE) --profile core --profile streaming --profile serving --profile observability \
+		down --volumes --remove-orphans
+	@$(MAKE) --no-print-directory demo
+
 # ── Smoke tests (pytest) ──────────────────────────────────────────────────────
 .PHONY: smoke smoke-min
 
