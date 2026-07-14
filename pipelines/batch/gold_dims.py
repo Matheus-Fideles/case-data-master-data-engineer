@@ -9,6 +9,7 @@ Args:
   --ano_mes       YYYYMM    (for dim_vacina and dim_tempo)
   --batch_id      DAG run_id
 """
+
 from __future__ import annotations
 
 import argparse
@@ -23,9 +24,9 @@ from pipelines.common.spark import build_spark
 
 _REGISTRY: dict[str, type[DimLoader]] = {
     "municipio": MunicipioDimLoader,
-    "agravo":    AgravoDimLoader,
-    "vacina":    VacinaDimLoader,
-    "tempo":     TempoDimLoader,
+    "agravo": AgravoDimLoader,
+    "vacina": VacinaDimLoader,
+    "tempo": TempoDimLoader,
 }
 
 

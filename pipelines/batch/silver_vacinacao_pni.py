@@ -7,6 +7,7 @@ Args:
   --ano_mes  YYYYMM
   --batch_id DAG run_id
 """
+
 from __future__ import annotations
 
 import argparse
@@ -25,8 +26,7 @@ class VacinacaoPniSilverJob(SilverJob):
 
     def transform(self, df: DataFrame) -> DataFrame:
         return (
-            df
-            .withColumn("data_vacina", F.to_date(F.col("data_vacina"), "yyyy-MM-dd"))
+            df.withColumn("data_vacina", F.to_date(F.col("data_vacina"), "yyyy-MM-dd"))
             .withColumn(
                 "codigo_municipio_paciente",
                 F.col("codigo_municipio_paciente").cast(IntegerType()),

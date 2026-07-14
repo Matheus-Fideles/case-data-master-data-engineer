@@ -2,13 +2,13 @@
 
 Loads fato_obito into Postgres gold_dw. Runs annually.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import DAG
-
 from _common.spark_k8s import make_spark_operator
+from airflow import DAG
 
 with DAG(
     dag_id="dag_gold_fato_obito",
@@ -19,7 +19,6 @@ with DAG(
     tags=["gold", "fato", "obito", "sim"],
     default_args={"retries": 2, "retry_delay": __import__("datetime").timedelta(minutes=5)},
 ) as dag:
-
     ano = "{{ (data_interval_start.year - 1) | string }}"
     make_spark_operator(
         task_id="gold_fato_obito",

@@ -1,4 +1,5 @@
 """Unit tests for PII masking utilities."""
+
 import os
 
 import pytest
@@ -36,6 +37,7 @@ def test_validate_no_pii_passes(tmp_path):
     spark = SparkSession.builder.master("local").appName("test").getOrCreate()
     df = spark.createDataFrame([{"id": 1, "agravo": "dengue"}])
     from pipelines.common.masking import validate_no_pii
+
     validate_no_pii(df)  # must not raise
     spark.stop()
 
@@ -48,6 +50,7 @@ def test_validate_no_pii_raises():
     spark = SparkSession.builder.master("local").appName("test").getOrCreate()
     df = spark.createDataFrame([{"cpf": "12345678900", "id": 1}])
     from pipelines.common.masking import validate_no_pii
+
     with pytest.raises(ValueError, match="PII"):
         validate_no_pii(df)
     spark.stop()

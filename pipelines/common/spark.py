@@ -9,6 +9,7 @@ OpenLineage (data lineage):
   all Delta and S3 inputs/outputs without changes in the job code.
   See: docs/observability.md — section "Lineage"
 """
+
 from __future__ import annotations
 
 import os
@@ -16,7 +17,7 @@ import os
 from delta import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession
 
-_OL_URL       = os.environ.get("OPENLINEAGE_URL", "")
+_OL_URL = os.environ.get("OPENLINEAGE_URL", "")
 _OL_NAMESPACE = os.environ.get("OPENLINEAGE_NAMESPACE", "batch")
 
 
@@ -59,8 +60,7 @@ def build_spark(app_name: str) -> SparkSession:
 def _configure_openlineage(builder, app_name: str):
     """Adds the OpenLineage listener to the SparkSession."""
     return (
-        builder
-        .config(
+        builder.config(
             "spark.extraListeners",
             "io.openlineage.spark.agent.OpenLineageSparkListener",
         )

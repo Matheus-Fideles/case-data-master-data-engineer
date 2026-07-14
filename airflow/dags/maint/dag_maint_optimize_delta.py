@@ -13,12 +13,14 @@ Retention by layer (ADR-0004 / LGPD Art. 16):
 Spec: docs/specs/airflow-dags.md — section "dag_maint_optimize_delta"
 ADR:  docs/architecture/decisions/0004-pii-masking.md
 """
+
 from __future__ import annotations
 
 import logging
 import os
 from datetime import datetime, timedelta
 
+from _common.spark_local import BRONZE_TABLES as _BRONZE_TABLES
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
@@ -32,7 +34,6 @@ _DEFAULT_ARGS = {
 }
 
 # Delta tables per layer and their compaction settings
-from _common.spark_local import BRONZE_TABLES as _BRONZE_TABLES
 
 _SILVER_TABLES = [
     "s3a://silver/notificacao/",
@@ -46,19 +47,20 @@ _SILVER_TABLES = [
 # Gold Delta tables (excluding those that live in Postgres)
 _GOLD_TABLES: list[tuple[str, list[str]]] = [
     # (path, columns for ZORDER) — empty list = OPTIMIZE without ZORDER
-    ("s3a://gold/fato_notificacao/",  ["sk_agravo", "sk_municipio_notificacao"]),
-    ("s3a://gold/fato_obito/",        ["sk_agravo", "sk_municipio_residencia"]),
-    ("s3a://gold/fato_vacinacao/",    ["sk_vacina", "sk_municipio_aplicacao"]),
+    ("s3a://gold/fato_notificacao/", ["sk_agravo", "sk_municipio_notificacao"]),
+    ("s3a://gold/fato_obito/", ["sk_agravo", "sk_municipio_residencia"]),
+    ("s3a://gold/fato_vacinacao/", ["sk_vacina", "sk_municipio_aplicacao"]),
 ]
 
 # Retention per layer in hours
-_RETAIN_BRONZE_H = int(os.environ.get("DELTA_RETAIN_BRONZE_HOURS", "168"))   # 7d
-_RETAIN_SILVER_H = int(os.environ.get("DELTA_RETAIN_SILVER_HOURS", "720"))   # 30d
-_RETAIN_GOLD_H   = int(os.environ.get("DELTA_RETAIN_GOLD_HOURS",   "720"))   # 30d
+_RETAIN_BRONZE_H = int(os.environ.get("DELTA_RETAIN_BRONZE_HOURS", "168"))  # 7d
+_RETAIN_SILVER_H = int(os.environ.get("DELTA_RETAIN_SILVER_HOURS", "720"))  # 30d
+_RETAIN_GOLD_H = int(os.environ.get("DELTA_RETAIN_GOLD_HOURS", "720"))  # 30d
 
 
 def _get_spark():
     from _common.spark_local import make_local_spark
+
     return make_local_spark("maint_optimize_delta")
 
 
@@ -104,8 +106,7 @@ def _optimize_gold_zorder(**context) -> dict:
             else:
                 sql = f"OPTIMIZE delta.`{path}`"
             log.info("[gold] %s", sql)
-            df = spark.sql(sql)
-            metrics = df.collect()[0].asDict() if df.count() > 0 else {}
+            spark.sql(sql)
             results[path] = {"status": "ok", "zorder_cols": zorder_cols}
             log.info("[gold] OPTIMIZE+ZORDER complete: %s", path)
         except Exception as e:
@@ -163,7 +164,7 @@ def _vacuum_silver_gold(**context) -> dict:
 
 with DAG(
     dag_id="dag_maint_optimize_delta",
-    schedule_interval="0 3 * * 0",   # domingo 03:00
+    schedule_interval="0 3 * * 0",  # domingo 03:00
     start_date=datetime(2024, 1, 1),
     catchup=False,
     max_active_runs=1,
@@ -171,7 +172,6 @@ with DAG(
     default_args=_DEFAULT_ARGS,
     doc_md=__doc__,
 ) as dag:
-
     optimize_bronze = PythonOperator(
         task_id="optimize_bronze",
         python_callable=_optimize_bronze,

@@ -7,6 +7,7 @@ Subclasses only need to declare schema + partition_col and optionally
 override add_partition() when the partition is derived from an existing field
 (e.g.: vacinacao_pni derives year_month from data_vacina).
 """
+
 from __future__ import annotations
 
 import logging
@@ -74,17 +75,11 @@ class BronzeJob(ABC):
     # ── shared steps (do not override) ───────────────────────────────────────
 
     def _read(self, spark: SparkSession, input_path: str) -> DataFrame:
-        return (
-            spark.read
-            .option("multiLine", "false")
-            .schema(self.schema)
-            .json(input_path)
-        )
+        return spark.read.option("multiLine", "false").schema(self.schema).json(input_path)
 
     def _add_metadata(self, df: DataFrame, source_url: str, batch_id: str) -> DataFrame:
         return (
-            df
-            .withColumn("_source_url", F.lit(source_url))
+            df.withColumn("_source_url", F.lit(source_url))
             .withColumn("_ingestion_ts", F.current_timestamp())
             .withColumn("_batch_id", F.lit(batch_id))
         )
@@ -95,8 +90,7 @@ class BronzeJob(ABC):
 
     def _write(self, df: DataFrame, output_path: str, partition_val: str) -> None:
         (
-            df.write
-            .format("delta")
+            df.write.format("delta")
             .mode("overwrite")
             .option("replaceWhere", f"{self.partition_col} = '{partition_val}'")
             .option("mergeSchema", "true")

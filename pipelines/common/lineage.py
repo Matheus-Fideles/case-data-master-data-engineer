@@ -15,35 +15,37 @@ Expected env vars:
 
 If OPENLINEAGE_URL is not set, all functions are no-ops.
 """
+
 from __future__ import annotations
 
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
 log = logging.getLogger(__name__)
 
-_OL_URL       = os.environ.get("OPENLINEAGE_URL", "").rstrip("/")
+_OL_URL = os.environ.get("OPENLINEAGE_URL", "").rstrip("/")
 _OL_NAMESPACE = os.environ.get("OPENLINEAGE_NAMESPACE", "batch")
-_PRODUCER     = "https://github.com/matheusfideles/case-data-master-data-engineer"
+_PRODUCER = "https://github.com/matheusfideles/case-data-master-data-engineer"
 
 
 @dataclass
 class Dataset:
     """Represents an input or output dataset in the lineage graph."""
-    name: str                           # e.g.: "s3://bronze/dengue/"
-    namespace: str = "s3"              # e.g.: "s3", "postgres", "kafka"
+
+    name: str  # e.g.: "s3://bronze/dengue/"
+    namespace: str = "s3"  # e.g.: "s3", "postgres", "kafka"
     facets: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def s3(cls, path: str, **facets) -> "Dataset":
+    def s3(cls, path: str, **facets) -> Dataset:
         return cls(name=path, namespace="s3", facets=facets)
 
     @classmethod
-    def postgres(cls, schema: str, table: str, **facets) -> "Dataset":
+    def postgres(cls, schema: str, table: str, **facets) -> Dataset:
         host = os.environ.get("POSTGRES_HOST", "postgres")
         return cls(
             name=f"{schema}.{table}",
@@ -52,7 +54,7 @@ class Dataset:
         )
 
     @classmethod
-    def kafka(cls, topic: str, **facets) -> "Dataset":
+    def kafka(cls, topic: str, **facets) -> Dataset:
         bootstrap = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
         return cls(name=topic, namespace=f"kafka://{bootstrap}", facets=facets)
 
@@ -107,12 +109,14 @@ def emit_fail(
 
 # ── Decorator helper ──────────────────────────────────────────────────────────
 
+
 def with_lineage(
     job_name: str,
     inputs: list[Dataset] | None = None,
     outputs: list[Dataset] | None = None,
 ):
     """Decorator that wraps a function with automatic START/COMPLETE/FAIL emission."""
+
     def decorator(fn):
         def wrapper(*args, **kwargs):
             run_id = emit_start(job_name, inputs=inputs, outputs=outputs)
@@ -123,12 +127,15 @@ def with_lineage(
             except Exception as exc:
                 emit_fail(job_name, run_id or "", error=str(exc), inputs=inputs, outputs=outputs)
                 raise
+
         wrapper.__name__ = fn.__name__
         return wrapper
+
     return decorator
 
 
 # ── Internal implementation ───────────────────────────────────────────────────
+
 
 def _post_event(
     event_type: str,
@@ -143,7 +150,7 @@ def _post_event(
     try:
         import requests
 
-        now = datetime.now(tz=timezone.utc).isoformat()
+        now = datetime.now(tz=UTC).isoformat()
 
         def _ds(ds: Dataset) -> dict:
             d: dict = {
@@ -187,7 +194,9 @@ def _post_event(
         if resp.status_code not in (200, 201, 204):
             log.warning(
                 "[lineage] Marquez returned %d for event %s/%s",
-                resp.status_code, event_type, job_name,
+                resp.status_code,
+                event_type,
+                job_name,
             )
     except Exception as e:
         log.warning("[lineage] Failed to emit event %s: %s", event_type, e)

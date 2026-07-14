@@ -5,14 +5,14 @@ and stores them in Delta Lake (bronze/vacinacao_pni/), partitioned by year_month
 
 patient_id arrives pre-hashed from the Ministry (codigo_paciente).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from _common.spark_k8s import make_spark_operator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
-from _common.spark_k8s import make_spark_operator
 
 with DAG(
     dag_id="dag_bronze_vacinacao_pni",
@@ -55,7 +55,8 @@ with DAG(
         )
         if run_id:
             row_count = (
-                context["ti"].xcom_pull(task_ids="extract_vacinacao_pni", key="extraction_result") or {}
+                context["ti"].xcom_pull(task_ids="extract_vacinacao_pni", key="extraction_result")
+                or {}
             ).get("row_count", 0)
             emit_complete(
                 job_name="dag_bronze_vacinacao_pni.extract",

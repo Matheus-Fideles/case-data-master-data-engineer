@@ -1,4 +1,5 @@
 """Helper para submeter SparkApplication via SparkKubernetesOperator."""
+
 from __future__ import annotations
 
 import uuid

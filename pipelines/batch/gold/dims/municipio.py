@@ -1,4 +1,5 @@
 """Strategy: carrega dim_municipio (SCD Type 1)."""
+
 from __future__ import annotations
 
 from pyspark.sql import functions as F
@@ -7,7 +8,6 @@ from pipelines.batch.gold.base import DimLoader
 
 
 class MunicipioDimLoader(DimLoader):
-
     def load(self, snapshot_date: str, **_) -> int:
         df = (
             self._spark.read.format("delta")

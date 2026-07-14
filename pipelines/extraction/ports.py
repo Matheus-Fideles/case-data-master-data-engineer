@@ -3,6 +3,7 @@
 Domain logic (WHAT to extract and WHERE to store) is expressed in terms
 of these protocols. Concrete adapters are in adapters/.
 """
+
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable

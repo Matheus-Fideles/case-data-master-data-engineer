@@ -14,6 +14,7 @@ Metrics: `dlq_reprocessed_total{reason}` → Prometheus Pushgateway.
 
 Spec: docs/specs/airflow-dags.md — section "dag_maint_dlq_reprocessor"
 """
+
 from __future__ import annotations
 
 import json
@@ -27,11 +28,11 @@ from airflow.operators.python import PythonOperator
 log = logging.getLogger(__name__)
 
 _KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-_DLQ_TOPIC       = os.environ.get("KAFKA_TOPIC_DLQ", "notificacoes.dlq")
+_DLQ_TOPIC = os.environ.get("KAFKA_TOPIC_DLQ", "notificacoes.dlq")
 _BRONZE_DLQ_PATH = "s3a://bronze/atendimentos_dlq_late/"
 _DLQ_INVALID_PATH = "s3a://landing/dlq/schema_invalid/"
 _MAX_POLL_RECORDS = int(os.environ.get("DLQ_MAX_POLL_RECORDS", "500"))
-_CONSUMER_GROUP  = "airflow-dlq-reprocessor"
+_CONSUMER_GROUP = "airflow-dlq-reprocessor"
 
 _DEFAULT_ARGS = {
     "owner": "data-eng",
@@ -49,13 +50,15 @@ def _consume_dlq(**context) -> dict:
         log.warning("confluent_kafka not available — skipping DLQ reprocessing")
         return {"late": [], "schema_invalid": [], "unknown": [], "skipped": True}
 
-    consumer = Consumer({
-        "bootstrap.servers": _KAFKA_BOOTSTRAP,
-        "group.id": _CONSUMER_GROUP,
-        "auto.offset.reset": "earliest",
-        "enable.auto.commit": False,
-        "max.poll.records": _MAX_POLL_RECORDS,
-    })
+    consumer = Consumer(
+        {
+            "bootstrap.servers": _KAFKA_BOOTSTRAP,
+            "group.id": _CONSUMER_GROUP,
+            "auto.offset.reset": "earliest",
+            "enable.auto.commit": False,
+            "max.poll.records": _MAX_POLL_RECORDS,
+        }
+    )
     consumer.subscribe([_DLQ_TOPIC])
 
     buckets: dict[str, list] = {
@@ -78,9 +81,9 @@ def _consume_dlq(**context) -> dict:
 
             try:
                 payload = json.loads(msg.value().decode("utf-8", errors="replace"))
-                reason  = payload.get("dlq_reason", "UNKNOWN_FIELD")
+                reason = payload.get("dlq_reason", "UNKNOWN_FIELD")
             except Exception:
-                reason  = "SCHEMA_INVALID"
+                reason = "SCHEMA_INVALID"
                 payload = {"raw": msg.value().decode("utf-8", errors="replace")}
 
             if reason == "LATE_EVENT":
@@ -103,9 +106,9 @@ def _consume_dlq(**context) -> dict:
     finally:
         consumer.close()
 
-    context["ti"].xcom_push(key="dlq_buckets_summary", value={
-        k: len(v) for k, v in buckets.items()
-    })
+    context["ti"].xcom_push(
+        key="dlq_buckets_summary", value={k: len(v) for k, v in buckets.items()}
+    )
     # Store lists in XCom (small enough for metadata)
     context["ti"].xcom_push(key="late_events", value=buckets["late"][:50])
     context["ti"].xcom_push(key="schema_invalid", value=buckets["schema_invalid"][:50])
@@ -130,11 +133,10 @@ def _reprocess_late_events(**context) -> str:
     )
 
     run_ts = context["data_interval_start"].strftime("%Y%m%d_%H%M%S")
-    key    = f"dlq/late/{run_ts}/events.jsonl"
+    key = f"dlq/late/{run_ts}/events.jsonl"
 
     payload_bytes = "\n".join(
-        json.dumps({**ev, "is_late": True, "reprocessed_at": run_ts})
-        for ev in late
+        json.dumps({**ev, "is_late": True, "reprocessed_at": run_ts}) for ev in late
     ).encode()
 
     s3.put_object(Bucket="landing", Key=key, Body=payload_bytes)
@@ -160,7 +162,7 @@ def _store_schema_invalid(**context) -> str:
     )
 
     run_ts = context["data_interval_start"].strftime("%Y%m%d_%H%M%S")
-    key    = f"dlq/schema_invalid/{run_ts}/events.jsonl"
+    key = f"dlq/schema_invalid/{run_ts}/events.jsonl"
 
     payload_bytes = "\n".join(json.dumps(ev) for ev in invalid).encode()
     s3.put_object(Bucket="landing", Key=key, Body=payload_bytes)
@@ -204,7 +206,6 @@ with DAG(
     default_args=_DEFAULT_ARGS,
     doc_md=__doc__,
 ) as dag:
-
     consume_dlq = PythonOperator(
         task_id="consume_dlq",
         python_callable=_consume_dlq,

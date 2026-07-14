@@ -1,4 +1,5 @@
 """Strategy: carrega fato_obito (SIM)."""
+
 from __future__ import annotations
 
 from pyspark.sql import functions as F
@@ -7,7 +8,6 @@ from pipelines.batch.gold.base import FatoLoader
 
 
 class ObitoFatoLoader(FatoLoader):
-
     def load(self, ano: str, batch_id: str, **_) -> int:
         df = (
             self._spark.read.format("delta")

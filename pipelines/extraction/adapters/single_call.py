@@ -3,6 +3,7 @@
 Implements the same interface as PaginationStrategy but makes a single
 HTTP request — used by the municipality API which returns ~5570 records.
 """
+
 from __future__ import annotations
 
 import logging

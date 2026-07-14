@@ -13,6 +13,7 @@ SCD2 algorithm:
 
 ADR: docs/architecture/decisions/0006-scd2.md
 """
+
 from __future__ import annotations
 
 import json
@@ -60,27 +61,39 @@ def _read_silver(snapshot_date: str) -> list[dict]:
 
     try:
         from delta import configure_spark_with_delta_pip
-        from pyspark.sql import SparkSession, functions as F
+        from pyspark.sql import SparkSession
+        from pyspark.sql import functions as F
 
-        spark = (
-            configure_spark_with_delta_pip(
-                SparkSession.builder.appName("gold_dim_paciente")
-                .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-                .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-                .config("spark.hadoop.fs.s3a.endpoint", os.environ.get("MINIO_ENDPOINT", "http://minio:9000"))
-                .config("spark.hadoop.fs.s3a.access.key", os.environ.get("MINIO_ROOT_USER", "minioadmin"))
-                .config("spark.hadoop.fs.s3a.secret.key", os.environ.get("MINIO_ROOT_PASSWORD", "minioadmin"))
-                .config("spark.hadoop.fs.s3a.path.style.access", "true")
-                .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-                .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
-                .master("local[2]")
-            ).getOrCreate()
-        )
+        spark = configure_spark_with_delta_pip(
+            SparkSession.builder.appName("gold_dim_paciente")
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            .config(
+                "spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+            )
+            .config(
+                "spark.hadoop.fs.s3a.endpoint",
+                os.environ.get("MINIO_ENDPOINT", "http://minio:9000"),
+            )
+            .config(
+                "spark.hadoop.fs.s3a.access.key", os.environ.get("MINIO_ROOT_USER", "minioadmin")
+            )
+            .config(
+                "spark.hadoop.fs.s3a.secret.key",
+                os.environ.get("MINIO_ROOT_PASSWORD", "minioadmin"),
+            )
+            .config("spark.hadoop.fs.s3a.path.style.access", "true")
+            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+            .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+            .master("local[2]")
+        ).getOrCreate()
 
         df = (
-            spark.read.format("delta").load(silver_path)
+            spark.read.format("delta")
+            .load(silver_path)
             .filter(F.col("snapshot_date") == snapshot_date)
-            .select("id_paciente_hash", "sexo", "ano_nascimento", "cep_regiao", "municipio_codigo_ibge")
+            .select(
+                "id_paciente_hash", "sexo", "ano_nascimento", "cep_regiao", "municipio_codigo_ibge"
+            )
         )
         return [row.asDict() for row in df.collect()]
 
@@ -94,7 +107,9 @@ def _read_silver(snapshot_date: str) -> list[dict]:
             {
                 "id_paciente_hash": r.get("id_paciente_hash", f"hash_{r['id_paciente']}"),
                 "sexo": r.get("sexo"),
-                "ano_nascimento": int(r["data_nascimento"][:4]) if r.get("data_nascimento") else None,
+                "ano_nascimento": int(r["data_nascimento"][:4])
+                if r.get("data_nascimento")
+                else None,
                 "cep_regiao": r.get("cep", "")[:3] if r.get("cep") else None,
                 "municipio_codigo_ibge": r.get("municipio_codigo_ibge"),
             }
@@ -194,7 +209,9 @@ def load_dim_paciente(snapshot_date: str | None = None) -> int:
                     inserted += 1
 
         conn.commit()
-        log.info("[dim_paciente] SCD2 complete: %d versions inserted (snapshot=%s)", inserted, snapshot)
+        log.info(
+            "[dim_paciente] SCD2 complete: %d versions inserted (snapshot=%s)", inserted, snapshot
+        )
         return inserted
 
     except Exception:

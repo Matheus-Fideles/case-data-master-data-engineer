@@ -1,4 +1,5 @@
 """PII masking utilities compliant with LGPD."""
+
 from __future__ import annotations
 
 import hashlib
@@ -28,7 +29,14 @@ def mask_paciente(df, cpf_col: str = "cpf", output_col: str = "id_paciente_hash"
 
 def validate_no_pii(df, pii_cols: list[str] | None = None) -> None:
     """Raises ValueError if any known PII column exists in the DataFrame."""
-    pii_cols = pii_cols or ["cpf", "rg", "nome_completo", "data_nascimento", "telefone", "email_pessoal"]
+    pii_cols = pii_cols or [
+        "cpf",
+        "rg",
+        "nome_completo",
+        "data_nascimento",
+        "telefone",
+        "email_pessoal",
+    ]
     found = [c for c in df.columns if c.lower() in pii_cols]
     if found:
         raise ValueError(f"DataFrame contains unmasked PII columns: {found}")

@@ -4,6 +4,7 @@ Single place that reads environment variables and instantiates infrastructure.
 Individual extractors call `make_extraction_service()` and receive
 a ready ExtractionService — without direct coupling to boto3 or the filesystem.
 """
+
 from __future__ import annotations
 
 import os

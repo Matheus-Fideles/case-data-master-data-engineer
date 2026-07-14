@@ -3,14 +3,14 @@
 Daily snapshot of health establishments from CNES, stored in
 Delta Lake (bronze/cnes/), partitioned by snapshot_date.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from _common.spark_k8s import make_spark_operator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
-from _common.spark_k8s import make_spark_operator
 
 with DAG(
     dag_id="dag_bronze_cnes",

@@ -3,6 +3,7 @@
 Page/size pagination. Uses ExtractionService + PageNumberPagination (DIP + Strategy).
 codigo_paciente arrives pre-hashed by the Ministry — no PII.
 """
+
 from __future__ import annotations
 
 import logging
@@ -45,4 +46,8 @@ def run(ano: str | int = "2024") -> dict:
         fetch_fn=fetch,
         source_url=source_url,
     )
-    return {"row_count": result.row_count, "output_path": result.output_path, "source_url": result.source_url}
+    return {
+        "row_count": result.row_count,
+        "output_path": result.output_path,
+        "source_url": result.source_url,
+    }

@@ -11,6 +11,7 @@ Args:
   --input_path  override (opcional)
   --output_path override (opcional)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -22,32 +23,34 @@ from pyspark.sql.types import StringType, StructField, StructType
 from pipelines.batch.bronze_base import BronzeJob
 from pipelines.common.spark import build_spark
 
-_SCHEMA = StructType([
-    StructField("codigo_documento", StringType(), True),
-    StructField("codigo_paciente", StringType(), True),
-    StructField("codigo_vacina", StringType(), True),
-    StructField("sigla_vacina", StringType(), True),
-    StructField("descricao_vacina", StringType(), True),
-    StructField("data_vacina", StringType(), True),
-    StructField("codigo_dose_vacina", StringType(), True),
-    StructField("descricao_dose_vacina", StringType(), True),
-    StructField("codigo_cnes_estabelecimento", StringType(), True),
-    StructField("codigo_municipio_estabelecimento", StringType(), True),
-    StructField("sigla_uf_estabelecimento", StringType(), True),
-    StructField("nome_municipio_estabelecimento", StringType(), True),
-    StructField("numero_idade_paciente", StringType(), True),
-    StructField("nome_raca_cor_paciente", StringType(), True),
-    StructField("codigo_raca_cor_paciente", StringType(), True),
-    StructField("tipo_sexo_paciente", StringType(), True),
-    StructField("codigo_municipio_paciente", StringType(), True),
-    StructField("sigla_uf_paciente", StringType(), True),
-    StructField("descricao_estrategia_vacinacao", StringType(), True),
-    StructField("codigo_estrategia_vacinacao", StringType(), True),
-    StructField("codigo_vacina_fabricante", StringType(), True),
-    StructField("descricao_vacina_fabricante", StringType(), True),
-    StructField("status_documento", StringType(), True),
-    StructField("data_entrada_rnds", StringType(), True),
-])
+_SCHEMA = StructType(
+    [
+        StructField("codigo_documento", StringType(), True),
+        StructField("codigo_paciente", StringType(), True),
+        StructField("codigo_vacina", StringType(), True),
+        StructField("sigla_vacina", StringType(), True),
+        StructField("descricao_vacina", StringType(), True),
+        StructField("data_vacina", StringType(), True),
+        StructField("codigo_dose_vacina", StringType(), True),
+        StructField("descricao_dose_vacina", StringType(), True),
+        StructField("codigo_cnes_estabelecimento", StringType(), True),
+        StructField("codigo_municipio_estabelecimento", StringType(), True),
+        StructField("sigla_uf_estabelecimento", StringType(), True),
+        StructField("nome_municipio_estabelecimento", StringType(), True),
+        StructField("numero_idade_paciente", StringType(), True),
+        StructField("nome_raca_cor_paciente", StringType(), True),
+        StructField("codigo_raca_cor_paciente", StringType(), True),
+        StructField("tipo_sexo_paciente", StringType(), True),
+        StructField("codigo_municipio_paciente", StringType(), True),
+        StructField("sigla_uf_paciente", StringType(), True),
+        StructField("descricao_estrategia_vacinacao", StringType(), True),
+        StructField("codigo_estrategia_vacinacao", StringType(), True),
+        StructField("codigo_vacina_fabricante", StringType(), True),
+        StructField("descricao_vacina_fabricante", StringType(), True),
+        StructField("status_documento", StringType(), True),
+        StructField("data_entrada_rnds", StringType(), True),
+    ]
+)
 
 
 class VacinacaoPniBronzeJob(BronzeJob):

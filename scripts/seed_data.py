@@ -5,6 +5,7 @@ Purpose: ensure OFFLINE_MODE=1 works in the demo without internet.
 
 Uses a small page_size (100 records) — sufficient for demonstration.
 """
+
 from __future__ import annotations
 
 import json
@@ -27,7 +28,7 @@ def fetch_one_page(url: str, params: dict) -> list[dict]:
     resp.raise_for_status()
     data = resp.json()
     # find the list inside the response
-    for key, val in data.items():
+    for _, val in data.items():
         if isinstance(val, list):
             return val
     return []

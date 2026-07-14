@@ -3,11 +3,11 @@
 Tests pure orchestration logic without boto3 or requests.
 Usa mocks dos ports LandingStoragePort e CachePort.
 """
-from unittest.mock import MagicMock, call
+
+from unittest.mock import MagicMock
 
 import pytest
-
-from pipelines.extraction.service import ExtractionResult, ExtractionService
+from pipelines.extraction.service import ExtractionService
 
 
 def _make_landing(path="s3a://landing/fonte/data/part.json"):
@@ -30,7 +30,9 @@ class TestExtractionServiceOnline:
         svc = ExtractionService(landing=landing, cache=cache, offline=False)
 
         fetch_fn = MagicMock(return_value=_RECORDS)
-        result = svc.run(fonte="test", data_ref="2024", fetch_fn=fetch_fn, source_url="http://api/test")
+        result = svc.run(
+            fonte="test", data_ref="2024", fetch_fn=fetch_fn, source_url="http://api/test"
+        )
 
         fetch_fn.assert_called_once()
         landing.write.assert_called_once_with(_RECORDS, "test", "2024", "http://api/test")
@@ -42,7 +44,12 @@ class TestExtractionServiceOnline:
         cache = _make_cache()
         svc = ExtractionService(landing=_make_landing(), cache=cache, offline=False)
 
-        svc.run(fonte="test", data_ref="2024", fetch_fn=MagicMock(return_value=_RECORDS), source_url="http://x")
+        svc.run(
+            fonte="test",
+            data_ref="2024",
+            fetch_fn=MagicMock(return_value=_RECORDS),
+            source_url="http://x",
+        )
 
         cache.save.assert_called_once_with(_RECORDS, "test", "2024")
 
@@ -50,7 +57,12 @@ class TestExtractionServiceOnline:
         svc = ExtractionService(landing=_make_landing(), cache=_make_cache(), offline=False)
 
         with pytest.raises(ValueError, match="No records obtained"):
-            svc.run(fonte="test", data_ref="2024", fetch_fn=MagicMock(return_value=[]), source_url="http://x")
+            svc.run(
+                fonte="test",
+                data_ref="2024",
+                fetch_fn=MagicMock(return_value=[]),
+                source_url="http://x",
+            )
 
 
 class TestExtractionServiceOffline:

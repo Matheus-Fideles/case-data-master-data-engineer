@@ -2,13 +2,12 @@
 
 Used when OFFLINE_MODE=True to avoid calls to external APIs.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 from pathlib import Path
-
-from pipelines.extraction.ports import CachePort
 
 log = logging.getLogger(__name__)
 

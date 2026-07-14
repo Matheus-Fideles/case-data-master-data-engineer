@@ -2,14 +2,14 @@
 
 Extracts zika virus notifications and stores them in Delta Lake (bronze/arboviroses/zika/).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from _common.spark_k8s import make_spark_operator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
-from _common.spark_k8s import make_spark_operator
 
 with DAG(
     dag_id="dag_bronze_zika",

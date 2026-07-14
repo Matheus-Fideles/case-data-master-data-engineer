@@ -11,6 +11,7 @@ any downstream use.
 
 PII fields present in this file due to extraction requirements — see ADR-0004.
 """
+
 from __future__ import annotations
 
 import logging

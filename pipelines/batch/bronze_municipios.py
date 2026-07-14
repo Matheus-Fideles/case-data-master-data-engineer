@@ -8,6 +8,7 @@ Args:
   --input_path     override (opcional)
   --output_path    override (opcional)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -17,19 +18,21 @@ from pyspark.sql.types import StringType, StructField, StructType
 from pipelines.batch.bronze_base import BronzeJob
 from pipelines.common.spark import build_spark
 
-_SCHEMA = StructType([
-    StructField("codigo_regiao_pais", StringType(), True),
-    StructField("regiao_pais", StringType(), True),
-    StructField("codigo_uf", StringType(), True),
-    StructField("uf", StringType(), True),
-    StructField("codigo_macrorregiao_saude", StringType(), True),
-    StructField("macrorregiao_saude", StringType(), True),
-    StructField("codigo_regiao_saude", StringType(), True),
-    StructField("regiao_saude", StringType(), True),
-    StructField("codigo_municipio", StringType(), True),
-    StructField("municipio", StringType(), True),
-    StructField("populacao_estimada_ibge_2022", StringType(), True),
-])
+_SCHEMA = StructType(
+    [
+        StructField("codigo_regiao_pais", StringType(), True),
+        StructField("regiao_pais", StringType(), True),
+        StructField("codigo_uf", StringType(), True),
+        StructField("uf", StringType(), True),
+        StructField("codigo_macrorregiao_saude", StringType(), True),
+        StructField("macrorregiao_saude", StringType(), True),
+        StructField("codigo_regiao_saude", StringType(), True),
+        StructField("regiao_saude", StringType(), True),
+        StructField("codigo_municipio", StringType(), True),
+        StructField("municipio", StringType(), True),
+        StructField("populacao_estimada_ibge_2022", StringType(), True),
+    ]
+)
 
 
 class MunicipiosBronzeJob(BronzeJob):

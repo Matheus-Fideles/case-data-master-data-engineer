@@ -12,19 +12,19 @@ The Spark job applies LGPD masking (ADR-0004):
 validate_no_pii() ensures no PII column survives before writing to Silver —
 failure here aborts the DAG and blocks all downstream.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from _common.spark_k8s import make_spark_operator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.sensors.external_task import ExternalTaskSensor
 
-from _common.spark_k8s import make_spark_operator
-
 with DAG(
     dag_id="dag_silver_paciente_mascaramento",
-    schedule_interval="30 1 * * *",   # 30 min after Bronze OLTP (01:00)
+    schedule_interval="30 1 * * *",  # 30 min after Bronze OLTP (01:00)
     start_date=datetime(2024, 1, 1),
     catchup=False,
     max_active_runs=1,
@@ -34,7 +34,6 @@ with DAG(
         "retry_delay": timedelta(minutes=10),
     },
 ) as dag:
-
     wait_bronze = ExternalTaskSensor(
         task_id="wait_bronze_oltp_snapshot",
         external_dag_id="dag_bronze_oltp_snapshot",

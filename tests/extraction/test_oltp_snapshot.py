@@ -3,10 +3,10 @@
 Tests validation, delegation to ExtractionService and incremental
 extraction behaviour — without opening a real Postgres connection.
 """
+
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from pipelines.extraction.service import ExtractionResult
 
 
@@ -42,7 +42,9 @@ class TestOltpSnapshotRun:
         from pipelines.extraction import oltp_snapshot
 
         mock_svc = _mock_svc()
-        with patch("pipelines.extraction.oltp_snapshot.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.oltp_snapshot.make_extraction_service", return_value=mock_svc
+        ):
             with patch.object(oltp_snapshot, "_fetch_pacientes", return_value=_SAMPLE_RECORDS):
                 result = oltp_snapshot.run(snapshot_date="20240101")
 
@@ -53,7 +55,9 @@ class TestOltpSnapshotRun:
         from pipelines.extraction import oltp_snapshot
 
         mock_svc = _mock_svc()
-        with patch("pipelines.extraction.oltp_snapshot.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.oltp_snapshot.make_extraction_service", return_value=mock_svc
+        ):
             with patch.object(oltp_snapshot, "_fetch_pacientes", return_value=_SAMPLE_RECORDS):
                 oltp_snapshot.run(snapshot_date="20240101")
 
@@ -63,7 +67,9 @@ class TestOltpSnapshotRun:
         from pipelines.extraction import oltp_snapshot
 
         mock_svc = _mock_svc()
-        with patch("pipelines.extraction.oltp_snapshot.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.oltp_snapshot.make_extraction_service", return_value=mock_svc
+        ):
             with patch.object(oltp_snapshot, "_fetch_pacientes", return_value=_SAMPLE_RECORDS):
                 oltp_snapshot.run(snapshot_date="20240315")
 
@@ -73,7 +79,9 @@ class TestOltpSnapshotRun:
         from pipelines.extraction import oltp_snapshot
 
         mock_svc = _mock_svc()
-        with patch("pipelines.extraction.oltp_snapshot.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.oltp_snapshot.make_extraction_service", return_value=mock_svc
+        ):
             with patch.object(oltp_snapshot, "_fetch_pacientes", return_value=_SAMPLE_RECORDS):
                 oltp_snapshot.run(snapshot_date=None)
 
@@ -93,7 +101,9 @@ class TestOltpSnapshotRun:
             captured["updated_since"] = updated_since
             return _SAMPLE_RECORDS
 
-        with patch("pipelines.extraction.oltp_snapshot.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.oltp_snapshot.make_extraction_service", return_value=mock_svc
+        ):
             with patch.object(oltp_snapshot, "_fetch_pacientes", side_effect=fake_fetch):
                 oltp_snapshot.run(snapshot_date="20240101", incremental=True)
                 fetch_fn = mock_svc.run.call_args.kwargs["fetch_fn"]
@@ -111,7 +121,9 @@ class TestOltpSnapshotRun:
             captured["updated_since"] = updated_since
             return _SAMPLE_RECORDS
 
-        with patch("pipelines.extraction.oltp_snapshot.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.oltp_snapshot.make_extraction_service", return_value=mock_svc
+        ):
             with patch.object(oltp_snapshot, "_fetch_pacientes", side_effect=fake_fetch):
                 oltp_snapshot.run(snapshot_date="20240101", incremental=False)
                 fetch_fn = mock_svc.run.call_args.kwargs["fetch_fn"]

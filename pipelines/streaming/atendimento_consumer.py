@@ -16,9 +16,9 @@ guarantees exactly-once after restart (ADR 0005).
 Trigger configurable via STREAM_TRIGGER_SECS (default 30s).
 In CI uses Trigger.AvailableNow() via STREAM_CI_MODE=1.
 """
+
 from __future__ import annotations
 
-import json
 import logging
 import os
 
@@ -29,7 +29,6 @@ from pyspark.sql.types import (
     StringType,
     StructField,
     StructType,
-    TimestampType,
 )
 
 from pipelines.common.postgres import make_pg_connection
@@ -53,25 +52,27 @@ CI_MODE = os.environ.get("STREAM_CI_MODE", "0") == "1"
 # Optional JSON offset map e.g. '{"notificacoes.raw":{"0":100,"1":0}}'
 STARTING_OFFSETS = os.environ.get("STREAM_STARTING_OFFSETS", "")
 
-_PAYLOAD_SCHEMA = StructType([
-    StructField("id_atendimento", StringType(), True),
-    StructField("id_paciente_hash", StringType(), True),
-    StructField("id_cnes", StringType(), True),
-    StructField("ts_evento", StringType(), True),
-    StructField("tipo_atendimento", StringType(), True),
-    StructField("triagem", StringType(), True),
-])
+_PAYLOAD_SCHEMA = StructType(
+    [
+        StructField("id_atendimento", StringType(), True),
+        StructField("id_paciente_hash", StringType(), True),
+        StructField("id_cnes", StringType(), True),
+        StructField("ts_evento", StringType(), True),
+        StructField("tipo_atendimento", StringType(), True),
+        StructField("triagem", StringType(), True),
+    ]
+)
 
 _PG_TABLE_STREAM = "fato_atendimento_stream"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _parse_kafka(raw_df: DataFrame) -> tuple[DataFrame, DataFrame]:
     """Parses Kafka payload → (valid, DLQ)."""
     parsed = (
-        raw_df
-        .select(
+        raw_df.select(
             F.col("offset").alias("_kafka_offset"),
             F.col("partition").alias("_kafka_partition"),
             F.from_json(F.col("value").cast("string"), _PAYLOAD_SCHEMA).alias("data"),
@@ -88,8 +89,7 @@ def _parse_kafka(raw_df: DataFrame) -> tuple[DataFrame, DataFrame]:
 def _write_bronze(microbatch: DataFrame, batch_id: int) -> None:
     """Writes micro-batch to Delta bronze via MERGE (idempotent — ADR 0002)."""
     enriched = (
-        microbatch
-        .withColumn("_batch_id", F.lit(batch_id))
+        microbatch.withColumn("_batch_id", F.lit(batch_id))
         .withColumn("_ingestion_ts", F.current_timestamp())
         .withColumn("ano_mes", F.date_format("ts_evento", "yyyyMM"))
     )
@@ -106,13 +106,7 @@ def _write_bronze(microbatch: DataFrame, batch_id: int) -> None:
             .execute()
         )
     else:
-        (
-            enriched.write
-            .format("delta")
-            .mode("append")
-            .partitionBy("ano_mes")
-            .save(BRONZE_PATH)
-        )
+        (enriched.write.format("delta").mode("append").partitionBy("ano_mes").save(BRONZE_PATH))
 
     log.info("[bronze/stream] batch=%d rows=%d", batch_id, enriched.count())
 
@@ -122,8 +116,7 @@ def _write_gold_postgres(microbatch: DataFrame, batch_id: int) -> None:
     pg_url, pg_props = make_pg_connection()
 
     gold_df = (
-        microbatch
-        .withColumn("evento_ts", F.col("ts_evento"))
+        microbatch.withColumn("evento_ts", F.col("ts_evento"))
         .withColumn("sk_tempo", F.date_format("ts_evento", "yyyyMMdd").cast("int"))
         .withColumn("_load_ts", F.current_timestamp())
         .select(
@@ -152,17 +145,18 @@ def _send_to_dlq(spark: SparkSession, invalid_df: DataFrame, reason: str) -> Non
 
     dlq_df = invalid_df.withColumn(
         "value",
-        F.to_json(F.struct(
-            F.to_json(F.struct("*")).alias("original_payload"),
-            F.lit(KAFKA_TOPIC).alias("kafka_topic"),
-            F.lit(reason).alias("error_reason"),
-            F.current_timestamp().alias("rejected_at"),
-        )),
+        F.to_json(
+            F.struct(
+                F.to_json(F.struct("*")).alias("original_payload"),
+                F.lit(KAFKA_TOPIC).alias("kafka_topic"),
+                F.lit(reason).alias("error_reason"),
+                F.current_timestamp().alias("rejected_at"),
+            )
+        ),
     ).select(F.col("id_atendimento").cast("string").alias("key"), "value")
 
     (
-        dlq_df.write
-        .format("kafka")
+        dlq_df.write.format("kafka")
         .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP)
         .option("topic", KAFKA_DLQ_TOPIC)
         .save()
@@ -172,14 +166,13 @@ def _send_to_dlq(spark: SparkSession, invalid_df: DataFrame, reason: str) -> Non
 
 # ── Orchestration ────────────────────────────────────────────────────────────
 
+
 def _make_foreachbatch(spark: SparkSession):
     def _process(microbatch: DataFrame, batch_id: int) -> None:
         if microbatch.rdd.isEmpty():
             return
 
-        valid, invalid = _parse_kafka(
-            microbatch.select("offset", "partition", "value")
-        )
+        valid, invalid = _parse_kafka(microbatch.select("offset", "partition", "value"))
 
         if not invalid.rdd.isEmpty():
             _send_to_dlq(spark, invalid, "SCHEMA_INVALID")
@@ -213,8 +206,7 @@ def run(spark: SparkSession | None = None) -> None:
         starting_offsets = "latest"
 
     raw = (
-        spark.readStream
-        .format("kafka")
+        spark.readStream.format("kafka")
         .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP)
         .option("subscribe", KAFKA_TOPIC)
         .option("startingOffsets", starting_offsets)
@@ -224,8 +216,7 @@ def run(spark: SparkSession | None = None) -> None:
     )
 
     query = (
-        raw.writeStream
-        .foreachBatch(_make_foreachbatch(spark))
+        raw.writeStream.foreachBatch(_make_foreachbatch(spark))
         .option("checkpointLocation", CHECKPOINT_PATH)
         .queryName("atendimento_stream_consumer")
     )
@@ -238,7 +229,9 @@ def run(spark: SparkSession | None = None) -> None:
     stream = query.start()
     log.info(
         "Stream started | topic=%s trigger=%ss watermark=%s",
-        KAFKA_TOPIC, TRIGGER_SECS, WATERMARK,
+        KAFKA_TOPIC,
+        TRIGGER_SECS,
+        WATERMARK,
     )
 
     if CI_MODE:

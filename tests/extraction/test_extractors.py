@@ -3,9 +3,8 @@
 Pattern: patch make_extraction_service in the consumer module, not the origin.
 Tests that run() delegates correctly and that invalid parameters fail early.
 """
-from unittest.mock import MagicMock, patch
 
-import pytest
+from unittest.mock import MagicMock, patch
 
 from pipelines.extraction.service import ExtractionResult
 
@@ -21,6 +20,7 @@ def _mock_svc(row_count=3, fonte="test", path="s3a://landing/test/part.json"):
 
 
 # ── CNES ─────────────────────────────────────────────────────────────────────
+
 
 class TestCnes:
     def test_run_delegates_to_service(self):
@@ -56,12 +56,15 @@ class TestCnes:
 
 # ── Municipios ────────────────────────────────────────────────────────────────
 
+
 class TestMunicipios:
     def test_run_delegates_to_service(self):
         from pipelines.extraction import municipios
 
         mock_svc = _mock_svc(row_count=5570)
-        with patch("pipelines.extraction.municipios.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.municipios.make_extraction_service", return_value=mock_svc
+        ):
             result = municipios.run(snapshot_date="20240101")
 
         assert result["row_count"] == 5570
@@ -71,7 +74,9 @@ class TestMunicipios:
         from pipelines.extraction import municipios
 
         mock_svc = _mock_svc()
-        with patch("pipelines.extraction.municipios.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.municipios.make_extraction_service", return_value=mock_svc
+        ):
             municipios.run(snapshot_date="20240101")
 
         assert mock_svc.run.call_args.kwargs["fonte"] == "municipios"
@@ -80,7 +85,9 @@ class TestMunicipios:
         from pipelines.extraction import municipios
 
         mock_svc = _mock_svc()
-        with patch("pipelines.extraction.municipios.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.municipios.make_extraction_service", return_value=mock_svc
+        ):
             municipios.run(snapshot_date=None)
 
         data_ref = mock_svc.run.call_args.kwargs["data_ref"]
@@ -90,12 +97,15 @@ class TestMunicipios:
 
 # ── Vacinacao PNI ─────────────────────────────────────────────────────────────
 
+
 class TestVacinacaoPni:
     def test_run_delegates_to_service(self):
         from pipelines.extraction import vacinacao_pni
 
         mock_svc = _mock_svc(row_count=200)
-        with patch("pipelines.extraction.vacinacao_pni.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.vacinacao_pni.make_extraction_service", return_value=mock_svc
+        ):
             result = vacinacao_pni.run(ano="2024")
 
         assert result["row_count"] == 200
@@ -105,7 +115,9 @@ class TestVacinacaoPni:
         from pipelines.extraction import vacinacao_pni
 
         mock_svc = _mock_svc()
-        with patch("pipelines.extraction.vacinacao_pni.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.vacinacao_pni.make_extraction_service", return_value=mock_svc
+        ):
             vacinacao_pni.run(ano="2024")
 
         assert mock_svc.run.call_args.kwargs["fonte"] == "vacinacao_pni"
@@ -114,7 +126,9 @@ class TestVacinacaoPni:
         from pipelines.extraction import vacinacao_pni
 
         mock_svc = _mock_svc()
-        with patch("pipelines.extraction.vacinacao_pni.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.vacinacao_pni.make_extraction_service", return_value=mock_svc
+        ):
             vacinacao_pni.run(ano="2023")
 
         assert mock_svc.run.call_args.kwargs["data_ref"] == "2023"
@@ -122,12 +136,15 @@ class TestVacinacaoPni:
 
 # ── SIM Obitos ────────────────────────────────────────────────────────────────
 
+
 class TestSimObitos:
     def test_run_delegates_to_service(self):
         from pipelines.extraction import sim_obitos
 
         mock_svc = _mock_svc(row_count=50)
-        with patch("pipelines.extraction.sim_obitos.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.sim_obitos.make_extraction_service", return_value=mock_svc
+        ):
             result = sim_obitos.run(ano="2024")
 
         assert result["row_count"] == 50
@@ -137,7 +154,9 @@ class TestSimObitos:
         from pipelines.extraction import sim_obitos
 
         mock_svc = _mock_svc()
-        with patch("pipelines.extraction.sim_obitos.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.sim_obitos.make_extraction_service", return_value=mock_svc
+        ):
             sim_obitos.run(ano="2024")
 
         assert mock_svc.run.call_args.kwargs["fonte"] == "sim"
@@ -146,7 +165,9 @@ class TestSimObitos:
         from pipelines.extraction import sim_obitos
 
         mock_svc = _mock_svc()
-        with patch("pipelines.extraction.sim_obitos.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.sim_obitos.make_extraction_service", return_value=mock_svc
+        ):
             sim_obitos.run(ano="2023")
 
         assert mock_svc.run.call_args.kwargs["data_ref"] == "2023"
@@ -156,7 +177,9 @@ class TestSimObitos:
 
         monkeypatch.delenv("DATA_REF_ANO", raising=False)
         mock_svc = _mock_svc()
-        with patch("pipelines.extraction.sim_obitos.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "pipelines.extraction.sim_obitos.make_extraction_service", return_value=mock_svc
+        ):
             sim_obitos.run(ano=None)
 
         assert mock_svc.run.call_args.kwargs["data_ref"] == "2024"

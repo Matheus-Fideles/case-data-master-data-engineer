@@ -13,6 +13,7 @@ Implementation:
 
 Spec: docs/specs/airflow-dags.md — section "dag_quality_gates_silver"
 """
+
 from __future__ import annotations
 
 import logging
@@ -59,12 +60,12 @@ _SILVER_CHECKS = {
 
 def _get_spark():
     from _common.spark_local import make_local_spark
+
     return make_local_spark("quality_gates_silver")
 
 
 def _validate_no_pii_in_silver(**context) -> dict:
     """Checks that no PII column exists in any Silver table."""
-    from pyspark.sql import functions as F
 
     spark = _get_spark()
     violations = {}
@@ -72,6 +73,7 @@ def _validate_no_pii_in_silver(**context) -> dict:
     for path in _SILVER_CHECKS:
         try:
             from delta import DeltaTable
+
             if not DeltaTable.isDeltaTable(spark, path):
                 log.warning("[quality/silver] %s is not a Delta Table — skipping", path)
                 continue
@@ -104,6 +106,7 @@ def _validate_silver_schemas(**context) -> dict:
         table_report: dict = {"status": "ok", "failures": []}
         try:
             from delta import DeltaTable
+
             if not DeltaTable.isDeltaTable(spark, path):
                 table_report["status"] = "skipped"
                 report[path] = table_report
@@ -182,7 +185,6 @@ with DAG(
     default_args=_DEFAULT_ARGS,
     doc_md=__doc__,
 ) as dag:
-
     wait_silver_paciente = ExternalTaskSensor(
         task_id="wait_silver_paciente",
         external_dag_id="dag_silver_paciente_mascaramento",

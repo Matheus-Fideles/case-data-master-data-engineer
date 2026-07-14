@@ -3,10 +3,10 @@
 Demonstrates the DIP benefit: we mock ExtractionService (the port),
 never boto3 or requests directly.
 """
+
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from pipelines.extraction.service import ExtractionResult
 
 

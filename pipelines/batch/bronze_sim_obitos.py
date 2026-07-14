@@ -8,6 +8,7 @@ Args:
   --input_path  override (opcional)
   --output_path override (opcional)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -17,38 +18,40 @@ from pyspark.sql.types import StringType, StructField, StructType
 from pipelines.batch.bronze_base import BronzeJob
 from pipelines.common.spark import build_spark
 
-_SCHEMA = StructType([
-    StructField("contador", StringType(), True),
-    StructField("causabas", StringType(), True),
-    StructField("dtobito", StringType(), True),
-    StructField("dtnasc", StringType(), True),
-    StructField("idade", StringType(), True),
-    StructField("sexo", StringType(), True),
-    StructField("racacor", StringType(), True),
-    StructField("codmunocor", StringType(), True),
-    StructField("codmunres", StringType(), True),
-    StructField("lococor", StringType(), True),
-    StructField("assistmed", StringType(), True),
-    StructField("tipobito", StringType(), True),
-    StructField("causabas_o", StringType(), True),
-    StructField("linhaa", StringType(), True),
-    StructField("linhab", StringType(), True),
-    StructField("linhac", StringType(), True),
-    StructField("linhad", StringType(), True),
-    StructField("linhaii", StringType(), True),
-    StructField("altcausa", StringType(), True),
-    StructField("circobito", StringType(), True),
-    StructField("obitoparto", StringType(), True),
-    StructField("obitograv", StringType(), True),
-    StructField("gravidez", StringType(), True),
-    StructField("gestacao", StringType(), True),
-    StructField("escmae2010", StringType(), True),
-    StructField("esc2010", StringType(), True),
-    StructField("necropsia", StringType(), True),
-    StructField("origem", StringType(), True),
-    StructField("numerolote", StringType(), True),
-    StructField("versaosist", StringType(), True),
-])
+_SCHEMA = StructType(
+    [
+        StructField("contador", StringType(), True),
+        StructField("causabas", StringType(), True),
+        StructField("dtobito", StringType(), True),
+        StructField("dtnasc", StringType(), True),
+        StructField("idade", StringType(), True),
+        StructField("sexo", StringType(), True),
+        StructField("racacor", StringType(), True),
+        StructField("codmunocor", StringType(), True),
+        StructField("codmunres", StringType(), True),
+        StructField("lococor", StringType(), True),
+        StructField("assistmed", StringType(), True),
+        StructField("tipobito", StringType(), True),
+        StructField("causabas_o", StringType(), True),
+        StructField("linhaa", StringType(), True),
+        StructField("linhab", StringType(), True),
+        StructField("linhac", StringType(), True),
+        StructField("linhad", StringType(), True),
+        StructField("linhaii", StringType(), True),
+        StructField("altcausa", StringType(), True),
+        StructField("circobito", StringType(), True),
+        StructField("obitoparto", StringType(), True),
+        StructField("obitograv", StringType(), True),
+        StructField("gravidez", StringType(), True),
+        StructField("gestacao", StringType(), True),
+        StructField("escmae2010", StringType(), True),
+        StructField("esc2010", StringType(), True),
+        StructField("necropsia", StringType(), True),
+        StructField("origem", StringType(), True),
+        StructField("numerolote", StringType(), True),
+        StructField("versaosist", StringType(), True),
+    ]
+)
 
 
 class SimObitosBronzeJob(BronzeJob):

@@ -7,18 +7,18 @@ via SparkKubernetesOperator.
 WARNING: Produces Bronze WITH PII. Separate pool (oltp_pool) limits concurrency.
 Immediate downstream: dag_silver_paciente_mascaramento (30 min later).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from _common.spark_k8s import make_spark_operator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
-from _common.spark_k8s import make_spark_operator
-
 with DAG(
     dag_id="dag_bronze_oltp_snapshot",
-    schedule_interval="0 1 * * *",   # daily at 01:00
+    schedule_interval="0 1 * * *",  # daily at 01:00
     start_date=datetime(2024, 1, 1),
     catchup=False,
     max_active_runs=1,
@@ -62,7 +62,8 @@ with DAG(
         )
         if run_id:
             row_count = (
-                context["ti"].xcom_pull(task_ids="extract_oltp_paciente", key="extraction_result") or {}
+                context["ti"].xcom_pull(task_ids="extract_oltp_paciente", key="extraction_result")
+                or {}
             ).get("row_count", 0)
             emit_complete(
                 job_name="dag_bronze_oltp_snapshot.extract",

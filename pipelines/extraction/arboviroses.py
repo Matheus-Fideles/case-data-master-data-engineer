@@ -3,6 +3,7 @@
 Pagination pattern: offset/limit with data_key "parametros".
 Uses ExtractionService (DIP) + OffsetPagination (Strategy Pattern).
 """
+
 from __future__ import annotations
 
 import logging
@@ -52,4 +53,8 @@ def run(agravo: str, ano: int | str = 2024) -> dict:
         fetch_fn=fetch,
         source_url=source_url,
     )
-    return {"row_count": result.row_count, "output_path": result.output_path, "source_url": result.source_url}
+    return {
+        "row_count": result.row_count,
+        "output_path": result.output_path,
+        "source_url": result.source_url,
+    }

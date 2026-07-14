@@ -4,6 +4,7 @@ Solves the problem of two nearly identical functions (fetch_paginated and
 fetch_paginated_by_page) — each strategy encapsulates a different pagination
 contract without duplicating code.
 """
+
 from __future__ import annotations
 
 import logging
@@ -49,7 +50,9 @@ class PaginationStrategy(ABC):
             self._apply_state(page_params, state)
             page = self._fetch_page(f"{self._base_url}{path}", page_params, data_key)
             results.extend(page)
-            log.info("GET %s%s → %d records (total: %d)", self._base_url, path, len(page), len(results))
+            log.info(
+                "GET %s%s → %d records (total: %d)", self._base_url, path, len(page), len(results)
+            )
             if len(page) < self._page_size:
                 break
             state = self._next_state(state, len(page))

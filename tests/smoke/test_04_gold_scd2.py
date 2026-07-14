@@ -8,19 +8,20 @@ Verifies SCD2 integrity on the dim_paciente dimension:
 
 Target time: < 90s
 """
+
 from __future__ import annotations
 
-import json
 from datetime import date
 
 import pytest
 
-from tests.smoke.conftest import FIXTURES_DIR, pg_conn
+from tests.smoke.conftest import FIXTURES_DIR
 
 pytestmark = pytest.mark.smoke
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _count_dim(conn, schema="gold_dw", table="dim_paciente") -> int:
     cur = conn.cursor()
@@ -47,6 +48,7 @@ def _count_closed(conn) -> int:
 
 
 # ── Structure tests ───────────────────────────────────────────────────────────
+
 
 def test_dim_paciente_table_exists(pg_gold):
     """dim_paciente must exist in the gold_dw schema."""
@@ -91,6 +93,7 @@ def test_no_pii_in_dim_paciente(pg_gold):
 
 # ── Temporal integrity tests ──────────────────────────────────────────────────
 
+
 def test_no_inverted_dates(pg_gold):
     """dt_inicio must be <= dt_fim for all records."""
     cur = pg_gold.cursor()
@@ -115,8 +118,7 @@ def test_no_duplicate_current_records(pg_gold):
     """)
     duplicates = cur.fetchall()
     cur.close()
-    assert not duplicates, \
-        f"SCD2 overlap: {len(duplicates)} hashes with multiple current records"
+    assert not duplicates, f"SCD2 overlap: {len(duplicates)} hashes with multiple current records"
 
 
 def test_current_records_have_open_dt_fim(pg_gold):
@@ -144,6 +146,7 @@ def test_closed_records_have_is_current_false(pg_gold):
 
 
 # ── Incremental load with updates ────────────────────────────────────────────
+
 
 @pytest.mark.skipif(
     not (FIXTURES_DIR / "oltp_seed_v2.sql").exists(),
@@ -175,14 +178,17 @@ def test_scd2_second_load_creates_versions(pg_gold, pg):
     closed_after = _count_closed(pg_gold)
 
     # 5 new versions opened + 5 old ones closed
-    assert count_after == count_before + 5, \
+    assert count_after == count_before + 5, (
         f"Expected +5 records (SCD2 versions): {count_before} -> {count_after}"
-    assert current_after == current_before, \
+    )
+    assert current_after == current_before, (
         "Number of current records must not change (5 closed + 5 opened)"
+    )
     assert closed_after >= 5, f"Expected >= 5 closed records, found {closed_after}"
 
 
 # ── Fact Atendimento ──────────────────────────────────────────────────────────
+
 
 def test_fato_atendimento_table_exists(pg_gold):
     """fato_atendimento must exist in the gold_dw schema."""
@@ -205,5 +211,4 @@ def test_fato_referential_integrity(pg_gold):
     """)
     orphans = cur.fetchone()[0]
     cur.close()
-    assert orphans == 0, \
-        f"{orphans} facts with sk_paciente not found in dim_paciente"
+    assert orphans == 0, f"{orphans} facts with sk_paciente not found in dim_paciente"

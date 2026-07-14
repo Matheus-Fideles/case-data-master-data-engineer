@@ -2,6 +2,7 @@
 
 Single place that reads credentials from the environment for Gold DW access.
 """
+
 from __future__ import annotations
 
 import os

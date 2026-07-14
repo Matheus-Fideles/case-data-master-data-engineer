@@ -7,6 +7,7 @@ If not (FAILED, COMPLETED, absent), submits a new CRD.
 Spec: docs/specs/airflow-dags.md — section "Streaming"
 ADR: docs/architecture/decisions/0007-spark-on-kubernetes.md
 """
+
 from __future__ import annotations
 
 import logging
@@ -37,7 +38,8 @@ with DAG(
     def _check_and_restart(**context) -> str:
         """Checks SparkApplication state; submits new CRD if necessary."""
         try:
-            from kubernetes import client, config as k8s_config
+            from kubernetes import client
+            from kubernetes import config as k8s_config
 
             try:
                 k8s_config.load_incluster_config()
@@ -53,11 +55,7 @@ with DAG(
                     plural="sparkapplications",
                     name=_APP_NAME,
                 )
-                state = (
-                    app.get("status", {})
-                    .get("applicationState", {})
-                    .get("state", "UNKNOWN")
-                )
+                state = app.get("status", {}).get("applicationState", {}).get("state", "UNKNOWN")
             except client.exceptions.ApiException as e:
                 if e.status == 404:
                     state = "NOT_FOUND"
@@ -72,7 +70,8 @@ with DAG(
             # State is not RUNNING — submit a new CRD
             log.warning(
                 "SparkApplication %s is not RUNNING (state=%s) — submitting new CRD",
-                _APP_NAME, state,
+                _APP_NAME,
+                state,
             )
 
             # Remove old CRD if it exists (avoids name conflict)
@@ -89,12 +88,11 @@ with DAG(
                 except client.exceptions.ApiException:
                     pass
 
-            import yaml
             from pathlib import Path
 
-            manifest_path = (
-                Path(__file__).parents[4] / "k8s" / "sparkapplications" / _MANIFEST
-            )
+            import yaml
+
+            manifest_path = Path(__file__).parents[4] / "k8s" / "sparkapplications" / _MANIFEST
             with open(manifest_path) as f:
                 app_manifest = yaml.safe_load(f)
 
@@ -111,6 +109,7 @@ with DAG(
             # Increment Prometheus counter (best-effort)
             try:
                 import requests
+
                 requests.post(
                     "http://pushgateway:9091/metrics/job/streaming_supervisor",
                     data="streaming_consumer_restarts_total 1\n",

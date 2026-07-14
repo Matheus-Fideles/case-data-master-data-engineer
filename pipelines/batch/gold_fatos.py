@@ -9,6 +9,7 @@ Args:
   --ano      YYYY    (obito)
   --batch_id DAG run_id
 """
+
 from __future__ import annotations
 
 import argparse
@@ -22,8 +23,8 @@ from pipelines.common.spark import build_spark
 
 _REGISTRY: dict[str, type[FatoLoader]] = {
     "notificacao": NotificacaoFatoLoader,
-    "obito":       ObitoFatoLoader,
-    "vacinacao":   VacinacaoFatoLoader,
+    "obito": ObitoFatoLoader,
+    "vacinacao": VacinacaoFatoLoader,
 }
 
 

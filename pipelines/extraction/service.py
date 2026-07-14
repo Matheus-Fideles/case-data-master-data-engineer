@@ -3,11 +3,12 @@
 Receives ports via dependency injection (DIP).
 Does not import boto3, requests, or any SDK directly.
 """
+
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from pipelines.extraction.ports import CachePort, LandingStoragePort
 

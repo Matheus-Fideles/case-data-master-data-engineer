@@ -8,6 +8,7 @@ Args:
   --input_path     override (opcional)
   --output_path    override (opcional)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -17,32 +18,34 @@ from pyspark.sql.types import StringType, StructField, StructType
 from pipelines.batch.bronze_base import BronzeJob
 from pipelines.common.spark import build_spark
 
-_SCHEMA = StructType([
-    StructField("codigo_cnes", StringType(), True),
-    StructField("nome_razao_social", StringType(), True),
-    StructField("nome_fantasia", StringType(), True),
-    StructField("natureza_organizacao_entidade", StringType(), True),
-    StructField("tipo_gestao", StringType(), True),
-    StructField("descricao_nivel_hierarquia", StringType(), True),
-    StructField("descricao_esfera_administrativa", StringType(), True),
-    StructField("codigo_tipo_unidade", StringType(), True),
-    StructField("codigo_cep_estabelecimento", StringType(), True),
-    StructField("endereco_estabelecimento", StringType(), True),
-    StructField("numero_estabelecimento", StringType(), True),
-    StructField("bairro_estabelecimento", StringType(), True),
-    StructField("latitude_estabelecimento_decimo_grau", StringType(), True),
-    StructField("longitude_estabelecimento_decimo_grau", StringType(), True),
-    StructField("endereco_email_estabelecimento", StringType(), True),
-    StructField("numero_cnpj", StringType(), True),
-    StructField("codigo_municipio", StringType(), True),
-    StructField("codigo_uf", StringType(), True),
-    StructField("estabelecimento_possui_atendimento_hospitalar", StringType(), True),
-    StructField("estabelecimento_possui_centro_cirurgico", StringType(), True),
-    StructField("estabelecimento_possui_servico_apoio", StringType(), True),
-    StructField("estabelecimento_possui_atendimento_ambulatorial", StringType(), True),
-    StructField("data_atualizacao", StringType(), True),
-    StructField("codigo_estabelecimento_saude", StringType(), True),
-])
+_SCHEMA = StructType(
+    [
+        StructField("codigo_cnes", StringType(), True),
+        StructField("nome_razao_social", StringType(), True),
+        StructField("nome_fantasia", StringType(), True),
+        StructField("natureza_organizacao_entidade", StringType(), True),
+        StructField("tipo_gestao", StringType(), True),
+        StructField("descricao_nivel_hierarquia", StringType(), True),
+        StructField("descricao_esfera_administrativa", StringType(), True),
+        StructField("codigo_tipo_unidade", StringType(), True),
+        StructField("codigo_cep_estabelecimento", StringType(), True),
+        StructField("endereco_estabelecimento", StringType(), True),
+        StructField("numero_estabelecimento", StringType(), True),
+        StructField("bairro_estabelecimento", StringType(), True),
+        StructField("latitude_estabelecimento_decimo_grau", StringType(), True),
+        StructField("longitude_estabelecimento_decimo_grau", StringType(), True),
+        StructField("endereco_email_estabelecimento", StringType(), True),
+        StructField("numero_cnpj", StringType(), True),
+        StructField("codigo_municipio", StringType(), True),
+        StructField("codigo_uf", StringType(), True),
+        StructField("estabelecimento_possui_atendimento_hospitalar", StringType(), True),
+        StructField("estabelecimento_possui_centro_cirurgico", StringType(), True),
+        StructField("estabelecimento_possui_servico_apoio", StringType(), True),
+        StructField("estabelecimento_possui_atendimento_ambulatorial", StringType(), True),
+        StructField("data_atualizacao", StringType(), True),
+        StructField("codigo_estabelecimento_saude", StringType(), True),
+    ]
+)
 
 
 class CnesBronzeJob(BronzeJob):

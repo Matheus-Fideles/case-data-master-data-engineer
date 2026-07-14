@@ -6,6 +6,7 @@ What varies: type normalization, column names, PII masking — implemented in tr
 For composite partitions (e.g.: silver/notificacao/ uses disease + year_month),
 the subclass can override replace_condition().
 """
+
 from __future__ import annotations
 
 import logging
@@ -63,23 +64,18 @@ class SilverJob(ABC):
     # ── shared steps ─────────────────────────────────────────────────────────
 
     def _read(self, spark: SparkSession, path: str, filter_col: str, filter_val: str) -> DataFrame:
-        return (
-            spark.read.format("delta").load(path)
-            .filter(F.col(filter_col) == filter_val)
-        )
+        return spark.read.format("delta").load(path).filter(F.col(filter_col) == filter_val)
 
     def _add_metadata(self, df: DataFrame, batch_id: str) -> DataFrame:
         return (
-            df
-            .withColumn("_silver_ts", F.current_timestamp())
+            df.withColumn("_silver_ts", F.current_timestamp())
             .withColumn("_batch_id", F.lit(batch_id))
             .drop("_source_url", "_ingestion_ts")
         )
 
     def _write(self, df: DataFrame, output_path: str, filter_col: str, filter_val: str) -> None:
         (
-            df.write
-            .format("delta")
+            df.write.format("delta")
             .mode("overwrite")
             .option("replaceWhere", self.replace_condition(filter_col, filter_val))
             .option("mergeSchema", "true")

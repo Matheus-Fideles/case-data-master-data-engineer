@@ -2,14 +2,14 @@
 
 Extracts chikungunya notifications and stores them in Delta Lake (bronze/arboviroses/chikungunya/).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from _common.spark_k8s import make_spark_operator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
-from _common.spark_k8s import make_spark_operator
 
 with DAG(
     dag_id="dag_bronze_chikungunya",
@@ -52,7 +52,8 @@ with DAG(
         )
         if run_id:
             row_count = (
-                context["ti"].xcom_pull(task_ids="extract_chikungunya", key="extraction_result") or {}
+                context["ti"].xcom_pull(task_ids="extract_chikungunya", key="extraction_result")
+                or {}
             ).get("row_count", 0)
             emit_complete(
                 job_name="dag_bronze_chikungunya.extract",

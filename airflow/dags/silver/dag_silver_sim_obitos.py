@@ -1,12 +1,12 @@
 """DAG Silver — SIM Deaths."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from _common.spark_k8s import make_spark_operator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
-from _common.spark_k8s import make_spark_operator
 
 with DAG(
     dag_id="dag_silver_sim_obitos",
@@ -17,7 +17,6 @@ with DAG(
     tags=["silver", "sim", "obitos"],
     default_args={"retries": 2, "retry_delay": timedelta(minutes=5)},
 ) as dag:
-
     year = "{{ (data_interval_start.year - 1) | string }}"
     submit, sensor = make_spark_operator(
         task_id="silver_sim_obitos_spark",

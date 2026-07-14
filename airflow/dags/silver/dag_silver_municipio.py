@@ -1,12 +1,12 @@
 """DAG Silver — Municipality."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from _common.spark_k8s import make_spark_operator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
-from _common.spark_k8s import make_spark_operator
 
 with DAG(
     dag_id="dag_silver_municipio",
@@ -17,7 +17,6 @@ with DAG(
     tags=["silver", "municipio"],
     default_args={"retries": 2, "retry_delay": timedelta(minutes=5)},
 ) as dag:
-
     snapshot_date = "{{ data_interval_start.strftime('%Y%m%d') }}"
     submit, sensor = make_spark_operator(
         task_id="silver_municipio_spark",

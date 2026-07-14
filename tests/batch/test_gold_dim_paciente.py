@@ -9,14 +9,14 @@ SCD2 rules:
   - Existing hash, any attr changed      → UPDATE (close old) + INSERT (new version)
   - rollback called on any exception
 """
+
 from __future__ import annotations
 
 from datetime import date
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 import pipelines.gold.dim_paciente as dim_mod
+import pytest
 from pipelines.gold.dim_paciente import _read_silver, load_dim_paciente
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
@@ -54,6 +54,7 @@ def _make_pg_mocks():
 
 # ── helper: run load_dim_paciente with controlled silver rows ─────────────────
 
+
 def _run(silver_rows: list[dict], cursor_side_effects: list) -> tuple[int, MagicMock, MagicMock]:
     """Runs load_dim_paciente with mocked DB and silver data.
 
@@ -74,6 +75,7 @@ def _run(silver_rows: list[dict], cursor_side_effects: list) -> tuple[int, Magic
 
 
 # ── SCD2: new patient ─────────────────────────────────────────────────────────
+
 
 class TestNewPatient:
     def test_new_patient_inserts_one_row(self):
@@ -112,6 +114,7 @@ class TestNewPatient:
 
 # ── SCD2: unchanged patient ───────────────────────────────────────────────────
 
+
 class TestUnchangedPatient:
     def test_unchanged_patient_skipped(self):
         inserted, _, _ = _run([_ROW_A], [_EXISTING_A])
@@ -134,6 +137,7 @@ class TestUnchangedPatient:
 
 # ── SCD2: changed patient ─────────────────────────────────────────────────────
 
+
 class TestChangedPatient:
     def test_changed_patient_inserts_one_new_version(self):
         inserted, _, _ = _run([_ROW_A], [_EXISTING_A_CHANGED])
@@ -149,7 +153,8 @@ class TestChangedPatient:
     def test_update_sets_is_current_false(self):
         _, _, cursor = _run([_ROW_A], [_EXISTING_A_CHANGED])
         update_calls = [
-            c for c in cursor.execute.call_args_list
+            c
+            for c in cursor.execute.call_args_list
             if c.args[0].strip().upper().startswith("UPDATE")
         ]
         assert len(update_calls) == 1
@@ -161,7 +166,8 @@ class TestChangedPatient:
         yesterday = today - __import__("datetime").timedelta(days=1)
         _, _, cursor = _run([_ROW_A], [_EXISTING_A_CHANGED])
         update_calls = [
-            c for c in cursor.execute.call_args_list
+            c
+            for c in cursor.execute.call_args_list
             if c.args[0].strip().upper().startswith("UPDATE")
         ]
         update_params = update_calls[0].args[1]
@@ -170,18 +176,22 @@ class TestChangedPatient:
     def test_insert_new_version_has_open_dt_fim(self):
         _, _, cursor = _run([_ROW_A], [_EXISTING_A_CHANGED])
         insert_calls = [
-            c for c in cursor.execute.call_args_list
+            c
+            for c in cursor.execute.call_args_list
             if c.args[0].strip().upper().startswith("INSERT")
         ]
         params = insert_calls[0].args[1]
         assert date(9999, 12, 31) in params
 
-    @pytest.mark.parametrize("field,new_val", [
-        ("sexo",                  "O"),
-        ("ano_nascimento",        2000),
-        ("cep_regiao",            "999"),
-        ("municipio_codigo_ibge", "9999999"),
-    ])
+    @pytest.mark.parametrize(
+        "field,new_val",
+        [
+            ("sexo", "O"),
+            ("ano_nascimento", 2000),
+            ("cep_regiao", "999"),
+            ("municipio_codigo_ibge", "9999999"),
+        ],
+    )
     def test_any_single_changed_attr_triggers_scd2(self, field, new_val):
         row = {**_ROW_A, field: new_val}
         inserted, _, _ = _run([row], [_EXISTING_A])
@@ -189,6 +199,7 @@ class TestChangedPatient:
 
 
 # ── rollback on error ─────────────────────────────────────────────────────────
+
 
 class TestRollbackOnError:
     def test_rollback_called_on_execute_exception(self):
@@ -224,6 +235,7 @@ class TestRollbackOnError:
 
 # ── empty silver ──────────────────────────────────────────────────────────────
 
+
 class TestEmptySilver:
     def test_empty_silver_returns_zero(self):
         with patch.object(dim_mod, "_read_silver", return_value=[]):
@@ -240,6 +252,7 @@ class TestEmptySilver:
 
 
 # ── default snapshot_date ─────────────────────────────────────────────────────
+
 
 class TestSnapshotDate:
     def test_snapshot_defaults_to_today(self):
@@ -269,6 +282,7 @@ class TestSnapshotDate:
 
 
 # ── _read_silver fallback ─────────────────────────────────────────────────────
+
 
 class TestReadSilverFallback:
     def test_falls_back_to_fixture_when_spark_unavailable(self, tmp_path):
@@ -304,11 +318,7 @@ class TestReadSilverFallback:
         import json
         from pathlib import Path
 
-        fixture = (
-            Path(__file__).parents[1]
-            / "fixtures"
-            / "oltp_sample.json"
-        )
+        fixture = Path(__file__).parents[1] / "fixtures" / "oltp_sample.json"
         if not fixture.exists():
             pytest.skip("oltp_sample.json fixture not found")
 
@@ -334,11 +344,7 @@ class TestReadSilverFallback:
         import json
         from pathlib import Path
 
-        fixture = (
-            Path(__file__).parents[1]
-            / "fixtures"
-            / "oltp_sample.json"
-        )
+        fixture = Path(__file__).parents[1] / "fixtures" / "oltp_sample.json"
         if not fixture.exists():
             pytest.skip("oltp_sample.json fixture not found")
 

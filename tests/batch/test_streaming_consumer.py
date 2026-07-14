@@ -8,12 +8,13 @@ patched in the module namespace — same approach as BronzeJob/SilverJob tests.
 Orchestration functions (_make_foreachbatch) are tested by patching the
 internal helpers (_parse_kafka, _write_bronze, etc.).
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-
 # ── helpers de mock ───────────────────────────────────────────────────────────
+
 
 def _make_df(rows: list[dict] | None = None, *, empty: bool = False) -> MagicMock:
     """DataFrame mock with full method chaining."""
@@ -38,20 +39,20 @@ def _make_df(rows: list[dict] | None = None, *, empty: bool = False) -> MagicMoc
 
 def _mock_F():
     """Returns a pyspark.sql.functions mock without a SparkContext."""
-    F = MagicMock()
-    col = MagicMock(return_value=MagicMock())
-    F.col.side_effect = lambda name: MagicMock(name=f"col({name})")
-    F.lit.side_effect = lambda v: MagicMock(name=f"lit({v})")
-    F.current_timestamp.return_value = MagicMock()
-    F.date_format.return_value = MagicMock()
-    F.to_timestamp.return_value = MagicMock()
-    F.from_json.return_value = MagicMock()
-    F.to_json.return_value = MagicMock()
-    F.struct.return_value = MagicMock()
-    return F
+    f = MagicMock()
+    f.col.side_effect = lambda name: MagicMock(name=f"col({name})")
+    f.lit.side_effect = lambda v: MagicMock(name=f"lit({v})")
+    f.current_timestamp.return_value = MagicMock()
+    f.date_format.return_value = MagicMock()
+    f.to_timestamp.return_value = MagicMock()
+    f.from_json.return_value = MagicMock()
+    f.to_json.return_value = MagicMock()
+    f.struct.return_value = MagicMock()
+    return f
 
 
 # ── testes de _parse_kafka ────────────────────────────────────────────────────
+
 
 class TestParseKafka:
     def test_parse_returns_two_dfs(self):
@@ -75,6 +76,7 @@ class TestParseKafka:
 
 
 # ── testes de _write_bronze ───────────────────────────────────────────────────
+
 
 class TestWriteBronze:
     def test_uses_merge_when_delta_table_exists(self):
@@ -114,17 +116,26 @@ class TestWriteBronze:
 
 # ── testes de _write_gold_postgres ────────────────────────────────────────────
 
+
 class TestWriteGoldPostgres:
     def test_writes_via_jdbc_with_correct_table(self):
         from pipelines.streaming import atendimento_consumer as c
 
         microbatch = _make_df([{"ts_evento": "2024-01-01"}])
         mock_url = "jdbc:postgresql://host:5432/postgres"
-        mock_props = {"user": "u", "password": "p", "driver": "org.postgresql.Driver", "currentSchema": "gold_dw"}
+        mock_props = {
+            "user": "u",
+            "password": "p",
+            "driver": "org.postgresql.Driver",
+            "currentSchema": "gold_dw",
+        }
 
         with (
             patch.object(c, "F", _mock_F()),
-            patch("pipelines.streaming.atendimento_consumer.make_pg_connection", return_value=(mock_url, mock_props)),
+            patch(
+                "pipelines.streaming.atendimento_consumer.make_pg_connection",
+                return_value=(mock_url, mock_props),
+            ),
         ):
             c._write_gold_postgres(microbatch, batch_id=3)
 
@@ -138,11 +149,19 @@ class TestWriteGoldPostgres:
         from pipelines.streaming import atendimento_consumer as c
 
         microbatch = _make_df([{}])
-        props = {"user": "eng", "password": "secret", "driver": "org.postgresql.Driver", "currentSchema": "gold_dw"}
+        props = {
+            "user": "eng",
+            "password": "secret",
+            "driver": "org.postgresql.Driver",
+            "currentSchema": "gold_dw",
+        }
 
         with (
             patch.object(c, "F", _mock_F()),
-            patch("pipelines.streaming.atendimento_consumer.make_pg_connection", return_value=("jdbc://x", props)),
+            patch(
+                "pipelines.streaming.atendimento_consumer.make_pg_connection",
+                return_value=("jdbc://x", props),
+            ),
         ):
             c._write_gold_postgres(microbatch, batch_id=4)
 
@@ -150,6 +169,7 @@ class TestWriteGoldPostgres:
 
 
 # ── testes de _send_to_dlq ────────────────────────────────────────────────────
+
 
 class TestSendToDlq:
     def test_skips_when_df_is_empty(self):
@@ -185,6 +205,7 @@ class TestSendToDlq:
 
 
 # ── testes do foreachBatch orquestrador ───────────────────────────────────────
+
 
 class TestForEachBatch:
     def test_skips_empty_microbatch(self):

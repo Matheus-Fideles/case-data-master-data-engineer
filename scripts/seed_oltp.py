@@ -7,6 +7,7 @@ Generates N_PACIENTES records with valid CPF (checksum), name, address
 and synthetic pt_BR demographic data. Idempotent: uses INSERT ON
 CONFLICT DO NOTHING, so it can be re-run without duplicating data.
 """
+
 from __future__ import annotations
 
 import os

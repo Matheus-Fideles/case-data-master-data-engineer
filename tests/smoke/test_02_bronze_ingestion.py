@@ -5,15 +5,15 @@ Verifies schema, row count, partition, and metadata after Delta write.
 
 Target time: < 90s (includes local Spark startup)
 """
+
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import pytest
 
-from tests.smoke.conftest import FIXTURES_DIR, MINIO_ENDPOINT, MINIO_ACCESS, MINIO_SECRET
+from tests.smoke.conftest import FIXTURES_DIR
 
 pytestmark = pytest.mark.smoke
 
@@ -52,11 +52,10 @@ def test_cnes_fixture_has_minimum_fields():
 
 def test_bronze_arboviroses_offline(spark_session, s3, tmp_path):
     """Bronze dengue pipeline in offline mode writes a valid Delta table."""
-    from pyspark.sql import functions as F
     from pipelines.batch.bronze_arboviroses import ArbovirosesBronzeJob
 
     fixture = FIXTURES_DIR / "dengue_sample.json"
-    output = f"s3a://bronze/smoke_test_dengue/"
+    output = "s3a://bronze/smoke_test_dengue/"
 
     job = ArbovirosesBronzeJob()
     count = job.run(
@@ -133,5 +132,4 @@ def test_bronze_idempotency(spark_session, s3):
     )
 
     count_after = spark_session.read.format("delta").load(output).count()
-    assert count_after == count_before, \
-        f"Idempotency failed: {count_before} -> {count_after} rows"
+    assert count_after == count_before, f"Idempotency failed: {count_before} -> {count_after} rows"

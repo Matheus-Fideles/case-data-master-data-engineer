@@ -17,10 +17,10 @@ Args:
   --input_path     override (optional)
   --output_path    override (optional)
 """
+
 from __future__ import annotations
 
 import argparse
-import os
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F

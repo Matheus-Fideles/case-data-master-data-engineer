@@ -7,23 +7,27 @@ Dependency: test_02 and test_03 must have run first (same session).
 
 Target time: < 60s
 """
+
 from __future__ import annotations
 
 import pytest
 
 pytestmark = pytest.mark.smoke
 
-BRONZE_DENGUE_PATH  = "s3a://bronze/smoke_test_dengue/"
+BRONZE_DENGUE_PATH = "s3a://bronze/smoke_test_dengue/"
 SILVER_PACIENTE_PATH = "s3a://silver/smoke_paciente/"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _ge_context():
     """Returns the Great Expectations DataContext only if checkpoints are configured."""
     try:
-        import great_expectations as gx
         from pathlib import Path
+
+        import great_expectations as gx
+
         ctx = gx.get_context()
         # Only use GE if at least one expected checkpoint YAML exists
         cp_dir = Path(ctx.root_directory) / "checkpoints"
@@ -35,6 +39,7 @@ def _ge_context():
 
 
 # ── Bronze completeness ────────────────────────────────────────────────────────
+
 
 def test_bronze_dengue_no_null_ano(spark_session):
     """nu_ano must not be null in the Bronze dengue table."""
@@ -59,9 +64,7 @@ def test_bronze_dengue_ano_range(spark_session):
     from pyspark.sql import functions as F
 
     df = spark_session.read.format("delta").load(BRONZE_DENGUE_PATH)
-    out_of_range = df.filter(
-        (F.col("nu_ano") < 2000) | (F.col("nu_ano") > 2030)
-    ).count()
+    out_of_range = df.filter((F.col("nu_ano") < 2000) | (F.col("nu_ano") > 2030)).count()
     assert out_of_range == 0, f"{out_of_range} records with nu_ano outside the range 2000-2030"
 
 
@@ -77,6 +80,7 @@ def test_bronze_metadata_completeness(spark_session):
 
 # ── Silver completeness ────────────────────────────────────────────────────────
 
+
 def test_silver_paciente_hash_uniqueness(spark_session):
     """id_paciente_hash must be unique in Silver (no collisions)."""
     fixture_path = SILVER_PACIENTE_PATH
@@ -85,10 +89,9 @@ def test_silver_paciente_hash_uniqueness(spark_session):
     except Exception:
         pytest.skip("Silver paciente not available — run test_03 first")
 
-    total   = df.count()
+    total = df.count()
     distinct = df.select("id_paciente_hash").distinct().count()
-    assert total == distinct, \
-        f"Hash collision in Silver: {total} rows, {distinct} unique hashes"
+    assert total == distinct, f"Hash collision in Silver: {total} rows, {distinct} unique hashes"
 
 
 def test_silver_ano_nascimento_completeness(spark_session):
@@ -113,13 +116,12 @@ def test_silver_cep_regiao_format(spark_session):
     except Exception:
         pytest.skip("Silver paciente not available")
 
-    invalid = df.filter(
-        F.col("cep_regiao").isNull() | (F.length(F.col("cep_regiao")) != 3)
-    ).count()
+    invalid = df.filter(F.col("cep_regiao").isNull() | (F.length(F.col("cep_regiao")) != 3)).count()
     assert invalid == 0, f"{invalid} records with invalid cep_regiao"
 
 
 # ── Great Expectations checkpoint (optional) ──────────────────────────────────
+
 
 @pytest.mark.skipif(
     _ge_context() is None,
@@ -131,8 +133,7 @@ def test_ge_bronze_checkpoint(spark_session):
 
     ctx = gx.get_context()
     result = ctx.run_checkpoint(checkpoint_name="bronze_dengue_checkpoint")
-    assert result.success, \
-        f"Great Expectations checkpoint failed: {result.statistics}"
+    assert result.success, f"Great Expectations checkpoint failed: {result.statistics}"
 
 
 @pytest.mark.skipif(
@@ -145,5 +146,4 @@ def test_ge_silver_checkpoint(spark_session):
 
     ctx = gx.get_context()
     result = ctx.run_checkpoint(checkpoint_name="silver_paciente_checkpoint")
-    assert result.success, \
-        f"Great Expectations checkpoint failed: {result.statistics}"
+    assert result.success, f"Great Expectations checkpoint failed: {result.statistics}"

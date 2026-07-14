@@ -6,6 +6,7 @@ The dispatcher in gold_dims.py and gold_fatos.py selects the Strategy by name.
 Benefit: adding a new dimension = creating a new file in dims/,
 without touching the dispatcher or other strategies (OCP).
 """
+
 from __future__ import annotations
 
 import logging

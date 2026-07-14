@@ -6,6 +6,7 @@ Args:
   --snapshot_date  YYYYMMDD
   --batch_id       DAG run_id
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,8 +25,7 @@ class EstabelecimentoSilverJob(SilverJob):
 
     def transform(self, df: DataFrame) -> DataFrame:
         return (
-            df
-            .withColumn("codigo_cnes", F.col("codigo_cnes").cast(IntegerType()))
+            df.withColumn("codigo_cnes", F.col("codigo_cnes").cast(IntegerType()))
             .withColumn("codigo_municipio", F.col("codigo_municipio").cast(IntegerType()))
             .withColumn("codigo_uf", F.col("codigo_uf").cast(IntegerType()))
             .withColumnRenamed("nome_fantasia", "nome_fantasia")

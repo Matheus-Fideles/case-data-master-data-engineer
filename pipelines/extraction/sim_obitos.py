@@ -2,6 +2,7 @@
 
 Offset/limit pagination with year parameter. Uses ExtractionService + OffsetPagination.
 """
+
 from __future__ import annotations
 
 import logging
@@ -46,4 +47,8 @@ def run(ano: str | int | None = None) -> dict:
         fetch_fn=fetch,
         source_url=source_url,
     )
-    return {"row_count": result.row_count, "output_path": result.output_path, "source_url": result.source_url}
+    return {
+        "row_count": result.row_count,
+        "output_path": result.output_path,
+        "source_url": result.source_url,
+    }

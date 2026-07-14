@@ -6,14 +6,14 @@ Verifies that:
   3. Expected Silver columns are present
   4. PacienteSilverJob.replace_condition uses a simple partition (snapshot_date)
 """
-from unittest.mock import MagicMock, call, patch
+
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 from pipelines.batch.silver_paciente import MASKING_VERSION, PacienteSilverJob
 
-
 # ── helpers ───────────────────────────────────────────────────────────────────
+
 
 def _patched_run(job, *, row_count=3, **kwargs):
     """Patches _read, _add_metadata, transform and _write to isolate orchestration."""
@@ -23,7 +23,7 @@ def _patched_run(job, *, row_count=3, **kwargs):
     with (
         patch.object(job, "_read", return_value=df) as m_read,
         patch.object(job, "_add_metadata", return_value=df) as m_meta,
-        patch.object(job, "transform", return_value=df) as m_transform,
+        patch.object(job, "transform", return_value=df),
         patch.object(job, "_write") as m_write,
     ):
         defaults = dict(
@@ -41,6 +41,7 @@ def _patched_run(job, *, row_count=3, **kwargs):
 
 # ── orchestration tests ───────────────────────────────────────────────────────
 
+
 class TestPacienteSilverJobOrchestration:
     def test_run_returns_row_count(self):
         count, *_ = _patched_run(PacienteSilverJob(), row_count=50)
@@ -57,6 +58,7 @@ class TestPacienteSilverJobOrchestration:
 
 
 # ── testes do mascaramento (transform()) ─────────────────────────────────────
+
 
 class TestPacienteTransform:
     """Tests transform() with F mocks to avoid SparkContext."""
@@ -104,10 +106,10 @@ class TestPacienteTransform:
 
         job = PacienteSilverJob()
         df = self._mock_df_with_cols([])
-        mock_F = MagicMock()
+        mock_f = MagicMock()
 
         with (
-            patch.object(sp, "F", mock_F),
+            patch.object(sp, "F", mock_f),
             patch("pipelines.batch.silver_paciente.mask_paciente", return_value=df),
             patch("pipelines.batch.silver_paciente.validate_no_pii"),
         ):

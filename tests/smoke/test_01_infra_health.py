@@ -5,6 +5,7 @@ test runs. A failure here stops the entire suite (xfail_strict).
 
 Target time: < 30s
 """
+
 from __future__ import annotations
 
 import os
@@ -17,16 +18,15 @@ from tests.smoke.conftest import (
     KAFKA_TOPIC,
     MINIO_BUCKETS,
     MINIO_ENDPOINT,
-    PG_HOST,
-    PG_PORT,
-    pg_conn,
     minio_client,
+    pg_conn,
 )
 
 pytestmark = pytest.mark.smoke
 
 
 # ── Postgres ──────────────────────────────────────────────────────────────────
+
 
 def test_postgres_accepts_connection(compose_up):
     conn = pg_conn()
@@ -54,6 +54,7 @@ def test_gold_dw_schema_exists(compose_up):
 
 # ── MinIO ─────────────────────────────────────────────────────────────────────
 
+
 def test_minio_health_endpoint(compose_up):
     resp = requests.head(f"{MINIO_ENDPOINT}/minio/health/live", timeout=10)
     assert resp.status_code == 200, f"MinIO health returned {resp.status_code}"
@@ -73,8 +74,9 @@ def test_minio_buckets_are_not_public(compose_up):
         try:
             policy = s3.get_bucket_policy(Bucket=bucket)
             # If we get here, there is a policy — verify it is not AllUsers
-            assert "AllUsers" not in str(policy.get("Policy", "")), \
+            assert "AllUsers" not in str(policy.get("Policy", "")), (
                 f"Bucket '{bucket}' has a public policy (AllUsers)"
+            )
         except s3.exceptions.from_code("NoSuchBucketPolicy"):
             pass  # no policy = default private access ✓
         except Exception as e:
@@ -87,8 +89,10 @@ def test_minio_buckets_are_not_public(compose_up):
 
 # ── Kafka ─────────────────────────────────────────────────────────────────────
 
+
 def test_kafka_accepts_connection(compose_up):
     from confluent_kafka.admin import AdminClient
+
     admin = AdminClient({"bootstrap.servers": KAFKA_BOOTSTRAP})
     metadata = admin.list_topics(timeout=10)
     assert metadata is not None
@@ -96,6 +100,7 @@ def test_kafka_accepts_connection(compose_up):
 
 def test_kafka_topic_notificacoes_exists_or_creatable(compose_up):
     from confluent_kafka.admin import AdminClient, NewTopic
+
     admin = AdminClient({"bootstrap.servers": KAFKA_BOOTSTRAP})
     topics = admin.list_topics(timeout=10).topics
 
@@ -107,6 +112,7 @@ def test_kafka_topic_notificacoes_exists_or_creatable(compose_up):
 
 
 # ── Airflow ───────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.skipif(
     os.environ.get("SKIP_AIRFLOW_CHECK", "0") == "1",

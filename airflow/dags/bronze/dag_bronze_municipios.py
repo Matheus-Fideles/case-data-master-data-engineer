@@ -3,14 +3,14 @@
 Monthly snapshot of municipalities (IBGE × health regions), stored in
 Delta Lake (bronze/municipios/), partitioned by snapshot_date.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from _common.spark_k8s import make_spark_operator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
-from _common.spark_k8s import make_spark_operator
 
 with DAG(
     dag_id="dag_bronze_municipios",
@@ -52,7 +52,8 @@ with DAG(
         )
         if run_id:
             row_count = (
-                context["ti"].xcom_pull(task_ids="extract_municipios", key="extraction_result") or {}
+                context["ti"].xcom_pull(task_ids="extract_municipios", key="extraction_result")
+                or {}
             ).get("row_count", 0)
             emit_complete(
                 job_name="dag_bronze_municipios.extract",

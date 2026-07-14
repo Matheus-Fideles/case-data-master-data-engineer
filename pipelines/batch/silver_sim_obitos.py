@@ -7,6 +7,7 @@ Args:
   --ano      YYYY
   --batch_id DAG run_id
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,9 +32,8 @@ class SimObitosSilverJob(SilverJob):
 
     def transform(self, df: DataFrame) -> DataFrame:
         df = (
-            df
-            .withColumn("dtobito", F.to_date(F.col("dtobito"), "yyyyMMdd"))
-            .withColumn("dtnasc",  F.to_date(F.col("dtnasc"),  "yyyyMMdd"))
+            df.withColumn("dtobito", F.to_date(F.col("dtobito"), "yyyyMMdd"))
+            .withColumn("dtnasc", F.to_date(F.col("dtnasc"), "yyyyMMdd"))
             .withColumn("codmunocor", F.col("codmunocor").cast(IntegerType()))
             .withColumn("idade", F.col("idade").cast(IntegerType()))
         )

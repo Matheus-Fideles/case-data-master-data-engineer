@@ -3,6 +3,7 @@ Base utilities for REST API extraction.
 Handles pagination, retry, S3 write, and offline mode.
 ADR 0008: extraction is pure Python — no Spark JVM overhead here.
 """
+
 from __future__ import annotations
 
 import json
@@ -56,6 +57,7 @@ def _get(url: str, params: dict) -> requests.Response:
     if resp.status_code == 429:
         retry_after = int(resp.headers.get("Retry-After", 10))
         import time
+
         time.sleep(retry_after)
         resp.raise_for_status()
     resp.raise_for_status()
@@ -141,7 +143,9 @@ def load_from_cache(fonte: str, data_ref: str) -> list[dict]:
     return records
 
 
-def save_to_cache(records: list[dict], fonte: str, data_ref: str, filename: str = "data.json") -> Path:
+def save_to_cache(
+    records: list[dict], fonte: str, data_ref: str, filename: str = "data.json"
+) -> Path:
     """Save records to local cache directory."""
     cache_dir = Path("data/raw") / fonte / data_ref
     cache_dir.mkdir(parents=True, exist_ok=True)

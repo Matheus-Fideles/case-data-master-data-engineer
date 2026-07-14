@@ -4,14 +4,14 @@ Processes dengue, zika and chikungunya from Bronze to Silver in parallel.
 Each disease type is an independent SparkApplication in k8s.
 Upstream dependency: dag_bronze_dengue, dag_bronze_zika, dag_bronze_chikungunya.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from _common.spark_k8s import make_spark_operator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
-from _common.spark_k8s import make_spark_operator
 
 with DAG(
     dag_id="dag_silver_notificacao",
@@ -22,7 +22,6 @@ with DAG(
     tags=["silver", "notificacao", "arboviroses"],
     default_args={"retries": 2, "retry_delay": timedelta(minutes=5)},
 ) as dag:
-
     year_month = "{{ data_interval_start.strftime('%Y%m') }}"
 
     disease_types = ("dengue", "zika", "chikungunya")

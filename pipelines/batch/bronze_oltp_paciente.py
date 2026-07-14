@@ -10,12 +10,12 @@ Args:
   --input_path     override (optional)
   --output_path    override (optional)
 """
+
 from __future__ import annotations
 
 import argparse
 
 from pyspark.sql.types import (
-    DateType,
     LongType,
     StringType,
     StructField,
@@ -28,19 +28,21 @@ from pipelines.common.spark import build_spark
 
 # PII fields present intentionally — Bronze is the only raw layer.
 # Silver masks before any propagation (ADR-0004).
-_SCHEMA = StructType([
-    StructField("id_paciente",           LongType(),      False),
-    StructField("cpf",                   StringType(),    False),  # PII
-    StructField("nome",                  StringType(),    False),  # PII
-    StructField("data_nascimento",       StringType(),    False),  # PII — string; cast no Silver
-    StructField("sexo",                  StringType(),    False),
-    StructField("cep",                   StringType(),    False),  # PII
-    StructField("municipio_codigo_ibge", StringType(),    False),
-    StructField("email",                 StringType(),    True),   # PII
-    StructField("telefone",              StringType(),    True),   # PII
-    StructField("created_at",            TimestampType(), False),
-    StructField("updated_at",            TimestampType(), False),
-])
+_SCHEMA = StructType(
+    [
+        StructField("id_paciente", LongType(), False),
+        StructField("cpf", StringType(), False),  # PII
+        StructField("nome", StringType(), False),  # PII
+        StructField("data_nascimento", StringType(), False),  # PII — string; cast no Silver
+        StructField("sexo", StringType(), False),
+        StructField("cep", StringType(), False),  # PII
+        StructField("municipio_codigo_ibge", StringType(), False),
+        StructField("email", StringType(), True),  # PII
+        StructField("telefone", StringType(), True),  # PII
+        StructField("created_at", TimestampType(), False),
+        StructField("updated_at", TimestampType(), False),
+    ]
+)
 
 
 class OltpPacienteBronzeJob(BronzeJob):

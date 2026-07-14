@@ -20,6 +20,7 @@ IMPORTANT:
 Spec: docs/specs/airflow-dags.md — section "dag_maint_lgpd_erasure"
 ADR:  docs/architecture/decisions/0004-pii-masking.md
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -91,16 +92,14 @@ def _delete_oltp(**context) -> str:
 def _delete_bronze(**context) -> str:
     """Removes Bronze files where id_paciente_hash matches the subject."""
     ti = context["ti"]
-    cpf_hash = (
-        ti.xcom_pull(task_ids="delete_oltp", key="cpf_hash")
-        or context["params"].get("cpf_hash")
+    cpf_hash = ti.xcom_pull(task_ids="delete_oltp", key="cpf_hash") or context["params"].get(
+        "cpf_hash"
     )
     if not cpf_hash:
         raise ValueError("cpf_hash not available — delete_oltp failed or parameter missing")
 
-    from pyspark.sql import functions as F
-
     from _common.spark_local import BRONZE_TABLES, make_local_spark
+    from pyspark.sql import functions as F
 
     spark = make_local_spark("lgpd_delete_bronze")
     results = {}
@@ -151,16 +150,14 @@ def _reprocess_silver(**context) -> str:
     filter the subject without full reprocessing.
     """
     ti = context["ti"]
-    cpf_hash = (
-        ti.xcom_pull(task_ids="delete_oltp", key="cpf_hash")
-        or context["params"].get("cpf_hash")
+    cpf_hash = ti.xcom_pull(task_ids="delete_oltp", key="cpf_hash") or context["params"].get(
+        "cpf_hash"
     )
     if not cpf_hash:
         raise ValueError("cpf_hash not available")
 
-    from pyspark.sql import functions as F
-
     from _common.spark_local import make_local_spark
+    from pyspark.sql import functions as F
 
     silver_tables = [
         "s3a://silver/notificacao/",
@@ -194,9 +191,8 @@ def _reprocess_silver(**context) -> str:
 def _delete_gold(**context) -> str:
     """Removes subject from dim_paciente and nullifies fact FKs."""
     ti = context["ti"]
-    cpf_hash = (
-        ti.xcom_pull(task_ids="delete_oltp", key="cpf_hash")
-        or context["params"].get("cpf_hash")
+    cpf_hash = ti.xcom_pull(task_ids="delete_oltp", key="cpf_hash") or context["params"].get(
+        "cpf_hash"
     )
     if not cpf_hash:
         raise ValueError("cpf_hash not available")
@@ -247,9 +243,8 @@ def _delete_gold(**context) -> str:
 def _audit_log(**context) -> str:
     """Records erasure execution in gold_dw.lgpd_erasure_audit."""
     ti = context["ti"]
-    cpf_hash = (
-        ti.xcom_pull(task_ids="delete_oltp", key="cpf_hash")
-        or context["params"].get("cpf_hash")
+    cpf_hash = ti.xcom_pull(task_ids="delete_oltp", key="cpf_hash") or context["params"].get(
+        "cpf_hash"
     )
 
     import json
@@ -322,7 +317,6 @@ with DAG(
         ),
     },
 ) as dag:
-
     delete_oltp = PythonOperator(
         task_id="delete_oltp",
         python_callable=_delete_oltp,
@@ -363,4 +357,11 @@ with DAG(
         execution_timeout=timedelta(minutes=5),
     )
 
-    delete_oltp >> delete_bronze >> vacuum_bronze_now >> reprocess_silver >> delete_gold >> audit_log
+    (
+        delete_oltp
+        >> delete_bronze
+        >> vacuum_bronze_now
+        >> reprocess_silver
+        >> delete_gold
+        >> audit_log
+    )

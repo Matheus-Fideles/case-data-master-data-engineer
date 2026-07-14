@@ -2,12 +2,13 @@
 Faker → Kafka producer.
 Generates synthetic hospital care events and publishes to notificacoes.raw.
 """
+
 import hashlib
 import json
 import os
 import random
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from confluent_kafka import Producer
@@ -22,14 +23,22 @@ fake = Faker("pt_BR")
 TIPOS_ATENDIMENTO = ["urgencia", "consulta", "exame", "internacao"]
 TRIAGENS = ["vermelho", "laranja", "amarelo", "verde", "azul"]
 CNES_SAMPLE = [
-    "2077396", "2078023", "2079350", "6648298", "2079717",
-    "2080176", "2081938", "5601930", "2082136", "2083043",
+    "2077396",
+    "2078023",
+    "2079350",
+    "6648298",
+    "2079717",
+    "2080176",
+    "2081938",
+    "5601930",
+    "2082136",
+    "2083043",
 ]
 
 
 def fake_cpf_hash() -> str:
     """Generates a synthetic CPF and returns only its SHA-256 hash — never exposes the CPF."""
-    cpf = f"{random.randint(100,999)}.{random.randint(100,999)}.{random.randint(100,999)}-{random.randint(10,99)}"
+    cpf = f"{random.randint(100, 999)}.{random.randint(100, 999)}.{random.randint(100, 999)}-{random.randint(10, 99)}"
     return hashlib.sha256(cpf.encode()).hexdigest()
 
 
@@ -38,7 +47,7 @@ def build_event() -> dict:
         "id_atendimento": str(uuid4()),
         "id_paciente_hash": fake_cpf_hash(),
         "id_cnes": random.choice(CNES_SAMPLE),
-        "ts_evento": datetime.now(timezone.utc).isoformat(),
+        "ts_evento": datetime.now(UTC).isoformat(),
         "tipo_atendimento": random.choice(TIPOS_ATENDIMENTO),
         "triagem": random.choice(TRIAGENS),
     }

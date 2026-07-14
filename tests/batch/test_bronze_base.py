@@ -4,15 +4,15 @@ Strategy: mocks the protected methods (_read, _add_metadata, _write, _validate)
 to isolate the Template Method orchestration logic without needing a real
 SparkContext — F.lit/F.col require an active JVM.
 """
-from unittest.mock import MagicMock, call, patch
+
+from unittest.mock import MagicMock, patch
 
 import pytest
+from pipelines.batch.bronze_base import BronzeJob
 from pyspark.sql.types import StringType, StructField, StructType
 
-from pipelines.batch.bronze_base import BronzeJob
-
-
 # ── stubs concretos ───────────────────────────────────────────────────────────
+
 
 class _SimpleBronzeJob(BronzeJob):
     @property
@@ -42,6 +42,7 @@ class _DerivedPartitionJob(_SimpleBronzeJob):
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 def _patched_run(job, *, row_count=5, **kwargs):
     """Runs job.run() with all protected methods mocked.
 
@@ -54,7 +55,7 @@ def _patched_run(job, *, row_count=5, **kwargs):
     with (
         patch.object(job, "_read", return_value=df) as m_read,
         patch.object(job, "_add_metadata", return_value=df) as m_meta,
-        patch.object(job, "add_partition", return_value=df) as m_part,
+        patch.object(job, "add_partition", return_value=df),
         patch.object(job, "_validate") as m_val,
         patch.object(job, "_write") as m_write,
     ):
@@ -73,6 +74,7 @@ def _patched_run(job, *, row_count=5, **kwargs):
 
 # ── orchestration tests ───────────────────────────────────────────────────────
 
+
 def test_run_returns_row_count():
     job = _SimpleBronzeJob()
     count, *_ = _patched_run(job, row_count=10)
@@ -89,13 +91,15 @@ def test_run_calls_steps_in_order():
     df.withColumn.return_value = df  # default add_partition uses withColumn
 
     with (
-        patch.object(job, "_read", side_effect=lambda *a, **kw: (call_order.append("read") or df)),
-        patch.object(job, "_add_metadata", side_effect=lambda *a, **kw: (call_order.append("meta") or df)),
+        patch.object(job, "_read", side_effect=lambda *a, **kw: call_order.append("read") or df),
+        patch.object(
+            job, "_add_metadata", side_effect=lambda *a, **kw: call_order.append("meta") or df
+        ),
         patch.object(job, "_validate", side_effect=lambda *a, **kw: call_order.append("validate")),
         patch.object(job, "_write", side_effect=lambda *a, **kw: call_order.append("write")),
-        patch("pipelines.batch.bronze_base.F") as mock_F,
+        patch("pipelines.batch.bronze_base.F") as mock_f,
     ):
-        mock_F.lit.return_value = MagicMock()
+        mock_f.lit.return_value = MagicMock()
         job.run(
             spark=MagicMock(),
             input_path="s3a://x",
@@ -154,13 +158,14 @@ def test_write_receives_partition_val():
 
 # ── testes dos hooks ──────────────────────────────────────────────────────────
 
+
 def test_default_add_partition_calls_withcolumn():
     job = _SimpleBronzeJob()
     df = MagicMock()
     df.withColumn.return_value = df
 
-    with patch("pipelines.batch.bronze_base.F") as mock_F:
-        mock_F.lit.return_value = MagicMock()
+    with patch("pipelines.batch.bronze_base.F") as mock_f:
+        mock_f.lit.return_value = MagicMock()
         job.add_partition(df, "202401")
 
     df.withColumn.assert_called_once()
@@ -173,8 +178,7 @@ def test_overridden_add_partition_is_used():
     called = []
 
     # Override the method BEFORE patches, patching everything except add_partition
-    real_add = job.add_partition
-    job.add_partition = lambda df, pv: (called.append(pv) or df)
+    job.add_partition = lambda df, pv: called.append(pv) or df
 
     df = MagicMock()
     df.count.return_value = 3

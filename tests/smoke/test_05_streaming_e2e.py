@@ -7,17 +7,17 @@ Produces events in Kafka, triggers the consumer in CI_MODE, and verifies:
 
 Target time: < 120s (includes Spark Streaming startup)
 """
+
 from __future__ import annotations
 
 import json
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from tests.smoke.conftest import (
-    FIXTURES_DIR,
     KAFKA_BOOTSTRAP,
     KAFKA_DLQ_TOPIC,
     KAFKA_TOPIC,
@@ -26,19 +26,20 @@ from tests.smoke.conftest import (
 pytestmark = pytest.mark.smoke
 
 BRONZE_STREAM_PATH = "s3a://bronze/atendimentos/"
-N_VALID   = 20
+N_VALID = 20
 N_INVALID = 5
 
 
 # ── Producer helpers ──────────────────────────────────────────────────────────
 
+
 def _ts_now() -> str:
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
 
 
 def _ts_late() -> str:
     """Timestamp 2h ago — must be filtered by the 1h watermark."""
-    return (datetime.now(tz=timezone.utc) - timedelta(hours=2)).isoformat()
+    return (datetime.now(tz=UTC) - timedelta(hours=2)).isoformat()
 
 
 def _valid_event(i: int) -> dict:
@@ -73,16 +74,15 @@ def _produce(producer, topic: str, events: list[dict]) -> None:
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
+
 def _current_offsets(topic: str) -> str:
     """Returns a startingOffsets JSON string pointing to the current end of each partition."""
-    from confluent_kafka import Consumer as KConsumer, TopicPartition, OFFSET_END
+    from confluent_kafka import Consumer as KConsumer
+    from confluent_kafka import TopicPartition
+
     c = KConsumer({"bootstrap.servers": KAFKA_BOOTSTRAP, "group.id": "_smoke_offset_probe"})
     metadata = c.list_topics(topic, timeout=10)
-    partitions = [
-        TopicPartition(topic, p)
-        for p in metadata.topics[topic].partitions
-    ]
-    offsets = c.get_watermark_offsets
+    partitions = [TopicPartition(topic, p) for p in metadata.topics[topic].partitions]
     parts_with_offsets = {}
     for tp in partitions:
         lo, hi = c.get_watermark_offsets(tp, timeout=5)
@@ -95,6 +95,7 @@ def test_kafka_produces_valid_events(kafka_producer):
     """Captures current offsets then produces N_VALID valid events on the main topic."""
     # Save offset snapshot so the CI consumer only reads events produced in THIS test run
     import pytest
+
     pytest.current_stream_offsets = _current_offsets(KAFKA_TOPIC)
     events = [_valid_event(i) for i in range(N_VALID)]
     _produce(kafka_producer, KAFKA_TOPIC, events)
@@ -109,7 +110,9 @@ def test_kafka_produces_invalid_events(kafka_producer):
 def test_streaming_consumer_ci_mode(spark_session, s3):
     """Runs the consumer in CI_MODE (AvailableNow) and verifies Bronze write."""
     import os
+
     import pytest
+
     starting_offsets = getattr(pytest, "current_stream_offsets", "latest")
 
     os.environ["STREAM_CI_MODE"] = "1"
@@ -121,18 +124,25 @@ def test_streaming_consumer_ci_mode(spark_session, s3):
 
     try:
         import importlib
+
         import pipelines.streaming.atendimento_consumer as _mod
+
         importlib.reload(_mod)  # pick up env vars set above
         _mod.run(spark=spark_session)
     finally:
-        for k in ("STREAM_CI_MODE", "BRONZE_STREAM_PATH", "KAFKA_BOOTSTRAP_SERVERS",
-                  "KAFKA_TOPIC", "KAFKA_DLQ_TOPIC", "STREAM_STARTING_OFFSETS"):
+        for k in (
+            "STREAM_CI_MODE",
+            "BRONZE_STREAM_PATH",
+            "KAFKA_BOOTSTRAP_SERVERS",
+            "KAFKA_TOPIC",
+            "KAFKA_DLQ_TOPIC",
+            "STREAM_STARTING_OFFSETS",
+        ):
             os.environ.pop(k, None)
 
     df = spark_session.read.format("delta").load(BRONZE_STREAM_PATH)
     count = df.count()
-    assert count >= N_VALID, \
-        f"Bronze streaming must have >= {N_VALID} records, found {count}"
+    assert count >= N_VALID, f"Bronze streaming must have >= {N_VALID} records, found {count}"
 
 
 def test_valid_events_in_bronze(spark_session):
@@ -150,12 +160,14 @@ def test_invalid_events_in_dlq(kafka_producer):
     """Invalid events must appear on the DLQ topic."""
     from confluent_kafka import Consumer
 
-    consumer = Consumer({
-        "bootstrap.servers": KAFKA_BOOTSTRAP,
-        "group.id": "smoke-dlq-checker",
-        "auto.offset.reset": "earliest",
-        "enable.auto.commit": False,
-    })
+    consumer = Consumer(
+        {
+            "bootstrap.servers": KAFKA_BOOTSTRAP,
+            "group.id": "smoke-dlq-checker",
+            "auto.offset.reset": "earliest",
+            "enable.auto.commit": False,
+        }
+    )
     consumer.subscribe([KAFKA_DLQ_TOPIC])
 
     dlq_count = 0
@@ -166,8 +178,7 @@ def test_invalid_events_in_dlq(kafka_producer):
             dlq_count += 1
 
     consumer.close()
-    assert dlq_count >= 1, \
-        f"No invalid events found in the DLQ ({KAFKA_DLQ_TOPIC})"
+    assert dlq_count >= 1, f"No invalid events found in the DLQ ({KAFKA_DLQ_TOPIC})"
 
 
 def test_bronze_streaming_has_metadata_columns(spark_session):
@@ -201,12 +212,11 @@ def test_late_event_filtered_by_watermark(kafka_producer, spark_session, s3):
     os.environ["STREAM_CI_MODE"] = "1"
     try:
         from pipelines.streaming.atendimento_consumer import run as stream_run
+
         stream_run(spark=spark_session)
     finally:
         os.environ.pop("STREAM_CI_MODE", None)
 
     df = spark_session.read.format("delta").load(BRONZE_STREAM_PATH)
-    late_found = df.filter(
-        df["id_atendimento"] == late["id_atendimento"]
-    ).count()
+    late_found = df.filter(df["id_atendimento"] == late["id_atendimento"]).count()
     assert late_found == 0, "Late event was not filtered by the 1h watermark"

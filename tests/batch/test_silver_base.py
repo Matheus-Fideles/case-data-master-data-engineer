@@ -4,15 +4,14 @@ Strategy: mocks _read, _add_metadata, _write to isolate orchestration
 without needing a real SparkContext — F.col/F.current_timestamp require an active JVM.
 Pure hooks (replace_condition, transform) are tested directly.
 """
+
 from unittest.mock import MagicMock, patch
 
-import pytest
+from pipelines.batch.silver_base import SilverJob
 from pyspark.sql import DataFrame
 
-from pipelines.batch.silver_base import SilverJob
-
-
 # ── stubs concretos ───────────────────────────────────────────────────────────
+
 
 class _SimpleSilverJob(SilverJob):
     @property
@@ -69,6 +68,7 @@ class _CompositePartitionJob(SilverJob):
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 def _patched_run(job, *, row_count=5, **kwargs):
     """Runs job.run() with infrastructure methods mocked."""
     df = MagicMock()
@@ -93,6 +93,7 @@ def _patched_run(job, *, row_count=5, **kwargs):
 
 
 # ── orchestration tests ───────────────────────────────────────────────────────
+
 
 def test_run_returns_row_count():
     count, *_ = _patched_run(_SimpleSilverJob(), row_count=7)
@@ -138,6 +139,7 @@ def test_write_receives_filter_values():
 
 
 # ── testes dos hooks puros ────────────────────────────────────────────────────
+
 
 def test_default_replace_condition():
     job = _SimpleSilverJob()

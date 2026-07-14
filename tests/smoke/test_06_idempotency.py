@@ -7,6 +7,7 @@ Principle: Delta pipelines using replaceWhere must be safe to re-run.
 
 Target time: < 90s
 """
+
 from __future__ import annotations
 
 import pytest
@@ -22,12 +23,13 @@ def _count(spark, path: str) -> int:
 
 # ── Bronze Arboviroses ─────────────────────────────────────────────────────────
 
+
 def test_bronze_arboviroses_idempotent(spark_session, s3):
     """Three runs of the Bronze dengue job with the same partition_val -> same count."""
     from pipelines.batch.bronze_arboviroses import ArbovirosesBronzeJob
 
     fixture = FIXTURES_DIR / "dengue_sample.json"
-    output  = "s3a://bronze/idempotency_dengue/"
+    output = "s3a://bronze/idempotency_dengue/"
 
     job = ArbovirosesBronzeJob()
     common = dict(
@@ -47,18 +49,20 @@ def test_bronze_arboviroses_idempotent(spark_session, s3):
     job.run(**common, batch_id="idem-03")
     count_3 = _count(spark_session, output)
 
-    assert count_1 == count_2 == count_3, \
+    assert count_1 == count_2 == count_3, (
         f"Bronze arboviroses not idempotent: {count_1} -> {count_2} -> {count_3}"
+    )
 
 
 # ── Bronze CNES ───────────────────────────────────────────────────────────────
+
 
 def test_bronze_cnes_idempotent(spark_session, s3):
     """Three runs of the Bronze CNES job -> same count."""
     from pipelines.batch.bronze_cnes import CnesBronzeJob
 
     fixture = FIXTURES_DIR / "cnes_sample.json"
-    output  = "s3a://bronze/idempotency_cnes/"
+    output = "s3a://bronze/idempotency_cnes/"
 
     job = CnesBronzeJob()
     common = dict(
@@ -75,16 +79,16 @@ def test_bronze_cnes_idempotent(spark_session, s3):
     job.run(**common, batch_id="idem-cnes-02")
     count_2 = _count(spark_session, output)
 
-    assert count_1 == count_2, \
-        f"Bronze CNES not idempotent: {count_1} -> {count_2}"
+    assert count_1 == count_2, f"Bronze CNES not idempotent: {count_1} -> {count_2}"
 
 
 # ── Silver Paciente ────────────────────────────────────────────────────────────
 
+
 def test_silver_paciente_idempotent(spark_session, s3):
     """Two runs of the Silver paciente job -> same count."""
-    from pyspark.sql import functions as F
     from pipelines.batch.silver_paciente import PacienteSilverJob
+    from pyspark.sql import functions as F
 
     fixture = FIXTURES_DIR / "oltp_sample.json"
     if not fixture.exists():
@@ -113,22 +117,24 @@ def test_silver_paciente_idempotent(spark_session, s3):
     job.run(**common, batch_id="idem-silver-02")
     count_2 = _count(spark_session, output)
 
-    assert count_1 == count_2, \
-        f"Silver paciente not idempotent: {count_1} -> {count_2}"
+    assert count_1 == count_2, f"Silver paciente not idempotent: {count_1} -> {count_2}"
 
 
 # ── Multiple partitions do not interfere ──────────────────────────────────────
+
 
 def test_different_partitions_accumulate(spark_session, s3):
     """Distinct partitions must accumulate (not overwrite) in Delta."""
     from pipelines.batch.bronze_arboviroses import ArbovirosesBronzeJob
 
     fixture = FIXTURES_DIR / "dengue_sample.json"
-    output  = "s3a://bronze/idempotency_multi_partition/"
+    output = "s3a://bronze/idempotency_multi_partition/"
 
     # Clean up any residual data from previous test runs to ensure isolation
     try:
-        for obj in s3.list_objects_v2(Bucket="bronze", Prefix="idempotency_multi_partition/").get("Contents", []):
+        for obj in s3.list_objects_v2(Bucket="bronze", Prefix="idempotency_multi_partition/").get(
+            "Contents", []
+        ):
             s3.delete_object(Bucket="bronze", Key=obj["Key"])
     except Exception:
         pass
@@ -155,5 +161,6 @@ def test_different_partitions_accumulate(spark_session, s3):
     )
     count_jan_feb = _count(spark_session, output)
 
-    assert count_jan_feb == count_jan * 2, \
+    assert count_jan_feb == count_jan * 2, (
         f"Partitions should accumulate: 1x{count_jan} + 1x{count_jan} != {count_jan_feb}"
+    )

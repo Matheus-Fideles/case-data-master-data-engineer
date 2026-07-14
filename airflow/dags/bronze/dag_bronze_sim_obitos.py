@@ -3,14 +3,14 @@
 Extracts annual deaths from SIM and stores them in Delta Lake (bronze/sim_obitos/),
 partitioned by year. Runs once a year (or on demand).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from _common.spark_k8s import make_spark_operator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
-from _common.spark_k8s import make_spark_operator
 
 with DAG(
     dag_id="dag_bronze_sim_obitos",
@@ -53,7 +53,8 @@ with DAG(
         )
         if run_id:
             row_count = (
-                context["ti"].xcom_pull(task_ids="extract_sim_obitos", key="extraction_result") or {}
+                context["ti"].xcom_pull(task_ids="extract_sim_obitos", key="extraction_result")
+                or {}
             ).get("row_count", 0)
             emit_complete(
                 job_name="dag_bronze_sim_obitos.extract",

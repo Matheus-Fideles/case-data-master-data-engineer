@@ -12,26 +12,24 @@ Verifies:
 
 Target time: < 60s (requires test_02 to have run first in the same session)
 """
-from __future__ import annotations
 
-import hashlib
-import os
+from __future__ import annotations
 
 import pytest
 
-from tests.smoke.conftest import FIXTURES_DIR, MINIO_ENDPOINT, MINIO_ACCESS, MINIO_SECRET
+from tests.smoke.conftest import FIXTURES_DIR
 
 pytestmark = pytest.mark.smoke
 
 BRONZE_OLTP_PATH = "s3a://bronze/smoke_oltp_paciente/"
-SILVER_PATH      = "s3a://silver/smoke_paciente/"
+SILVER_PATH = "s3a://silver/smoke_paciente/"
 
 
 @pytest.fixture(scope="module")
 def silver_df(spark_session, s3):
     """Stages OLTP fixture as Bronze Delta, runs PacienteSilverJob, returns Silver DF."""
-    from pyspark.sql import functions as F
     from pipelines.batch.silver_paciente import PacienteSilverJob
+    from pyspark.sql import functions as F
 
     fixture = FIXTURES_DIR / "oltp_sample.json"
     if not fixture.exists():
@@ -72,10 +70,12 @@ def bronze_oltp_df(spark_session, s3):
 
 # ── The most critical assertion ────────────────────────────────────────────────
 
+
 def test_cpf_not_in_silver(silver_df):
     """No CPF from OLTP must appear in Silver (LGPD Art. 16)."""
-    assert "cpf" not in silver_df.columns, \
+    assert "cpf" not in silver_df.columns, (
         "CRITICAL FAILURE: column 'cpf' present in Silver — PII leakage!"
+    )
 
 
 def test_no_pii_columns_in_silver(silver_df):
@@ -87,31 +87,29 @@ def test_no_pii_columns_in_silver(silver_df):
 
 # ── Deterministic hash ────────────────────────────────────────────────────────
 
+
 def test_cpf_hash_is_deterministic(silver_df):
     """The same CPF must always produce the same hash (SHA-256 + salt)."""
-    from pyspark.sql import functions as F
 
-    assert "id_paciente_hash" in silver_df.columns, \
-        "Column id_paciente_hash missing from Silver"
+    assert "id_paciente_hash" in silver_df.columns, "Column id_paciente_hash missing from Silver"
 
     # Verify there are no hash duplicates (each unique CPF -> unique hash)
     total = silver_df.count()
     distinct_hashes = silver_df.select("id_paciente_hash").distinct().count()
-    assert distinct_hashes == total, \
+    assert distinct_hashes == total, (
         f"Hash collision detected: {total} rows, {distinct_hashes} unique hashes"
+    )
 
 
 def test_cpf_hash_is_sha256_format(silver_df):
     """Hash must be 64 hex characters (SHA-256)."""
-    from pyspark.sql import functions as F
 
     sample = silver_df.select("id_paciente_hash").first()
     if sample is None:
         pytest.skip("Silver is empty")
     h = sample["id_paciente_hash"]
     assert len(h) == 64, f"Hash has wrong length: {len(h)} (expected 64)"
-    assert all(c in "0123456789abcdef" for c in h.lower()), \
-        f"Hash is not hexadecimal: {h[:20]}..."
+    assert all(c in "0123456789abcdef" for c in h.lower()), f"Hash is not hexadecimal: {h[:20]}..."
 
 
 def test_id_paciente_hash_no_nulls(silver_df):
@@ -124,6 +122,7 @@ def test_id_paciente_hash_no_nulls(silver_df):
 
 # ── email/telefone suppression ────────────────────────────────────────────────
 
+
 def test_email_suppressed_in_silver(silver_df):
     """email must not exist as a column in Silver."""
     assert "email" not in silver_df.columns, "email present in Silver — suppression failed"
@@ -135,6 +134,7 @@ def test_telefone_suppressed_in_silver(silver_df):
 
 
 # ── Truncated CEP ────────────────────────────────────────────────────────────
+
 
 def test_cep_truncated_to_3_digits(silver_df):
     """cep must have been truncated to 3 digits (cep_regiao)."""
@@ -149,14 +149,15 @@ def test_cep_truncated_to_3_digits(silver_df):
 
 # ── data_nascimento generalisation ───────────────────────────────────────────
 
+
 def test_data_nascimento_generalized_to_year(silver_df):
     """data_nascimento must have been replaced by ano_nascimento (int)."""
-    assert "data_nascimento" not in silver_df.columns, \
+    assert "data_nascimento" not in silver_df.columns, (
         "data_nascimento present in Silver — generalisation failed"
+    )
     assert "ano_nascimento" in silver_df.columns, "ano_nascimento missing from Silver"
 
     from pyspark.sql import functions as F
-    from pyspark.sql.types import IntegerType
 
     # Year values must be reasonable (1900-2024)
     invalid = silver_df.filter(
@@ -166,6 +167,7 @@ def test_data_nascimento_generalized_to_year(silver_df):
 
 
 # ── Masking metadata ──────────────────────────────────────────────────────────
+
 
 def test_masking_version_present(silver_df):
     """masking_version must be populated on every row."""
@@ -179,7 +181,6 @@ def test_masking_version_present(silver_df):
 
 def test_masking_version_value(silver_df):
     """masking_version must follow the semantic pattern 'masking-X.Y.Z'."""
-    from pyspark.sql import functions as F
 
     versions = silver_df.select("masking_version").distinct().collect()
     assert len(versions) == 1, "masking_version must not vary within the same load"

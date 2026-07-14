@@ -2,6 +2,7 @@
 
 Implements the output port. Domain logic never imports boto3 directly.
 """
+
 from __future__ import annotations
 
 import json
@@ -9,8 +10,6 @@ import logging
 
 import boto3
 from botocore.client import Config
-
-from pipelines.extraction.ports import LandingStoragePort
 
 log = logging.getLogger(__name__)
 
