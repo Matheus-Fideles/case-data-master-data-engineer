@@ -1,6 +1,6 @@
-"""DAG Gold — Fato Óbito (SIM).
+"""DAG Gold — Fact Death (SIM).
 
-Carrega fato_obito no Postgres gold_dw. Roda anualmente.
+Loads fato_obito into Postgres gold_dw. Runs annually.
 """
 from __future__ import annotations
 
