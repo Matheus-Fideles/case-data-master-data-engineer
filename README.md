@@ -54,90 +54,102 @@ RAM mínima recomendada:
 
 ## Quick start
 
-### 1. Configuração inicial
+### One command (recommended)
 
 ```bash
 git clone <repo-url> && cd case-data-master-data-engineer
-
-# Copiar variáveis de ambiente (editar se necessário para demo)
-cp .env.example .env
-
-# Instalar hooks de qualidade de código
-pip install pre-commit
-pre-commit install
-
-# Baixar amostras de dados para modo offline (demo sem internet)
-make seed
+cp .env.example .env        # edit PII_SALT if needed
+make demo                   # starts Postgres + MinIO + Airflow, runs smoke tests, opens browser
 ```
 
-### 2. Subir infraestrutura
+`make demo` takes ~3 min on first run (image pulls). On success:
 
-```bash
-# Verificar que Rancher Desktop está rodando
-make k8s-check
-
-# Subir todos os serviços Docker Compose
-make up-all
-
-# Instalar spark-operator no k3s + criar namespace spark
-make k8s-setup
-
-# Build e push da imagem Spark customizada para o registry local
-make k8s-spark-image
-
-# Aguardar todos os serviços ficarem healthy (~3-5 min)
-make smoke
-```
-
-### 3. Configurar Airflow e executar pipeline (demo)
-
-```bash
-# Criar conexões, variáveis e pools no Airflow
-make airflow-setup
-
-# Acessar Airflow UI
-open http://localhost:8080
-# user: admin / pass: admin
-
-# Trigger manual do pipeline completo:
-# dag_bronze_dengue → dag_silver_notificacao → dag_gold_fato_notificacao
-# Ou via CLI:
-make run-demo-pipeline
-```
-
-### 4. Verificar resultados
-
-| Interface | URL | Credenciais |
+| Interface | URL | Credentials |
 |---|---|---|
 | Airflow | http://localhost:8080 | admin / admin |
 | MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
-| Trino UI | http://localhost:8085/ui | trino / (sem senha) |
+
+Then trigger the full pipeline:
+
+```bash
+make run-demo-pipeline      # triggers bronze → silver → gold DAGs via Airflow CLI
+```
+
+Add serving / observability layers:
+
+```bash
+make up-serving             # Trino + Metabase
+make up-observability       # Prometheus + Grafana + Marquez
+```
+
+Stop and reset:
+
+```bash
+make demo-stop              # stops containers, preserves volumes
+make demo-reset             # wipes volumes and starts fresh
+```
+
+### Manual setup (full stack + Kubernetes)
+
+```bash
+# 1. Initial setup
+pip install pre-commit && pre-commit install
+make seed                   # download API samples for offline mode
+
+# 2. Infrastructure
+make k8s-check              # verify Rancher Desktop is running
+make up-all                 # all Compose profiles
+make k8s-setup              # spark-operator + namespace + secrets
+make k8s-spark-image        # build + push custom Spark image
+
+# 3. Airflow
+make airflow-setup          # connections, variables, pools
+make run-demo-pipeline      # trigger bronze → silver → gold
+
+# 4. Smoke tests
+make smoke                  # full suite (requires compose up)
+```
+
+### All services
+
+| Interface | URL | Credentials |
+|---|---|---|
+| Airflow | http://localhost:8080 | admin / admin |
+| MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
+| Trino UI | http://localhost:8085/ui | trino / (no password) |
 | Metabase | http://localhost:3001 | admin@local.dev / admin123 |
 | Grafana | http://localhost:3000 | admin / admin |
 | Marquez UI | http://localhost:5000 | — |
 | Prometheus | http://localhost:9090 | — |
 
-### 5. Preparação para demo ao vivo (10 min antes)
+### Pre-demo warmup (10 min before presentation)
 
 ```bash
-make warmup   # pull de imagens Docker + k8s images antecipadamente
+make warmup   # pre-pull Docker + k8s images
 ```
 
 ## Targets Makefile
 
-| Target | O que faz |
+| Target | Description |
 |---|---|
-| `make up-core` | Sobe postgres + minio + airflow (sem streaming/serving) |
-| `make up-all` | Sobe todos os profiles Compose |
-| `make down` | Para e remove todos os containers |
-| `make smoke` | Health checks em todos os endpoints |
-| `make seed` | Baixa amostras de APIs e salva em `data/raw/` |
-| `make k8s-check` | Verifica conectividade com Rancher Desktop |
-| `make k8s-setup` | Instala spark-operator + cria namespace spark |
-| `make k8s-spark-image` | Build + push imagem Spark customizada |
-| `make run-demo-pipeline` | Trigger manual do pipeline E2E via Airflow CLI |
-| `make warmup` | Pré-aquece imagens Docker + k8s |
-| `make logs` | Tails de logs de todos os serviços |
+| `make demo` | **One command**: start core services + Airflow setup + smoke tests + open browser |
+| `make demo-stop` | Stop demo containers (preserves volumes for next run) |
+| `make demo-reset` | Wipe volumes and restart a fresh demo |
+| `make up-core` | Start postgres + minio + airflow (core profile only) |
+| `make up-streaming` | Add Kafka + stream-producer |
+| `make up-serving` | Add Trino + Metabase |
+| `make up-observability` | Add Prometheus + Grafana + Marquez |
+| `make up-all` | Start all Compose profiles |
+| `make down` | Stop and remove all containers |
+| `make smoke` | Full smoke test suite |
+| `make smoke-min` | Minimal smoke: infra + bronze + masking + idempotency + security |
+| `make seed` | Download API samples to `data/raw/` (offline mode) |
+| `make k8s-check` | Verify Rancher Desktop connectivity |
+| `make k8s-setup` | Install spark-operator + create spark namespace + secrets |
+| `make k8s-spark-image` | Build + push custom Spark image to local registry |
+| `make run-demo-pipeline` | Manually trigger E2E pipeline via Airflow CLI |
+| `make warmup` | Pre-pull Docker + k8s images |
+| `make logs` | Tail logs from all services |
 
 ## Estrutura do repositório
 
@@ -218,7 +230,7 @@ Mascaramento ocorre na transição **Bronze → Silver**. Gold nunca vê PII.
 | [0003](docs/architecture/decisions/0003-schema-evolution.md) | Schema evolution → **mergeSchema=true** |
 | [0004](docs/architecture/decisions/0004-pii-masking.md) | Mascaramento PII → **SHA-256+salt no Silver** |
 | [0005](docs/architecture/decisions/0005-streaming-watermark.md) | Watermark → **1 hora** |
-| [0006](docs/architecture/decisions/0006-scd2.md) | SCD Tipo 2 → **valid_from/to + is_current** |
+| [0006](docs/architecture/decisions/0006-scd2.md) | SCD Tipo 2 → **dt_inicio/dt_fim + is_current** |
 | [0007](docs/architecture/decisions/0007-spark-on-kubernetes.md) | Spark → **k3s via Rancher Desktop** |
 | [0008](docs/architecture/decisions/0008-ingestion-layers.md) | Ingestão → **Python extrai, Spark transforma** |
 
