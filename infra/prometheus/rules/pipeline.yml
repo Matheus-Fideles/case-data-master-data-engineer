@@ -1,0 +1,18 @@
+groups:
+  - name: pipeline_alerts
+    rules:
+      - alert: AirflowSchedulerDown
+        expr: up{job="airflow"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Airflow scheduler não responde"
+
+      - alert: MinioDown
+        expr: up{job="minio"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MinIO não responde"

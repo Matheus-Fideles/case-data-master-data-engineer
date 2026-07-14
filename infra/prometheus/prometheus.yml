@@ -1,0 +1,32 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  - job_name: airflow
+    static_configs:
+      - targets: ["airflow-scheduler:8125"]
+    metrics_path: /metrics
+
+  - job_name: trino
+    static_configs:
+      - targets: ["trino:8080"]
+    metrics_path: /v1/info
+    scheme: http
+
+  - job_name: minio
+    static_configs:
+      - targets: ["minio:9000"]
+    metrics_path: /minio/v2/metrics/cluster
+    scheme: http
+
+  - job_name: kafka
+    static_configs:
+      - targets: ["kafka:9092"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

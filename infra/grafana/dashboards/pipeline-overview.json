@@ -1,0 +1,50 @@
+{
+  "title": "Pipeline Overview — Case Santander",
+  "uid": "pipeline-overview",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "1m",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Airflow UP",
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 3},
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "up{job=\"airflow\"}",
+          "legendFormat": "Airflow"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "MinIO UP",
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 3},
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "up{job=\"minio\"}",
+          "legendFormat": "MinIO"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Casos por Agravo (último mês)",
+      "gridPos": {"x": 0, "y": 3, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "Postgres-Gold",
+          "rawSql": "SELECT agravo, COUNT(*) AS qtd_casos FROM gold_dw.fato_notificacao WHERE ano_mes = TO_CHAR(CURRENT_DATE - INTERVAL '1 month', 'YYYYMM') GROUP BY agravo ORDER BY qtd_casos DESC",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "time": {"from": "now-30d", "to": "now"},
+  "timepicker": {}
+}
