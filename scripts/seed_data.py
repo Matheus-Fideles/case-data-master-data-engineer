@@ -1,9 +1,9 @@
 """
-Seed script: baixa amostras de todas as APIs e salva em data/raw/.
-Executado por: make seed
-Objetivo: garantir OFFLINE_MODE=1 funcione na demo sem internet.
+Seed script: downloads samples from all APIs and saves to data/raw/.
+Run via: make seed
+Purpose: ensure OFFLINE_MODE=1 works in the demo without internet.
 
-Usa page_size pequeno (100 registros) — suficiente para demonstração.
+Uses a small page_size (100 records) — sufficient for demonstration.
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger("seed")
 
 API_BASE = "https://apidadosabertos.saude.gov.br"
-SEED_LIMIT = 100  # registros por fonte — suficiente para demo
+SEED_LIMIT = 100  # records per source — sufficient for demo
 ANO = "2024"
 
 
@@ -26,7 +26,7 @@ def fetch_one_page(url: str, params: dict) -> list[dict]:
     resp = requests.get(url, params=params, timeout=60)
     resp.raise_for_status()
     data = resp.json()
-    # descobre a lista dentro da resposta
+    # find the list inside the response
     for key, val in data.items():
         if isinstance(val, list):
             return val
@@ -63,7 +63,7 @@ def seed_cnes() -> None:
 
 
 def seed_municipios() -> None:
-    log.info("Fetching municípios...")
+    log.info("Fetching municipios...")
     resp = requests.get(
         f"{API_BASE}/macrorregiao-e-regiao-de-saude/municipio",
         timeout=60,
@@ -71,22 +71,22 @@ def seed_municipios() -> None:
     resp.raise_for_status()
     data = resp.json()
     records = data.get("macrorregiao_regiao_saude_municipios", [])
-    assert records, "API retornou vazio para municípios"
+    assert records, "API returned empty for municipios"
     save(records, "municipios", "20240101")
 
 
 def seed_vacinacao() -> None:
-    log.info("Fetching vacinação PNI...")
+    log.info("Fetching vacinacao PNI...")
     records = fetch_one_page(
         f"{API_BASE}/vacinacao/doses-aplicadas-pni-2024",
         {"page": 0, "size": SEED_LIMIT},
     )
-    assert records, "API retornou vazio para vacinação"
+    assert records, "API returned empty for vacinacao"
     save(records, "vacinacao_pni", ANO)
 
 
 def seed_sim() -> None:
-    log.info("Fetching SIM óbitos...")
+    log.info("Fetching SIM obitos...")
     records = fetch_one_page(
         f"{API_BASE}/vigilancia-e-meio-ambiente/sistema-de-informacao-sobre-mortalidade",
         {"ano": ANO, "offset": 0, "limit": SEED_LIMIT},
@@ -96,7 +96,7 @@ def seed_sim() -> None:
 
 
 def main() -> None:
-    log.info("=== Seed data — baixando amostras de %d registros por fonte ===", SEED_LIMIT)
+    log.info("=== Seed data — downloading %d records per source ===", SEED_LIMIT)
     errors = []
 
     tasks = [
@@ -113,14 +113,14 @@ def main() -> None:
         try:
             fn()
         except Exception as e:
-            log.error("  ✗ %s — ERRO: %s", name, e)
+            log.error("  ✗ %s — ERROR: %s", name, e)
             errors.append(name)
 
     if errors:
-        log.error("Seed falhou para: %s", ", ".join(errors))
+        log.error("Seed failed for: %s", ", ".join(errors))
         sys.exit(1)
     else:
-        log.info("=== Seed concluído. Use OFFLINE_MODE=1 para demo offline. ===")
+        log.info("=== Seed complete. Use OFFLINE_MODE=1 for offline demo. ===")
 
 
 if __name__ == "__main__":

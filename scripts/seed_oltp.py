@@ -1,11 +1,11 @@
-"""Popula oltp.paciente com dados sintéticos via Faker.
+"""Populates oltp.paciente with synthetic data via Faker.
 
-Executado por: make seed-oltp
-Requer: Postgres rodando (docker compose up -d postgres)
+Run via: make seed-oltp
+Requires: Postgres running (docker compose up -d postgres)
 
-Gera N_PACIENTES registros com CPF válido (checksum), nome, endereço
-e dados demográficos sintéticos em pt_BR. Idempotente: usa INSERT ON
-CONFLICT DO NOTHING, então pode ser re-executado sem duplicar dados.
+Generates N_PACIENTES records with valid CPF (checksum), name, address
+and synthetic pt_BR demographic data. Idempotent: uses INSERT ON
+CONFLICT DO NOTHING, so it can be re-run without duplicating data.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ try:
     import psycopg2
     from faker import Faker
 except ImportError:
-    print("Instale as dependências: pip install psycopg2-binary faker")
+    print("Install dependencies: pip install psycopg2-binary faker")
     sys.exit(1)
 
 N_PACIENTES = int(os.environ.get("SEED_N_PACIENTES", "500"))
@@ -31,7 +31,7 @@ Faker.seed(42)
 random.seed(42)
 
 MUNICIPIOS = [
-    ("3550308", "01310100"),  # São Paulo - SP
+    ("3550308", "01310100"),  # Sao Paulo - SP
     ("3304557", "20040020"),  # Rio de Janeiro - RJ
     ("3106200", "30130110"),  # Belo Horizonte - MG
     ("2927408", "40010010"),  # Salvador - BA
@@ -40,12 +40,12 @@ MUNICIPIOS = [
     ("4314902", "90010280"),  # Porto Alegre - RS
     ("4106902", "80010010"),  # Curitiba - PR
     ("2611606", "50010020"),  # Recife - PE
-    ("5300108", "70040010"),  # Brasília - DF
+    ("5300108", "70040010"),  # Brasilia - DF
 ]
 
 
 def _gerar_cpf() -> str:
-    """Gera CPF com dígitos verificadores válidos."""
+    """Generates a CPF with valid check digits."""
     nums = [random.randint(0, 9) for _ in range(9)]
 
     soma = sum((10 - i) * n for i, n in enumerate(nums))
@@ -83,11 +83,11 @@ def main() -> None:
     cur.execute("SELECT COUNT(*) FROM oltp.paciente")
     existing = cur.fetchone()[0]
     if existing >= N_PACIENTES:
-        print(f"oltp.paciente já tem {existing} registros — nada a fazer.")
+        print(f"oltp.paciente already has {existing} records — nothing to do.")
         conn.close()
         return
 
-    print(f"Gerando {N_PACIENTES} pacientes sintéticos...")
+    print(f"Generating {N_PACIENTES} synthetic patients...")
     inseridos = 0
     cpfs_vistos: set[str] = set()
 
@@ -118,7 +118,7 @@ def main() -> None:
     conn.commit()
     cur.close()
     conn.close()
-    print(f"Seed concluído: {inseridos} pacientes inseridos em oltp.paciente.")
+    print(f"Seed complete: {inseridos} patients inserted into oltp.paciente.")
 
 
 if __name__ == "__main__":

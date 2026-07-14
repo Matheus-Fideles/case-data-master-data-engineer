@@ -1,7 +1,6 @@
 """
 Faker → Kafka producer.
-Gera eventos de atendimento hospitalar sintéticos e publica em notificacoes.raw.
-Ver: openspec/specs/spec-05-streaming.md
+Generates synthetic hospital care events and publishes to notificacoes.raw.
 """
 import hashlib
 import json
@@ -29,7 +28,7 @@ CNES_SAMPLE = [
 
 
 def fake_cpf_hash() -> str:
-    """Gera CPF sintético e retorna apenas seu hash SHA-256 — nunca expõe CPF."""
+    """Generates a synthetic CPF and returns only its SHA-256 hash — never exposes the CPF."""
     cpf = f"{random.randint(100,999)}.{random.randint(100,999)}.{random.randint(100,999)}-{random.randint(10,99)}"
     return hashlib.sha256(cpf.encode()).hexdigest()
 
@@ -47,7 +46,7 @@ def build_event() -> dict:
 
 def delivery_report(err, msg):
     if err:
-        print(f"[ERRO] entrega falhou: {err}")
+        print(f"[ERROR] delivery failed: {err}")
 
 
 def main():
