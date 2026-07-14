@@ -230,6 +230,7 @@ services:
       - ./infra/trino/etc:/etc/trino/etc:ro
     ports:
       - "8085:8080"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "--max-time", "30", "http://localhost:8080/v1/info"]
       interval: 30s
@@ -250,9 +251,10 @@ services:
       MB_DB_DBNAME: ${MB_DB_DBNAME:-app}
       MB_DB_USER: ${MB_DB_USER:-metabase}
       MB_DB_PASS: ${MB_DB_PASS}
-      JAVA_TOOL_OPTIONS: "-Xmx512m"
+      JAVA_TOOL_OPTIONS: "-Xmx768m"
     ports:
       - "3001:3000"
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
