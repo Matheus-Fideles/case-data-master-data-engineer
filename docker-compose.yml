@@ -251,7 +251,7 @@ services:
       MB_DB_DBNAME: ${MB_DB_DBNAME:-app}
       MB_DB_USER: ${MB_DB_USER:-metabase}
       MB_DB_PASS: ${MB_DB_PASS}
-      JAVA_TOOL_OPTIONS: "-Xmx768m"
+      JAVA_TOOL_OPTIONS: "-Xmx896m"
     ports:
       - "3001:3000"
     restart: unless-stopped
