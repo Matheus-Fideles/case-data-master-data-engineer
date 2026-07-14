@@ -1,0 +1,40 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: bronze-oltp-paciente-{{ SNAPSHOT_DATE }}
+  namespace: spark
+spec:
+  type: Python
+  mode: cluster
+  image: registry.rancher.com:5000/spark-custom:3.5-delta
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///opt/spark/work-dir/pipelines/batch/bronze_oltp_paciente.py
+  arguments:
+    - --snapshot_date={{ SNAPSHOT_DATE }}
+    - --batch_id={{ BATCH_ID }}
+  sparkVersion: "3.5.1"
+  restartPolicy:
+    type: Never
+  sparkConf:
+    spark.sql.extensions: io.delta.sql.DeltaSparkSessionExtension
+    spark.sql.catalog.spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
+    spark.hadoop.fs.s3a.endpoint: http://host.docker.internal:9000
+    spark.hadoop.fs.s3a.path.style.access: "true"
+    spark.hadoop.fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+    spark.hadoop.fs.s3a.connection.ssl.enabled: "false"
+  driver:
+    cores: 1
+    coreLimit: "1200m"
+    memory: "1g"
+    serviceAccount: spark
+    envFrom:
+      - secretRef:
+          name: minio-credentials
+  executor:
+    cores: 2
+    coreLimit: "2000m"
+    instances: 1
+    memory: "2g"
+    envFrom:
+      - secretRef:
+          name: minio-credentials
