@@ -1,0 +1,175 @@
+name: Smoke tests
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Smoke suite (min | full)"
+        required: false
+        default: "min"
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Smoke (${{ github.event.inputs.suite || 'min' }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    env:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      PII_SALT: ci-salt-not-for-prod
+      OFFLINE_MODE: "1"
+      KEEP_COMPOSE: "1"
+      SKIP_AIRFLOW_CHECK: "1"
+      # Aponta para os serviços do compose
+      MINIO_ENDPOINT_EXTERNAL: http://localhost:9000
+      POSTGRES_HOST_EXTERNAL: localhost
+      KAFKA_BOOTSTRAP_SERVERS_EXTERNAL: localhost:19092
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Cache de camadas Docker ──────────────────────────────────────────────
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-${{ runner.os }}-${{ hashFiles('docker-compose.yml') }}
+          restore-keys: docker-${{ runner.os }}-
+
+      # ── Python + deps de teste ───────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install smoke test dependencies
+        run: |
+          pip install \
+            pytest==8.2.2 \
+            pytest-timeout==2.3.1 \
+            boto3==1.34.131 \
+            psycopg2-binary==2.9.9 \
+            requests==2.32.3 \
+            confluent-kafka==2.4.0 \
+            pyspark==3.5.1 \
+            delta-spark==3.1.0 \
+            tenacity==8.3.0
+
+      # ── .env para o compose ──────────────────────────────────────────────────
+      - name: Create .env for docker compose
+        run: |
+          cat > .env <<'EOF'
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          POSTGRES_DB=postgres
+          MINIO_ROOT_USER=minioadmin
+          MINIO_ROOT_PASSWORD=minioadmin
+          PII_SALT=ci-salt-not-for-prod
+          OFFLINE_MODE=1
+          API_BASE_URL=https://apidadosabertos.saude.gov.br
+          AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgres@postgres:5432/postgres
+          AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLt0nfdstY=
+          AIRFLOW__WEBSERVER__SECRET_KEY=ci-secret-key
+          AIRFLOW__OPENLINEAGE__TRANSPORT={"type":"http","url":"http://marquez:5000"}
+          AIRFLOW__OPENLINEAGE__NAMESPACE=ci
+          EOF
+
+      # ── Sobe apenas core + streaming (sem Airflow para economizar RAM) ───────
+      - name: Start core services
+        run: |
+          # minio-init não tem healthcheck — sobe separado depois do minio estar healthy
+          docker compose --profile core up -d postgres minio
+          docker compose --profile core up -d minio-init
+        timeout-minutes: 5
+
+      - name: Start streaming services
+        run: |
+          docker compose --profile streaming up -d kafka
+          docker compose --profile streaming up -d kafka-init
+        timeout-minutes: 3
+
+      - name: Wait for services to be ready
+        run: |
+          # Postgres
+          until docker compose exec -T postgres pg_isready -U postgres; do
+            sleep 2
+          done
+          # MinIO health
+          until curl -sf http://localhost:9000/minio/health/live; do
+            sleep 2
+          done
+          # Kafka (usa healthcheck definido no compose)
+          until docker compose exec -T kafka \
+            kafka-topics --bootstrap-server localhost:9092 --list 2>/dev/null; do
+            sleep 3
+          done
+          echo "All services ready"
+        timeout-minutes: 3
+
+      # ── Smoke min ────────────────────────────────────────────────────────────
+      - name: Run smoke-min suite
+        if: ${{ github.event.inputs.suite != 'full' }}
+        run: |
+          python -m pytest \
+            tests/smoke/test_01_infra_health.py \
+            tests/smoke/test_02_bronze_ingestion.py \
+            tests/smoke/test_03_silver_masking.py \
+            tests/smoke/test_06_idempotency.py \
+            tests/smoke/test_08_security_invariants.py \
+            -v --tb=short -m smoke \
+            --timeout=120 \
+            --junit-xml=smoke-results.xml
+        env:
+          SKIP_AIRFLOW_CHECK: "1"
+
+      # ── Smoke full (workflow_dispatch com suite=full) ─────────────────────────
+      - name: Start Airflow (full suite only)
+        if: ${{ github.event.inputs.suite == 'full' }}
+        run: |
+          docker compose --profile core up -d --wait \
+            airflow-init airflow-webserver airflow-scheduler
+          until curl -sf http://localhost:8080/health | grep -q '"status":"healthy"'; do
+            sleep 5
+          done
+        timeout-minutes: 5
+
+      - name: Run smoke-full suite
+        if: ${{ github.event.inputs.suite == 'full' }}
+        run: |
+          python -m pytest tests/smoke/ \
+            -v --tb=short -m smoke \
+            --timeout=180 \
+            --junit-xml=smoke-results.xml
+
+      # ── Relatório ─────────────────────────────────────────────────────────────
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-results-${{ github.event.inputs.suite || 'min' }}
+          path: smoke-results.xml
+
+      - name: Publish test summary
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: smoke-results.xml
+          check_name: Smoke (${{ github.event.inputs.suite || 'min' }})
+
+      # ── Teardown ──────────────────────────────────────────────────────────────
+      - name: Stop services
+        if: always()
+        run: |
+          docker compose \
+            --profile core --profile streaming \
+            down --volumes --remove-orphans

@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "dev"]
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Lint ────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install ruff
+        run: pip install ruff==0.4.9
+
+      - name: Check formatting
+        run: ruff format --check pipelines/ airflow/ tests/
+
+      - name: Check lint
+        run: ruff check pipelines/ airflow/ tests/
+
+  # ── Unit tests ──────────────────────────────────────────────────────────────
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-24.04
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install test dependencies
+        run: |
+          pip install \
+            pytest==8.2.2 \
+            pytest-cov==5.0.0 \
+            boto3==1.34.131 \
+            requests==2.32.3 \
+            tenacity==8.3.0
+
+      - name: Run unit tests
+        env:
+          OFFLINE_MODE: "1"
+          PII_SALT: "ci-salt-not-for-prod"
+        run: |
+          python -m pytest tests/extraction/ tests/batch/ \
+            -v \
+            --tb=short \
+            --cov=pipelines \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            -q
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: coverage.xml
+          flags: unit
+          fail_ci_if_error: false
+
+  # ── Security scan ────────────────────────────────────────────────────────────
+  security:
+    name: Security scan (bandit)
+    runs-on: ubuntu-24.04
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install bandit
+        run: pip install bandit[toml]==1.7.9
+
+      - name: Run bandit
+        run: |
+          bandit -r pipelines/ \
+            --severity-level medium \
+            --confidence-level medium \
+            --skip B101,B311 \
+            -f json \
+            -o bandit-report.json || true
+          # Falha apenas em HIGH severity
+          bandit -r pipelines/ \
+            --severity-level high \
+            --confidence-level high \
+            --skip B101
+
+      - name: Upload bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: bandit-report.json

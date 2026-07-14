@@ -26,3 +26,24 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["N802", "S101"]
 "airflow/dags/**" = ["N999"]  # DAG filenames com underscores são convenção Airflow
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--tb=short -q"
+markers = [
+    "smoke: smoke tests end-to-end (requerem docker compose up)",
+]
+
+[tool.coverage.run]
+source = ["pipelines"]
+omit = ["tests/*", "*/migrations/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
