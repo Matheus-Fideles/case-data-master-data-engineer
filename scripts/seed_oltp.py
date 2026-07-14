@@ -23,7 +23,7 @@ except ImportError:
 N_PACIENTES = int(os.environ.get("SEED_N_PACIENTES", "500"))
 PG_DSN = os.environ.get(
     "POSTGRES_DSN",
-    "host=localhost port=5432 dbname=postgres user=postgres password=postgres",
+    "host=localhost port=5432 dbname=app user=postgres password=postgres",
 )
 
 fake = Faker("pt_BR")

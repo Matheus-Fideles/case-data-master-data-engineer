@@ -134,20 +134,18 @@ services:
   airflow-init:
     <<: *airflow-common
     profiles: [core]
-    command: >
-      bash -c "
+    command:
+      - bash
+      - -c
+      - >-
         airflow db migrate &&
         airflow users create
-          --username ${AIRFLOW_ADMIN_USER:-admin}
-          --password ${AIRFLOW_ADMIN_PASSWORD:-admin}
-          --firstname Admin
-          --lastname Admin
-          --role Admin
-          --email admin@local.dev &&
-        airflow pools set spark_pool 4 'Spark jobs no k8s' &&
-        airflow pools set extraction_pool 8 'Extratores de API REST' &&
-        airflow pools set dw_load_pool 2 'Cargas no Postgres DW'
-      "
+        --username ${AIRFLOW_ADMIN_USER:-admin}
+        --password ${AIRFLOW_ADMIN_PASSWORD:-admin}
+        --firstname Admin --lastname Admin --role Admin --email admin@local.dev &&
+        airflow pools set spark_pool 4 'Spark k8s jobs' &&
+        airflow pools set extraction_pool 8 'REST API extractors' &&
+        airflow pools set dw_load_pool 2 'DW Gold load'
     restart: "no"
 
   # ─────────────────────────────────────────
@@ -189,13 +187,14 @@ services:
   kafka-init:
     image: confluentinc/cp-kafka:7.6.1
     profiles: [streaming]
-    command: >
-      bash -c "
+    command:
+      - bash
+      - -c
+      - >-
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists
-          --topic notificacoes.raw --partitions 3 --replication-factor 1 &&
+        --topic notificacoes.raw --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists
-          --topic notificacoes.dlq --partitions 1 --replication-factor 1
-      "
+        --topic notificacoes.dlq --partitions 1 --replication-factor 1
     depends_on:
       kafka:
         condition: service_healthy

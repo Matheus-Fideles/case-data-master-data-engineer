@@ -23,7 +23,7 @@ MINIO_BUCKETS  = {"landing", "bronze", "silver", "gold"}
 
 PG_HOST     = os.environ.get("POSTGRES_HOST_EXTERNAL", "localhost")
 PG_PORT     = int(os.environ.get("POSTGRES_PORT", "5432"))
-PG_DB       = os.environ.get("POSTGRES_DB", "postgres")
+PG_DB       = os.environ.get("POSTGRES_DB", "app")
 PG_USER     = os.environ.get("POSTGRES_USER", "postgres")
 PG_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "postgres")
 
