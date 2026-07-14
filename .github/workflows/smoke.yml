@@ -19,6 +19,9 @@ jobs:
     name: Smoke (${{ github.event.inputs.suite || 'min' }})
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      checks: write
+      contents: read
 
     env:
       MINIO_ROOT_USER: minioadmin
