@@ -16,6 +16,12 @@ spec:
   restartPolicy:
     type: Never
   sparkConf:
+    spark.extraListeners: io.openlineage.spark.agent.OpenLineageSparkListener
+    spark.openlineage.transport.type: http
+    spark.openlineage.transport.url: "http://marquez:5000"
+    spark.openlineage.namespace: "batch"
+    spark.openlineage.facets.spark_unknown.disabled: "false"
+    spark.openlineage.facets.spark.logicalPlan.disabled: "false"
     spark.sql.extensions: io.delta.sql.DeltaSparkSessionExtension
     spark.sql.catalog.spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
     spark.hadoop.fs.s3a.endpoint: http://host.docker.internal:9000
@@ -30,6 +36,11 @@ spec:
     envFrom:
       - secretRef:
           name: minio-credentials
+    env:
+      - name: OPENLINEAGE_URL
+        value: "http://marquez:5000"
+      - name: OPENLINEAGE_NAMESPACE
+        value: "batch"
   executor:
     cores: 1
     coreLimit: "1200m"

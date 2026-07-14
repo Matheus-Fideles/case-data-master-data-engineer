@@ -29,6 +29,8 @@ x-airflow-common: &airflow-common
     OFFLINE_MODE: ${OFFLINE_MODE:-0}
     PII_SALT: ${PII_SALT}
     API_BASE_URL: ${API_BASE_URL}
+    OPENLINEAGE_URL: ${OPENLINEAGE_URL:-http://marquez:5000}
+    OPENLINEAGE_NAMESPACE: ${OPENLINEAGE_NAMESPACE:-batch}
   volumes:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/plugins:/opt/airflow/plugins
