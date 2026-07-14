@@ -14,3 +14,5 @@ CREATE SCHEMA IF NOT EXISTS marquez;
 CREATE SCHEMA IF NOT EXISTS gold_dw;
 
 -- Metabase usa o schema padrão public para seus metadados
+-- Precisa da extensão citext (CREATE EXTENSION requer superuser — pré-cria aqui)
+CREATE EXTENSION IF NOT EXISTS citext;
