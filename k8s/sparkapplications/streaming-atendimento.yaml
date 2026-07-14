@@ -1,0 +1,67 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: streaming-atendimento-consumer
+  namespace: spark
+spec:
+  type: Python
+  mode: cluster
+  image: registry.rancher.com:5000/spark-custom:3.5-delta
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///opt/spark/work-dir/pipelines/streaming/atendimento_consumer.py
+  sparkVersion: "3.5.1"
+  # Streaming é long-running — reinicia automaticamente se morrer
+  restartPolicy:
+    type: Always
+    onFailureRetries: 10
+    onFailureRetryInterval: 30
+    onSubmissionFailureRetries: 5
+    onSubmissionFailureRetryInterval: 20
+  sparkConf:
+    spark.sql.extensions: io.delta.sql.DeltaSparkSessionExtension
+    spark.sql.catalog.spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
+    spark.hadoop.fs.s3a.endpoint: http://host.docker.internal:9000
+    spark.hadoop.fs.s3a.path.style.access: "true"
+    spark.hadoop.fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+    spark.hadoop.fs.s3a.connection.ssl.enabled: "false"
+    # Kafka + Delta streaming
+    spark.jars.packages: >-
+      org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,
+      io.delta:delta-spark_2.12:3.1.0
+    spark.streaming.stopGracefullyOnShutdown: "true"
+    spark.sql.streaming.checkpointLocation: s3a://landing/_checkpoints/atendimentos_stream_consumer/
+  driver:
+    cores: 1
+    coreLimit: "1200m"
+    memory: "2g"
+    serviceAccount: spark
+    envFrom:
+      - secretRef:
+          name: minio-credentials
+      - secretRef:
+          name: postgres-credentials
+    env:
+      - name: KAFKA_BOOTSTRAP_SERVERS
+        value: "host.docker.internal:9092"
+      - name: KAFKA_TOPIC
+        value: "notificacoes.raw"
+      - name: KAFKA_DLQ_TOPIC
+        value: "atendimentos.dlq"
+      - name: STREAM_WATERMARK
+        value: "1 hour"
+      - name: STREAM_TRIGGER_SECS
+        value: "30"
+      - name: BRONZE_STREAM_PATH
+        value: "s3a://bronze/atendimentos_stream/"
+      - name: STREAM_CHECKPOINT_PATH
+        value: "s3a://landing/_checkpoints/atendimentos_stream_consumer/"
+  executor:
+    cores: 2
+    coreLimit: "2000m"
+    instances: 1
+    memory: "2g"
+    envFrom:
+      - secretRef:
+          name: minio-credentials
+      - secretRef:
+          name: postgres-credentials
