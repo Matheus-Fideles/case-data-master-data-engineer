@@ -20,10 +20,16 @@ SILVER_PACIENTE_PATH = "s3a://silver/smoke_paciente/"
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _ge_context():
-    """Returns the Great Expectations DataContext if available."""
+    """Returns the Great Expectations DataContext only if checkpoints are configured."""
     try:
         import great_expectations as gx
-        return gx.get_context()
+        from pathlib import Path
+        ctx = gx.get_context()
+        # Only use GE if at least one expected checkpoint YAML exists
+        cp_dir = Path(ctx.root_directory) / "checkpoints"
+        if not any(cp_dir.glob("*.yml")):
+            return None
+        return ctx
     except Exception:
         return None
 

@@ -90,12 +90,19 @@ def test_streaming_consumer_ci_mode(spark_session, s3):
     import os
     os.environ["STREAM_CI_MODE"] = "1"
     os.environ["BRONZE_STREAM_PATH"] = BRONZE_STREAM_PATH
+    os.environ["KAFKA_BOOTSTRAP_SERVERS"] = KAFKA_BOOTSTRAP
+    os.environ["KAFKA_TOPIC"] = KAFKA_TOPIC
+    os.environ["KAFKA_DLQ_TOPIC"] = KAFKA_DLQ_TOPIC
 
     try:
-        from pipelines.streaming.atendimento_consumer import run as stream_run
-        stream_run(spark=spark_session)
+        import importlib
+        import pipelines.streaming.atendimento_consumer as _mod
+        importlib.reload(_mod)  # pick up env vars set above
+        _mod.run(spark=spark_session)
     finally:
-        os.environ.pop("STREAM_CI_MODE", None)
+        for k in ("STREAM_CI_MODE", "BRONZE_STREAM_PATH", "KAFKA_BOOTSTRAP_SERVERS",
+                  "KAFKA_TOPIC", "KAFKA_DLQ_TOPIC"):
+            os.environ.pop(k, None)
 
     df = spark_session.read.format("delta").load(BRONZE_STREAM_PATH)
     count = df.count()

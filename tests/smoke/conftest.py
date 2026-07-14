@@ -200,10 +200,20 @@ def spark_session(compose_up):
         .config("spark.hadoop.fs.s3a.path.style.access", "true")
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+        .config(
+            "spark.hadoop.fs.s3a.aws.credentials.provider",
+            "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+        )
         .config("spark.driver.memory", "2g")
         .master("local[2]")
     )
-    spark = configure_spark_with_delta_pip(builder).getOrCreate()
+    spark = configure_spark_with_delta_pip(
+        builder,
+        extra_packages=[
+            "org.apache.hadoop:hadoop-aws:3.3.4",
+            "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1",
+        ],
+    ).getOrCreate()
     spark.sparkContext.setLogLevel("WARN")
     yield spark
     spark.stop()

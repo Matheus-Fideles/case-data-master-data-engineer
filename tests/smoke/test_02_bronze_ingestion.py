@@ -25,9 +25,14 @@ def test_fixtures_exist():
         assert path.exists(), f"Missing fixture: {path}"
 
 
+def _load_jsonl(path: Path) -> list[dict]:
+    """Reads a JSONL (one JSON object per line) fixture file."""
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
 def test_dengue_fixture_has_minimum_fields():
     fixture = FIXTURES_DIR / "dengue_sample.json"
-    records = json.loads(fixture.read_text())
+    records = _load_jsonl(fixture)
     assert len(records) >= 10, "Dengue fixture must have >= 10 records"
     required = {"nu_ano", "sg_uf_not"}
     for rec in records[:3]:
@@ -37,7 +42,7 @@ def test_dengue_fixture_has_minimum_fields():
 
 def test_cnes_fixture_has_minimum_fields():
     fixture = FIXTURES_DIR / "cnes_sample.json"
-    records = json.loads(fixture.read_text())
+    records = _load_jsonl(fixture)
     assert len(records) >= 5, "CNES fixture must have >= 5 records"
     required = {"codigo_cnes", "nome_fantasia", "codigo_municipio"}
     for rec in records[:3]:

@@ -143,3 +143,23 @@ CREATE TABLE IF NOT EXISTS gold_dw.fato_atendimento_stream (
 );
 
 CREATE INDEX IF NOT EXISTS idx_fato_stream_ts ON gold_dw.fato_atendimento_stream (evento_ts);
+
+-- Batch fact table for atendimentos (joins with dim_paciente via sk_paciente)
+CREATE TABLE IF NOT EXISTS gold_dw.fato_atendimento (
+    id              BIGSERIAL   PRIMARY KEY,
+    sk_paciente     INT,
+    sk_tempo        INT,
+    co_municipio    INT,
+    tipo_atendimento VARCHAR(40),
+    cid10_principal VARCHAR(10),
+    agravo          VARCHAR(20),
+    dt_atendimento  DATE,
+    ano_mes         CHAR(6)     NOT NULL,
+    qtd_atendimentos SMALLINT   DEFAULT 1,
+    _batch_id       VARCHAR(64),
+    _load_ts        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fato_atend_paciente ON gold_dw.fato_atendimento (sk_paciente);
+CREATE INDEX IF NOT EXISTS idx_fato_atend_tempo    ON gold_dw.fato_atendimento (sk_tempo);
+CREATE INDEX IF NOT EXISTS idx_fato_atend_municipio ON gold_dw.fato_atendimento (co_municipio);

@@ -83,17 +83,25 @@ def test_bronze_cnes_idempotent(spark_session, s3):
 
 def test_silver_paciente_idempotent(spark_session, s3):
     """Two runs of the Silver paciente job -> same count."""
+    from pyspark.sql import functions as F
+    from pipelines.batch.silver_paciente import PacienteSilverJob
+
     fixture = FIXTURES_DIR / "oltp_sample.json"
     if not fixture.exists():
         pytest.skip("Fixture oltp_sample.json missing")
 
-    from pipelines.batch.silver_paciente import PacienteSilverJob
+    # Stage as Bronze Delta (oltp_sample.json is a JSON array, not Delta)
+    bronze_path = "s3a://bronze/idempotency_oltp_paciente/"
+    bronze_df = spark_session.read.option("multiLine", "true").json(str(fixture))
+    if "snapshot_date" not in bronze_df.columns:
+        bronze_df = bronze_df.withColumn("snapshot_date", F.lit("20240101"))
+    bronze_df.write.format("delta").mode("overwrite").partitionBy("snapshot_date").save(bronze_path)
 
     output = "s3a://silver/idempotency_paciente/"
     job = PacienteSilverJob()
     common = dict(
         spark=spark_session,
-        input_path=str(fixture),
+        input_path=bronze_path,
         output_path=output,
         filter_col="snapshot_date",
         filter_val="20240101",
@@ -117,6 +125,13 @@ def test_different_partitions_accumulate(spark_session, s3):
 
     fixture = FIXTURES_DIR / "dengue_sample.json"
     output  = "s3a://bronze/idempotency_multi_partition/"
+
+    # Clean up any residual data from previous test runs to ensure isolation
+    try:
+        for obj in s3.list_objects_v2(Bucket="bronze", Prefix="idempotency_multi_partition/").get("Contents", []):
+            s3.delete_object(Bucket="bronze", Key=obj["Key"])
+    except Exception:
+        pass
 
     job = ArbovirosesBronzeJob()
 

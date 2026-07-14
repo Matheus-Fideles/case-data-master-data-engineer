@@ -23,23 +23,36 @@ from tests.smoke.conftest import FIXTURES_DIR, MINIO_ENDPOINT, MINIO_ACCESS, MIN
 
 pytestmark = pytest.mark.smoke
 
-BRONZE_PATH = "s3a://bronze/smoke_test_dengue/"
-SILVER_PATH  = "s3a://silver/smoke_paciente/"
+BRONZE_OLTP_PATH = "s3a://bronze/smoke_oltp_paciente/"
+SILVER_PATH      = "s3a://silver/smoke_paciente/"
 
 
 @pytest.fixture(scope="module")
 def silver_df(spark_session, s3):
-    """Runs PacienteSilverJob on the OLTP fixture and returns the Silver DataFrame."""
+    """Stages OLTP fixture as Bronze Delta, runs PacienteSilverJob, returns Silver DF."""
+    from pyspark.sql import functions as F
     from pipelines.batch.silver_paciente import PacienteSilverJob
 
     fixture = FIXTURES_DIR / "oltp_sample.json"
     if not fixture.exists():
-        pytest.skip("Fixture oltp_sample.json missing — run test_02 first")
+        pytest.skip("Fixture oltp_sample.json missing")
+
+    # Stage JSON as Bronze Delta table so silver_base._read() can load it
+    # oltp_sample.json is a JSON array — multiLine is required
+    bronze_df = spark_session.read.option("multiLine", "true").json(str(fixture))
+    if "snapshot_date" not in bronze_df.columns:
+        bronze_df = bronze_df.withColumn("snapshot_date", F.lit("20240101"))
+    (
+        bronze_df.write.format("delta")
+        .mode("overwrite")
+        .partitionBy("snapshot_date")
+        .save(BRONZE_OLTP_PATH)
+    )
 
     job = PacienteSilverJob()
     job.run(
         spark=spark_session,
-        input_path=str(fixture),
+        input_path=BRONZE_OLTP_PATH,
         output_path=SILVER_PATH,
         filter_col="snapshot_date",
         filter_val="20240101",

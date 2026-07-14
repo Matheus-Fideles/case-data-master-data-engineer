@@ -116,4 +116,7 @@ def test_airflow_health_endpoint(compose_up):
     resp = requests.get("http://localhost:8080/health", timeout=10)
     assert resp.status_code == 200
     data = resp.json()
-    assert data.get("status") == "healthy", f"Airflow not healthy: {data}"
+    # Airflow 2.9+ dropped the top-level "status" field; check per-component
+    db_status = data.get("metadatabase", {}).get("status")
+    sched_status = data.get("scheduler", {}).get("status")
+    assert db_status == "healthy" and sched_status == "healthy", f"Airflow not healthy: {data}"

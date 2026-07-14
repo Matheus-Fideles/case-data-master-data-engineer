@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 
 KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 KAFKA_TOPIC = os.environ.get("KAFKA_TOPIC", "notificacoes.raw")
-KAFKA_DLQ_TOPIC = os.environ.get("KAFKA_DLQ_TOPIC", "atendimentos.dlq")
+KAFKA_DLQ_TOPIC = os.environ.get("KAFKA_DLQ_TOPIC", "notificacoes.dlq")
 BRONZE_PATH = os.environ.get("BRONZE_STREAM_PATH", "s3a://bronze/atendimentos_stream/")
 CHECKPOINT_PATH = os.environ.get(
     "STREAM_CHECKPOINT_PATH",
