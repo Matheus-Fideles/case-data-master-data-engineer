@@ -73,9 +73,9 @@ def bronze_oltp_df(spark_session, s3):
 
 def test_cpf_not_in_silver(silver_df):
     """No CPF from OLTP must appear in Silver (LGPD Art. 16)."""
-    assert "cpf" not in silver_df.columns, (
-        "CRITICAL FAILURE: column 'cpf' present in Silver — PII leakage!"
-    )
+    assert (
+        "cpf" not in silver_df.columns
+    ), "CRITICAL FAILURE: column 'cpf' present in Silver — PII leakage!"
 
 
 def test_no_pii_columns_in_silver(silver_df):
@@ -96,9 +96,9 @@ def test_cpf_hash_is_deterministic(silver_df):
     # Verify there are no hash duplicates (each unique CPF -> unique hash)
     total = silver_df.count()
     distinct_hashes = silver_df.select("id_paciente_hash").distinct().count()
-    assert distinct_hashes == total, (
-        f"Hash collision detected: {total} rows, {distinct_hashes} unique hashes"
-    )
+    assert (
+        distinct_hashes == total
+    ), f"Hash collision detected: {total} rows, {distinct_hashes} unique hashes"
 
 
 def test_cpf_hash_is_sha256_format(silver_df):
@@ -152,9 +152,9 @@ def test_cep_truncated_to_3_digits(silver_df):
 
 def test_data_nascimento_generalized_to_year(silver_df):
     """data_nascimento must have been replaced by ano_nascimento (int)."""
-    assert "data_nascimento" not in silver_df.columns, (
-        "data_nascimento present in Silver — generalisation failed"
-    )
+    assert (
+        "data_nascimento" not in silver_df.columns
+    ), "data_nascimento present in Silver — generalisation failed"
     assert "ano_nascimento" in silver_df.columns, "ano_nascimento missing from Silver"
 
     from pyspark.sql import functions as F

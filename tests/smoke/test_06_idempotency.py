@@ -49,9 +49,9 @@ def test_bronze_arboviroses_idempotent(spark_session, s3):
     job.run(**common, batch_id="idem-03")
     count_3 = _count(spark_session, output)
 
-    assert count_1 == count_2 == count_3, (
-        f"Bronze arboviroses not idempotent: {count_1} -> {count_2} -> {count_3}"
-    )
+    assert (
+        count_1 == count_2 == count_3
+    ), f"Bronze arboviroses not idempotent: {count_1} -> {count_2} -> {count_3}"
 
 
 # ── Bronze CNES ───────────────────────────────────────────────────────────────
@@ -161,6 +161,6 @@ def test_different_partitions_accumulate(spark_session, s3):
     )
     count_jan_feb = _count(spark_session, output)
 
-    assert count_jan_feb == count_jan * 2, (
-        f"Partitions should accumulate: 1x{count_jan} + 1x{count_jan} != {count_jan_feb}"
-    )
+    assert (
+        count_jan_feb == count_jan * 2
+    ), f"Partitions should accumulate: 1x{count_jan} + 1x{count_jan} != {count_jan_feb}"

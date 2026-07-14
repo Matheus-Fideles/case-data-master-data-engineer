@@ -74,9 +74,9 @@ def test_minio_buckets_are_not_public(compose_up):
         try:
             policy = s3.get_bucket_policy(Bucket=bucket)
             # If we get here, there is a policy — verify it is not AllUsers
-            assert "AllUsers" not in str(policy.get("Policy", "")), (
-                f"Bucket '{bucket}' has a public policy (AllUsers)"
-            )
+            assert "AllUsers" not in str(
+                policy.get("Policy", "")
+            ), f"Bucket '{bucket}' has a public policy (AllUsers)"
         except s3.exceptions.from_code("NoSuchBucketPolicy"):
             pass  # no policy = default private access ✓
         except Exception as e:

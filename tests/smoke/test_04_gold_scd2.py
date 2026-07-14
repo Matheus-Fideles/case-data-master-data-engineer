@@ -178,12 +178,12 @@ def test_scd2_second_load_creates_versions(pg_gold, pg):
     closed_after = _count_closed(pg_gold)
 
     # 5 new versions opened + 5 old ones closed
-    assert count_after == count_before + 5, (
-        f"Expected +5 records (SCD2 versions): {count_before} -> {count_after}"
-    )
-    assert current_after == current_before, (
-        "Number of current records must not change (5 closed + 5 opened)"
-    )
+    assert (
+        count_after == count_before + 5
+    ), f"Expected +5 records (SCD2 versions): {count_before} -> {count_after}"
+    assert (
+        current_after == current_before
+    ), "Number of current records must not change (5 closed + 5 opened)"
     assert closed_after >= 5, f"Expected >= 5 closed records, found {closed_after}"
 
 

@@ -44,9 +44,9 @@ def test_no_public_bucket_policies(compose_up):
         try:
             policy = s3.get_bucket_policy(Bucket=bucket)
             policy_str = str(policy.get("Policy", ""))
-            assert "AllUsers" not in policy_str, (
-                f"SECURITY FAILURE: bucket '{bucket}' has public access (AllUsers)"
-            )
+            assert (
+                "AllUsers" not in policy_str
+            ), f"SECURITY FAILURE: bucket '{bucket}' has public access (AllUsers)"
         except Exception as e:
             if "NoSuchBucketPolicy" in str(e):
                 pass  # no policy = default private access ✓
