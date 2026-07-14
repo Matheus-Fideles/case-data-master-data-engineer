@@ -241,7 +241,7 @@ services:
       - lake
 
   metabase:
-    image: metabase/metabase:v0.50.28
+    image: metabase/metabase:v0.62.5
     profiles: [serving]
     env_file: .env
     environment:
@@ -251,7 +251,7 @@ services:
       MB_DB_DBNAME: ${MB_DB_DBNAME:-app}
       MB_DB_USER: ${MB_DB_USER:-metabase}
       MB_DB_PASS: ${MB_DB_PASS}
-      JAVA_TOOL_OPTIONS: "-Xmx896m"
+      JAVA_TOOL_OPTIONS: "-Xmx1g"
     ports:
       - "3001:3000"
     restart: unless-stopped
