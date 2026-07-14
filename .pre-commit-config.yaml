@@ -1,0 +1,93 @@
+# Pre-commit hooks — padrão de engenharia do projeto.
+# Documentação: docs/standards/pre-commit.md
+#
+# Instalação:
+#   pip install pre-commit
+#   pre-commit install
+#   pre-commit run --all-files   # primeira execução em todos os arquivos
+#
+# CI executa: pre-commit run --all-files
+# Bypass de emergência (restrito a branches de feature, nunca em main):
+#   git commit --no-verify
+
+default_language_version:
+  python: python3.11
+
+repos:
+  # ---------------------------------------------------------------------------
+  # 1. Hooks básicos de sanidade
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+        # Dados ficam em data/raw/ (gitignored) ou no MinIO — não no repo
+      - id: no-commit-to-branch
+        args: [--branch, main, --branch, master]
+
+  # ---------------------------------------------------------------------------
+  # 2. Ruff — linting + formatting Python
+  # Substitui Flake8 + isort + Black com um único binário Rust (~10-100x mais rápido)
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # ---------------------------------------------------------------------------
+  # 3. yamllint — validação de YAML (SparkApplication CRDs, docker-compose, Helm values)
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [-c, .yamllint.yml]
+        types: [yaml]
+
+  # ---------------------------------------------------------------------------
+  # 4. detect-secrets — prevenção de credenciais hardcoded
+  # Compara contra .secrets.baseline (falsos positivos revisados e marcados)
+  # Gerar baseline: detect-secrets scan > .secrets.baseline
+  # Revisar:        detect-secrets audit .secrets.baseline
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: |
+          (?x)^(
+            \.secrets\.baseline|
+            data/raw/.*|
+            .*\.ipynb
+          )$
+
+  # ---------------------------------------------------------------------------
+  # 5. no-pii-in-code — hook local anti-PII (pygrep)
+  # Detecta referências a colunas PII em código Python fora dos módulos
+  # autorizados (extraction/oltp_snapshot.py e common/masking.py).
+  # Arquivos autorizados: adicionar "# noqa: PII" na primeira linha.
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: no-pii-in-code
+        name: Prevent direct PII column references
+        language: pygrep
+        entry: '(?i)(["''])(cpf|rg|nome_completo|data_nascimento|telefone|email_pessoal)(["''])'
+        types: [python]
+        exclude: |
+          (?x)^(
+            pipelines/extraction/oltp_snapshot\.py|
+            pipelines/common/masking\.py|
+            tests/.*
+          )$
