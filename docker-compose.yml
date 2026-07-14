@@ -1,0 +1,355 @@
+---
+# Docker Compose — Data Lake Medalhão · Vigilância Epidemiológica
+#
+# Spark NÃO está aqui — roda em Rancher Desktop (k3s).
+# Ver: docs/architecture/decisions/0007-spark-on-kubernetes.md
+#
+# Uso:
+#   make up-core          → postgres + minio + airflow
+#   make up-all           → todos os profiles
+#   docker compose --profile streaming up -d
+#
+# Perfis disponíveis: core | streaming | serving | observability
+
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.9.3
+  env_file: .env
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__OPENLINEAGE__TRANSPORT: ${AIRFLOW__OPENLINEAGE__TRANSPORT}
+    AIRFLOW__OPENLINEAGE__NAMESPACE: ${AIRFLOW__OPENLINEAGE__NAMESPACE}
+    AIRFLOW__SCHEDULER__STATSD_ON: "true"
+    AIRFLOW__SCHEDULER__STATSD_HOST: prometheus
+    AIRFLOW__SCHEDULER__STATSD_PORT: "9125"
+    KUBECONFIG: /opt/airflow/.kube/config
+    OFFLINE_MODE: ${OFFLINE_MODE:-0}
+    PII_SALT: ${PII_SALT}
+    API_BASE_URL: ${API_BASE_URL}
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/plugins:/opt/airflow/plugins
+    - ./pipelines:/opt/airflow/pipelines
+    - ./data:/opt/airflow/data
+    - ~/.kube:/opt/airflow/.kube:ro
+    - airflow-logs:/opt/airflow/logs
+  depends_on:
+    postgres:
+      condition: service_healthy
+  networks:
+    - lake
+
+services:
+  # ─────────────────────────────────────────
+  # CORE
+  # ─────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: [core, serving, observability]
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lake
+
+  minio:
+    image: minio/minio:RELEASE.2024-07-04T14-25-45Z
+    profiles: [core]
+    env_file: .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "mc alias set local http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD --quiet && mc ready local --quiet"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - lake
+
+  minio-init:
+    image: minio/mc:latest
+    profiles: [core]
+    env_file: .env
+    entrypoint: /bin/sh
+    command: /init/create-buckets.sh
+    volumes:
+      - ./infra/minio/init:/init:ro
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - lake
+
+  airflow-webserver:
+    <<: *airflow-common
+    profiles: [core]
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    <<: *airflow-common
+    profiles: [core]
+    command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  airflow-init:
+    <<: *airflow-common
+    profiles: [core]
+    command: >
+      bash -c "
+        airflow db migrate &&
+        airflow users create
+          --username ${AIRFLOW_ADMIN_USER:-admin}
+          --password ${AIRFLOW_ADMIN_PASSWORD:-admin}
+          --firstname Admin
+          --lastname Admin
+          --role Admin
+          --email admin@local.dev &&
+        airflow pools set spark_pool 4 'Spark jobs no k8s' &&
+        airflow pools set extraction_pool 8 'Extratores de API REST' &&
+        airflow pools set dw_load_pool 2 'Cargas no Postgres DW'
+      "
+    restart: "no"
+
+  # ─────────────────────────────────────────
+  # STREAMING
+  # ─────────────────────────────────────────
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    profiles: [streaming]
+    env_file: .env
+    environment:
+      # KRaft mode — sem Zookeeper
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qg
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+      - "19092:19092"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    networks:
+      - lake
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.1
+    profiles: [streaming]
+    command: >
+      bash -c "
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists
+          --topic notificacoes.raw --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists
+          --topic notificacoes.dlq --partitions 1 --replication-factor 1
+      "
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - lake
+
+  stream-producer:
+    build:
+      context: ./stream-producer
+      dockerfile: Dockerfile
+    profiles: [streaming]
+    env_file: .env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: ${KAFKA_TOPIC_NOTIFICACOES:-notificacoes.raw}
+      EVENTS_PER_SECOND: "2"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - lake
+
+  # ─────────────────────────────────────────
+  # SERVING
+  # ─────────────────────────────────────────
+
+  trino:
+    image: trinodb/trino:448
+    profiles: [serving]
+    volumes:
+      - ./infra/trino/catalog:/etc/trino/catalog:ro
+      - ./infra/trino/etc:/etc/trino/etc:ro
+    ports:
+      - "8085:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    networks:
+      - lake
+
+  metabase:
+    image: metabase/metabase:v0.50.28
+    profiles: [serving]
+    env_file: .env
+    environment:
+      MB_DB_TYPE: ${MB_DB_TYPE:-postgres}
+      MB_DB_HOST: ${MB_DB_HOST:-postgres}
+      MB_DB_PORT: ${MB_DB_PORT:-5432}
+      MB_DB_DBNAME: ${MB_DB_DBNAME:-app}
+      MB_DB_USER: ${MB_DB_USER:-metabase}
+      MB_DB_PASS: ${MB_DB_PASS}
+    ports:
+      - "3001:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    networks:
+      - lake
+
+  # ─────────────────────────────────────────
+  # OBSERVABILITY
+  # ─────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    profiles: [observability]
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lake
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    profiles: [observability]
+    env_file: .env
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lake
+
+  marquez:
+    image: marquezproject/marquez:0.47.0
+    profiles: [observability]
+    env_file: .env
+    environment:
+      MARQUEZ_PORT: 5000
+      MARQUEZ_ADMIN_PORT: 5001
+      MARQUEZ_DB_HOST: postgres
+      MARQUEZ_DB_PORT: 5432
+      MARQUEZ_DB_NAME: ${POSTGRES_DB}
+      MARQUEZ_DB_USER: ${POSTGRES_USER}
+      MARQUEZ_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/namespaces"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+    networks:
+      - lake
+
+# ─────────────────────────────────────────
+# VOLUMES & NETWORK
+# ─────────────────────────────────────────
+
+volumes:
+  postgres-data:
+  minio-data:
+  kafka-data:
+  airflow-logs:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  lake:
+    driver: bridge
+    # Spark pods no k3s acessam serviços via host.docker.internal
+    # Ver: docs/architecture/decisions/0007-spark-on-kubernetes.md
