@@ -43,6 +43,9 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA oltp
   GRANT SELECT ON TABLES TO gold_engineer;
 
 -- ── Permissões Metabase ───────────────────────────────────────────────────
+-- Metabase precisa de CREATE no schema public para rodar suas migrações Liquibase
+-- (PostgreSQL 15+ não concede CREATE em public por padrão)
+GRANT CREATE ON SCHEMA public TO metabase;
 GRANT USAGE ON SCHEMA gold_dw TO metabase;
 GRANT SELECT ON ALL TABLES IN SCHEMA gold_dw TO metabase;
 ALTER DEFAULT PRIVILEGES IN SCHEMA gold_dw
