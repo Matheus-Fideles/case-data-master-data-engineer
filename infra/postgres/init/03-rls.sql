@@ -1,0 +1,24 @@
+-- Row-Level Security (RLS) — Gold DW
+-- Aplicado APÓS as tabelas serem criadas pelo pipeline Gold.
+-- Este arquivo demonstra a estrutura de RLS; as políticas concretas
+-- são ativadas pelo DAG gold após a primeira carga.
+--
+-- Para ativar manualmente (exemplo):
+--
+--   ALTER TABLE gold_dw.fato_notificacao ENABLE ROW LEVEL SECURITY;
+--   CREATE POLICY uf_filter ON gold_dw.fato_notificacao
+--     FOR SELECT TO gold_analyst
+--     USING (
+--       sk_municipio_notificacao IN (
+--         SELECT sk_municipio FROM gold_dw.dim_municipio
+--         WHERE sigla_uf = current_setting('app.uf', true)
+--       )
+--     );
+--
+-- Sem o app.uf definido, o analista vê todos os municípios.
+-- SET app.uf = 'SP'; -- restringe para São Paulo
+--
+-- Referência: docs/architecture/decisions/0004-pii-masking.md
+
+-- Placeholder — RLS ativado pelo pipeline após primeira carga Gold.
+SELECT 1;
