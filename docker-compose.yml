@@ -258,6 +258,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      trino:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "--max-time", "30", "http://localhost:3000/api/health"]
       interval: 30s
