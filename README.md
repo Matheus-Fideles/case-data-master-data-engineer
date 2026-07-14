@@ -3,6 +3,8 @@
 [![CI](https://github.com/Matheus-Fideles/case-data-master-data-engineer/actions/workflows/ci.yml/badge.svg)](https://github.com/Matheus-Fideles/case-data-master-data-engineer/actions/workflows/ci.yml)
 [![Smoke](https://github.com/Matheus-Fideles/case-data-master-data-engineer/actions/workflows/smoke.yml/badge.svg)](https://github.com/Matheus-Fideles/case-data-master-data-engineer/actions/workflows/smoke.yml)
 
+> **Status dos testes:** 104 unit tests ✅ | 60 smoke tests ✅ (6 skipped por design) | 0 falhas
+
 Case técnico de Engenharia de Dados para a Academia Santander. Pipeline end-to-end que ingere dados de APIs públicas do Ministério da Saúde, processa via arquitetura Lambda (batch + streaming) e expõe análises epidemiológicas para suporte a decisão em saúde pública.
 
 ## Visão geral da arquitetura

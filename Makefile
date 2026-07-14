@@ -22,7 +22,7 @@ help: ## Mostra este help
 up-core: ## Sobe postgres + minio + airflow (profile core)
 	$(COMPOSE) --profile core up -d
 	@echo "Aguardando Airflow healthy (max 90s)..."
-	@until curl -sf http://localhost:8080/health 2>/dev/null | grep -q '"status":"healthy"'; do sleep 3; done
+	@until curl -sf http://localhost:8080/health 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('metadatabase',{}).get('status')=='healthy' and d.get('scheduler',{}).get('status')=='healthy' else 1)" 2>/dev/null; do sleep 3; done
 	@echo "Serviços core prontos."
 
 up-streaming: ## Adiciona kafka + stream-producer
@@ -37,7 +37,7 @@ up-observability: ## Adiciona prometheus + grafana + marquez
 up-all: ## Sobe todos os profiles (demo completa)
 	$(COMPOSE) --profile core --profile streaming --profile serving --profile observability up -d
 	@echo "Aguardando Airflow healthy (max 90s)..."
-	@until curl -sf http://localhost:8080/health 2>/dev/null | grep -q '"status":"healthy"'; do sleep 3; done
+	@until curl -sf http://localhost:8080/health 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('metadatabase',{}).get('status')=='healthy' and d.get('scheduler',{}).get('status')=='healthy' else 1)" 2>/dev/null; do sleep 3; done
 	@echo "Todos os serviços prontos. Rodando health check..."
 	@$(MAKE) health-check
 
