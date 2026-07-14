@@ -1,7 +1,7 @@
-"""DAG Gold — Dimensões.
+"""DAG Gold — Dimensions.
 
-Carrega dim_municipio, dim_agravo, dim_vacina e dim_tempo no Postgres gold_dw.
-Roda após os DAGs Silver correspondentes.
+Loads dim_municipio, dim_agravo, dim_vacina and dim_tempo into Postgres gold_dw.
+Runs after the corresponding Silver DAGs.
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ with DAG(
     snapshot_date = "{{ data_interval_start.strftime('%Y%m%d') }}"
     ano_mes = "{{ data_interval_start.strftime('%Y%m') }}"
 
-    # dim_municipio e dim_agravo podem correr em paralelo
+    # dim_municipio and dim_agravo can run in parallel
     _dim_mun_submit, _dim_mun_sensor = make_spark_operator(
         task_id="gold_dim_municipio",
         template_name="gold-dims.yaml",

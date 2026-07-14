@@ -1,4 +1,4 @@
-"""Helper para criar SparkSession local em DAGs de manutenção."""
+"""Helper to create a local SparkSession for maintenance DAGs."""
 from __future__ import annotations
 
 import os

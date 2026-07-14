@@ -1,6 +1,6 @@
-"""DAG Gold — Fato Vacinação (PNI).
+"""DAG Gold — Fact Vaccination (PNI).
 
-Carrega fato_vacinacao no Postgres gold_dw.
+Loads fato_vacinacao into Postgres gold_dw.
 """
 from __future__ import annotations
 

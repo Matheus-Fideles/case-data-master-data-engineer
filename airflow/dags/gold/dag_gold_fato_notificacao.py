@@ -1,7 +1,7 @@
-"""DAG Gold — Fato Notificação.
+"""DAG Gold — Fact Notification.
 
-Carrega fato_notificacao no Postgres gold_dw a partir do Silver notificacao.
-Depende upstream de dag_gold_dims.
+Loads fato_notificacao into Postgres gold_dw from the Silver notificacao layer.
+Depends upstream on dag_gold_dims.
 """
 from __future__ import annotations
 
