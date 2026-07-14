@@ -45,26 +45,30 @@ CREATE TABLE IF NOT EXISTS gold_dw.dim_estabelecimento (
     co_municipio      INT,
     co_uf             SMALLINT,
     snapshot_date     DATE,
-    valid_from        DATE    NOT NULL DEFAULT CURRENT_DATE,
-    valid_to          DATE,
+    dt_inicio         DATE    NOT NULL DEFAULT CURRENT_DATE,
+    dt_fim            DATE    NOT NULL DEFAULT '9999-12-31',
     is_current        BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE INDEX IF NOT EXISTS idx_estab_cnes ON gold_dw.dim_estabelecimento (co_cnes, is_current);
 
--- SCD Type 2: dim_paciente (apenas hash, sem PII)
+-- SCD Type 2: dim_paciente (apenas hash, sem PII — ADR-0004 + ADR-0006)
 CREATE TABLE IF NOT EXISTS gold_dw.dim_paciente (
-    sk_paciente       SERIAL  PRIMARY KEY,
+    sk_paciente       SERIAL      PRIMARY KEY,
     id_paciente_hash  VARCHAR(64) NOT NULL,
-    cs_sexo           CHAR(1),
-    nu_idade_n        SMALLINT,
-    co_municipio_res  INT,
-    valid_from        DATE    NOT NULL DEFAULT CURRENT_DATE,
-    valid_to          DATE,
-    is_current        BOOLEAN NOT NULL DEFAULT TRUE
+    sexo              CHAR(1),
+    ano_nascimento    SMALLINT,
+    cep_regiao        CHAR(3),
+    municipio_codigo_ibge VARCHAR(7),
+    dt_inicio         DATE        NOT NULL DEFAULT CURRENT_DATE,
+    dt_fim            DATE        NOT NULL DEFAULT '9999-12-31',
+    is_current        BOOLEAN     NOT NULL DEFAULT TRUE,
+    _batch_id         VARCHAR(64),
+    _load_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_paciente_hash ON gold_dw.dim_paciente (id_paciente_hash, is_current);
+CREATE INDEX IF NOT EXISTS idx_paciente_hash    ON gold_dw.dim_paciente (id_paciente_hash, is_current);
+CREATE INDEX IF NOT EXISTS idx_paciente_current ON gold_dw.dim_paciente (is_current) WHERE is_current = TRUE;
 
 -- ── Fatos ──────────────────────────────────────────────────────────────────
 
