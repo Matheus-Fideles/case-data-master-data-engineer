@@ -1,12 +1,12 @@
-"""Unit tests para pipelines/streaming/atendimento_consumer.py.
+"""Unit tests for pipelines/streaming/atendimento_consumer.py.
 
-Testa a lógica de parse, separação válido/DLQ e montagem do DataFrame Gold
-sem inicializar Kafka, SparkSession real ou MinIO.
+Tests the parse logic, valid/DLQ separation and Gold DataFrame assembly
+without initialising Kafka, a real SparkSession or MinIO.
 
-Estratégia: funções que constroem Column objects (F.col, F.lit, etc.) são
-patchadas no namespace do módulo — igual aos tests de BronzeJob/SilverJob.
-Funções de orquestração (_make_foreachbatch) são testadas patchando os
-helpers internos (_parse_kafka, _write_bronze, etc.).
+Strategy: functions that build Column objects (F.col, F.lit, etc.) are
+patched in the module namespace — same approach as BronzeJob/SilverJob tests.
+Orchestration functions (_make_foreachbatch) are tested by patching the
+internal helpers (_parse_kafka, _write_bronze, etc.).
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 # ── helpers de mock ───────────────────────────────────────────────────────────
 
 def _make_df(rows: list[dict] | None = None, *, empty: bool = False) -> MagicMock:
-    """DataFrame mock com encadeamento completo."""
+    """DataFrame mock with full method chaining."""
     df = MagicMock()
     df.rdd.isEmpty.return_value = empty or not rows
     df.count.return_value = len(rows) if rows else 0
@@ -37,7 +37,7 @@ def _make_df(rows: list[dict] | None = None, *, empty: bool = False) -> MagicMoc
 
 
 def _mock_F():
-    """Retorna mock de pyspark.sql.functions sem SparkContext."""
+    """Returns a pyspark.sql.functions mock without a SparkContext."""
     F = MagicMock()
     col = MagicMock(return_value=MagicMock())
     F.col.side_effect = lambda name: MagicMock(name=f"col({name})")
@@ -70,7 +70,7 @@ class TestParseKafka:
         with patch.object(c, "F", _mock_F()):
             valid, invalid = c._parse_kafka(raw)
 
-        # ambos são produto de filter() no mesmo df encadeado
+        # both are the result of filter() on the same chained df
         assert raw.filter.call_count >= 2
 
 
@@ -243,7 +243,7 @@ class TestForEachBatch:
         m_dlq.assert_called_once_with(spark, invalid_df, "SCHEMA_INVALID")
 
     def test_postgres_failure_does_not_abort_batch(self):
-        """Falha no Postgres não deve derrubar o micro-batch inteiro."""
+        """A Postgres failure must not abort the entire micro-batch."""
         from pipelines.streaming import atendimento_consumer as c
 
         spark = MagicMock()
@@ -258,6 +258,6 @@ class TestForEachBatch:
             patch.object(c, "_write_bronze") as m_bronze,
             patch.object(c, "_write_gold_postgres", side_effect=Exception("jdbc timeout")),
         ):
-            process_fn(microbatch, batch_id=7)  # não deve levantar
+            process_fn(microbatch, batch_id=7)  # must not raise
 
-        m_bronze.assert_called_once()  # Bronze sempre deve ser escrito
+        m_bronze.assert_called_once()  # Bronze must always be written

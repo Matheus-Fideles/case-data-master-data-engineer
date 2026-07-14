@@ -1,10 +1,10 @@
-"""Unit tests para silver_paciente.py — mascaramento LGPD.
+"""Unit tests for silver_paciente.py — LGPD masking.
 
-Verifica que:
-  1. validate_no_pii() é chamado após transform()
-  2. Nenhuma coluna PII sobrevive ao transform() (integração real com masking)
-  3. Colunas esperadas no Silver estão presentes
-  4. PacienteSilverJob.replace_condition usa partição simples (snapshot_date)
+Verifies that:
+  1. validate_no_pii() is called after transform()
+  2. No PII column survives transform() (real integration with masking)
+  3. Expected Silver columns are present
+  4. PacienteSilverJob.replace_condition uses a simple partition (snapshot_date)
 """
 from unittest.mock import MagicMock, call, patch
 
@@ -16,7 +16,7 @@ from pipelines.batch.silver_paciente import MASKING_VERSION, PacienteSilverJob
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _patched_run(job, *, row_count=3, **kwargs):
-    """Patcha _read, _add_metadata, transform e _write para isolar a orquestração."""
+    """Patches _read, _add_metadata, transform and _write to isolate orchestration."""
     df = MagicMock()
     df.count.return_value = row_count
 
@@ -39,7 +39,7 @@ def _patched_run(job, *, row_count=3, **kwargs):
         return count, df, m_read, m_meta, m_write
 
 
-# ── testes de orquestração ────────────────────────────────────────────────────
+# ── orchestration tests ───────────────────────────────────────────────────────
 
 class TestPacienteSilverJobOrchestration:
     def test_run_returns_row_count(self):
@@ -59,7 +59,7 @@ class TestPacienteSilverJobOrchestration:
 # ── testes do mascaramento (transform()) ─────────────────────────────────────
 
 class TestPacienteTransform:
-    """Testa transform() com mocks de F para evitar SparkContext."""
+    """Tests transform() with F mocks to avoid SparkContext."""
 
     def _mock_df_with_cols(self, cols: list[str]) -> MagicMock:
         df = MagicMock()
@@ -73,7 +73,7 @@ class TestPacienteTransform:
 
         job = PacienteSilverJob()
         df = self._mock_df_with_cols(["cpf", "nome", "data_nascimento", "cep", "email", "telefone"])
-        df.columns = []  # após drops, simula colunas limpas p/ validate_no_pii
+        df.columns = []  # after drops, simulates clean columns for validate_no_pii
 
         with (
             patch.object(sp, "F", MagicMock()),
@@ -121,7 +121,7 @@ class TestPacienteTransform:
         assert MASKING_VERSION.startswith("masking-")
 
     def test_validate_no_pii_blocks_pii_leakage(self):
-        """validate_no_pii deve levantar se cpf sobreviver (regressão crítica)."""
+        """validate_no_pii must raise if cpf survives (critical regression)."""
         from pipelines.common.masking import validate_no_pii
 
         df_with_pii = MagicMock()

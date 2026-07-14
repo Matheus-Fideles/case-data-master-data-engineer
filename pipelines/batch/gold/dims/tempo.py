@@ -1,4 +1,4 @@
-"""Strategy: carrega dim_tempo (gerada programaticamente para o mês)."""
+"""Strategy: loads dim_tempo (generated programmatically for the month)."""
 from __future__ import annotations
 
 import calendar

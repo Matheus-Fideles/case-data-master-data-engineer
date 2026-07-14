@@ -1,7 +1,7 @@
-"""Unit tests para o extrator de arboviroses.
+"""Unit tests for the arboviroses extractor.
 
-Demonstra o benefício do DIP: mockamos o ExtractionService (porta),
-nunca boto3 ou requests diretamente.
+Demonstrates the DIP benefit: we mock ExtractionService (the port),
+never boto3 or requests directly.
 """
 from unittest.mock import MagicMock, patch
 
@@ -25,7 +25,7 @@ def test_run_offline():
     from pipelines.extraction import arboviroses
 
     mock_svc = _make_mock_service()
-    # Patch no módulo que importou a função (não no módulo de origem)
+    # Patch in the module that imported the function (not the origin module)
     with patch("pipelines.extraction.arboviroses.make_extraction_service", return_value=mock_svc):
         result = arboviroses.run(agravo="dengue", ano=2024)
 
@@ -37,7 +37,7 @@ def test_run_offline():
 
 
 def test_invalid_agravo():
-    """agravo desconhecido levanta KeyError antes de chamar qualquer adapter."""
+    """Unknown agravo raises KeyError before calling any adapter."""
     from pipelines.extraction import arboviroses
 
     with pytest.raises(KeyError):

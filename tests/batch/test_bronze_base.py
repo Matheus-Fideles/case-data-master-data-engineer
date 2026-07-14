@@ -1,8 +1,8 @@
-"""Unit tests para BronzeJob (Template Method).
+"""Unit tests for BronzeJob (Template Method).
 
-Estratégia: mocka os métodos protegidos (_read, _add_metadata, _write, _validate)
-para isolar a lógica de orquestração do Template Method sem precisar de
-SparkContext real — F.lit/F.col requerem JVM ativa.
+Strategy: mocks the protected methods (_read, _add_metadata, _write, _validate)
+to isolate the Template Method orchestration logic without needing a real
+SparkContext — F.lit/F.col require an active JVM.
 """
 from unittest.mock import MagicMock, call, patch
 
@@ -36,17 +36,17 @@ class _DerivedPartitionJob(_SimpleBronzeJob):
         return "vacina_test"
 
     def add_partition(self, df, partition_val):
-        # Simula derivação de partição de campo existente
+        # Simulates partition derived from an existing field
         return df
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _patched_run(job, *, row_count=5, **kwargs):
-    """Executa job.run() com todos os métodos protegidos mockados.
+    """Runs job.run() with all protected methods mocked.
 
-    add_partition também é patchado para evitar F.lit sem SparkContext.
-    O patch retorna o mesmo df, simulando que a coluna de partição foi adicionada.
+    add_partition is also patched to avoid F.lit without a SparkContext.
+    The patch returns the same df, simulating that the partition column was added.
     """
     df = MagicMock()
     df.count.return_value = row_count
@@ -71,7 +71,7 @@ def _patched_run(job, *, row_count=5, **kwargs):
         return count, df, m_read, m_meta, m_val, m_write
 
 
-# ── testes de orquestração ────────────────────────────────────────────────────
+# ── orchestration tests ───────────────────────────────────────────────────────
 
 def test_run_returns_row_count():
     job = _SimpleBronzeJob()
@@ -86,7 +86,7 @@ def test_run_calls_steps_in_order():
 
     df = MagicMock()
     df.count.return_value = 3
-    df.withColumn.return_value = df  # add_partition padrão usa withColumn
+    df.withColumn.return_value = df  # default add_partition uses withColumn
 
     with (
         patch.object(job, "_read", side_effect=lambda *a, **kw: (call_order.append("read") or df)),
@@ -141,7 +141,7 @@ def test_validate_raises_on_empty():
 
 def test_validate_passes_on_nonzero():
     job = _SimpleBronzeJob()
-    job._validate(1, "s3a://x.json")  # deve não lançar
+    job._validate(1, "s3a://x.json")  # must not raise
 
 
 def test_write_receives_partition_val():
@@ -168,11 +168,11 @@ def test_default_add_partition_calls_withcolumn():
 
 
 def test_overridden_add_partition_is_used():
-    """DerivedPartitionJob sobrescreve add_partition — run() deve usar a versão sobrescrita."""
+    """DerivedPartitionJob overrides add_partition — run() must use the overridden version."""
     job = _DerivedPartitionJob()
     called = []
 
-    # Sobrescreve o método ANTES dos patches, patchando tudo exceto add_partition
+    # Override the method BEFORE patches, patching everything except add_partition
     real_add = job.add_partition
     job.add_partition = lambda df, pv: (called.append(pv) or df)
 

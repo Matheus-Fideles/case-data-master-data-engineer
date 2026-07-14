@@ -1,13 +1,13 @@
-"""Factory centralizada para SparkSession com Delta + S3A + OpenLineage.
+"""Centralised SparkSession factory with Delta + S3A + OpenLineage.
 
-Elimina duplicação de build_spark() em todos os jobs batch.
-Configurações injetadas via variáveis de ambiente (DIP).
+Eliminates build_spark() duplication across all batch jobs.
+Configuration injected via environment variables (DIP).
 
-OpenLineage (rastreabilidade de dados):
-  Se OPENLINEAGE_URL estiver definida, ativa o listener automático
-  `io.openlineage.spark.agent.OpenLineageSparkListener` que captura
-  todos os inputs/outputs Delta e S3 sem alteração no código dos jobs.
-  Ver: docs/observability.md — seção "Lineage"
+OpenLineage (data lineage):
+  When OPENLINEAGE_URL is set, activates the automatic listener
+  `io.openlineage.spark.agent.OpenLineageSparkListener` which captures
+  all Delta and S3 inputs/outputs without changes in the job code.
+  See: docs/observability.md — section "Lineage"
 """
 from __future__ import annotations
 
@@ -21,10 +21,10 @@ _OL_NAMESPACE = os.environ.get("OPENLINEAGE_NAMESPACE", "batch")
 
 
 def build_spark(app_name: str) -> SparkSession:
-    """Cria SparkSession configurada para Delta Lake + MinIO (S3A).
+    """Creates a SparkSession configured for Delta Lake + MinIO (S3A).
 
-    Ativa OpenLineage listener automaticamente se OPENLINEAGE_URL estiver definida.
-    Todas as credenciais são injetadas via env vars — sem hardcode.
+    Activates the OpenLineage listener automatically if OPENLINEAGE_URL is set.
+    All credentials are injected via env vars — no hardcoding.
     """
     builder = (
         SparkSession.builder.appName(app_name)
@@ -57,7 +57,7 @@ def build_spark(app_name: str) -> SparkSession:
 
 
 def _configure_openlineage(builder, app_name: str):
-    """Adiciona o listener OpenLineage à SparkSession."""
+    """Adds the OpenLineage listener to the SparkSession."""
     return (
         builder
         .config(

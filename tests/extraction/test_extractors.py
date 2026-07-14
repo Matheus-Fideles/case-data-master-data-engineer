@@ -1,7 +1,7 @@
-"""Unit tests para os 4 extractores que usam ExtractionService via DIP.
+"""Unit tests for the 4 extractors that use ExtractionService via DIP.
 
-Padrão: patch make_extraction_service no módulo consumidor, não na origem.
-Testa que run() delega corretamente e que parâmetros inválidos falham cedo.
+Pattern: patch make_extraction_service in the consumer module, not the origin.
+Tests that run() delegates correctly and that invalid parameters fail early.
 """
 from unittest.mock import MagicMock, patch
 
@@ -54,7 +54,7 @@ class TestCnes:
         assert data_ref.isdigit()
 
 
-# ── Municípios ────────────────────────────────────────────────────────────────
+# ── Municipios ────────────────────────────────────────────────────────────────
 
 class TestMunicipios:
     def test_run_delegates_to_service(self):
@@ -88,7 +88,7 @@ class TestMunicipios:
         assert data_ref.isdigit()
 
 
-# ── Vacinação PNI ─────────────────────────────────────────────────────────────
+# ── Vacinacao PNI ─────────────────────────────────────────────────────────────
 
 class TestVacinacaoPni:
     def test_run_delegates_to_service(self):
@@ -120,7 +120,7 @@ class TestVacinacaoPni:
         assert mock_svc.run.call_args.kwargs["data_ref"] == "2023"
 
 
-# ── SIM Óbitos ────────────────────────────────────────────────────────────────
+# ── SIM Obitos ────────────────────────────────────────────────────────────────
 
 class TestSimObitos:
     def test_run_delegates_to_service(self):

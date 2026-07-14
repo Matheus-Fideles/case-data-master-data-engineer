@@ -1,11 +1,11 @@
-"""Smoke 05 — Streaming E2E (Kafka → Spark → Bronze).
+"""Smoke 05 — Streaming E2E (Kafka -> Spark -> Bronze).
 
-Produz eventos no Kafka, dispara consumer em CI_MODE e verifica:
-  1. Eventos válidos chegam ao Bronze Delta
-  2. Eventos inválidos são desviados para o DLQ
-  3. Watermark filtra eventos atrasados (> 1h) corretamente
+Produces events in Kafka, triggers the consumer in CI_MODE, and verifies:
+  1. Valid events arrive in the Bronze Delta table
+  2. Invalid events are routed to the DLQ
+  3. Watermark correctly filters late events (> 1h old)
 
-Tempo alvo: < 120s (inclui startup Spark Streaming)
+Target time: < 120s (includes Spark Streaming startup)
 """
 from __future__ import annotations
 
@@ -30,14 +30,14 @@ N_VALID   = 20
 N_INVALID = 5
 
 
-# ── Helpers de produção ───────────────────────────────────────────────────────
+# ── Producer helpers ──────────────────────────────────────────────────────────
 
 def _ts_now() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
 
 
 def _ts_late() -> str:
-    """Timestamp 2h atrás — deve ser filtrado pelo watermark de 1h."""
+    """Timestamp 2h ago — must be filtered by the 1h watermark."""
     return (datetime.now(tz=timezone.utc) - timedelta(hours=2)).isoformat()
 
 
@@ -54,12 +54,12 @@ def _valid_event(i: int) -> dict:
 
 
 def _invalid_event() -> dict:
-    """Falta campo obrigatório id_atendimento."""
+    """Missing required field id_atendimento."""
     return {"tipo_atendimento": "CONSULTA", "ts_evento": _ts_now()}
 
 
 def _late_event() -> dict:
-    """Evento com timestamp > watermark."""
+    """Event with timestamp beyond the watermark."""
     ev = _valid_event(9999)
     ev["ts_evento"] = _ts_late()
     return ev
@@ -71,22 +71,22 @@ def _produce(producer, topic: str, events: list[dict]) -> None:
     producer.flush(timeout=15)
 
 
-# ── Testes ────────────────────────────────────────────────────────────────────
+# ── Tests ─────────────────────────────────────────────────────────────────────
 
 def test_kafka_produces_valid_events(kafka_producer):
-    """Produz N_VALID eventos válidos no tópico principal."""
+    """Produces N_VALID valid events on the main topic."""
     events = [_valid_event(i) for i in range(N_VALID)]
     _produce(kafka_producer, KAFKA_TOPIC, events)
 
 
 def test_kafka_produces_invalid_events(kafka_producer):
-    """Produz N_INVALID eventos inválidos (schema quebrado)."""
+    """Produces N_INVALID invalid events (broken schema)."""
     events = [_invalid_event() for _ in range(N_INVALID)]
     _produce(kafka_producer, KAFKA_TOPIC, events)
 
 
 def test_streaming_consumer_ci_mode(spark_session, s3):
-    """Roda consumer em CI_MODE (AvailableNow) e verifica escrita Bronze."""
+    """Runs the consumer in CI_MODE (AvailableNow) and verifies Bronze write."""
     import os
     os.environ["STREAM_CI_MODE"] = "1"
     os.environ["BRONZE_STREAM_PATH"] = BRONZE_STREAM_PATH
@@ -100,22 +100,22 @@ def test_streaming_consumer_ci_mode(spark_session, s3):
     df = spark_session.read.format("delta").load(BRONZE_STREAM_PATH)
     count = df.count()
     assert count >= N_VALID, \
-        f"Bronze streaming deve ter ≥ {N_VALID} registros, encontrado {count}"
+        f"Bronze streaming must have >= {N_VALID} records, found {count}"
 
 
 def test_valid_events_in_bronze(spark_session):
-    """Eventos válidos com id_atendimento devem estar no Bronze."""
+    """Valid events with id_atendimento must be present in Bronze."""
     from pyspark.sql import functions as F
 
     df = spark_session.read.format("delta").load(BRONZE_STREAM_PATH)
 
-    assert "id_atendimento" in df.columns, "Coluna id_atendimento ausente no Bronze streaming"
+    assert "id_atendimento" in df.columns, "Column id_atendimento missing from Bronze streaming"
     valid = df.filter(F.col("id_atendimento").isNotNull()).count()
-    assert valid >= N_VALID, f"Esperado ≥ {N_VALID} eventos válidos, encontrado {valid}"
+    assert valid >= N_VALID, f"Expected >= {N_VALID} valid events, found {valid}"
 
 
 def test_invalid_events_in_dlq(kafka_producer):
-    """Eventos inválidos devem aparecer no tópico DLQ."""
+    """Invalid events must appear on the DLQ topic."""
     from confluent_kafka import Consumer
 
     consumer = Consumer({
@@ -135,32 +135,32 @@ def test_invalid_events_in_dlq(kafka_producer):
 
     consumer.close()
     assert dlq_count >= 1, \
-        f"Nenhum evento inválido encontrado no DLQ ({KAFKA_DLQ_TOPIC})"
+        f"No invalid events found in the DLQ ({KAFKA_DLQ_TOPIC})"
 
 
 def test_bronze_streaming_has_metadata_columns(spark_session):
-    """Bronze streaming deve ter colunas de metadados padrão."""
+    """Bronze streaming must have the standard metadata columns."""
     df = spark_session.read.format("delta").load(BRONZE_STREAM_PATH)
 
     for col in ("_ingestion_ts", "_batch_id", "ano_mes"):
-        assert col in df.columns, f"Coluna de metadados '{col}' ausente no Bronze streaming"
+        assert col in df.columns, f"Metadata column '{col}' missing from Bronze streaming"
 
 
 def test_bronze_no_pii_in_streaming(spark_session):
-    """Eventos de atendimento não devem conter CPF ou PII direto."""
+    """Attendance events must not contain CPF or direct PII."""
     df = spark_session.read.format("delta").load(BRONZE_STREAM_PATH)
 
     pii_cols = {"cpf", "nome", "data_nascimento", "email", "telefone"}
     leakage = pii_cols & set(df.columns)
-    assert not leakage, f"PII detectado no Bronze streaming: {leakage}"
+    assert not leakage, f"PII detected in Bronze streaming: {leakage}"
 
 
 @pytest.mark.skipif(
-    True,  # late-event test é best-effort em smoke — watermark depende de window real
-    reason="Late-event via watermark requer janela temporal real — desabilitado em smoke",
+    True,  # late-event test is best-effort in smoke — watermark depends on a real window
+    reason="Late-event via watermark requires a real time window — disabled in smoke",
 )
 def test_late_event_filtered_by_watermark(kafka_producer, spark_session, s3):
-    """Eventos com timestamp > 1h atrás devem ser filtrados pelo watermark."""
+    """Events with a timestamp > 1h ago must be filtered by the watermark."""
     import os
 
     late = _late_event()
@@ -177,4 +177,4 @@ def test_late_event_filtered_by_watermark(kafka_producer, spark_session, s3):
     late_found = df.filter(
         df["id_atendimento"] == late["id_atendimento"]
     ).count()
-    assert late_found == 0, "Evento tardio não foi filtrado pelo watermark de 1h"
+    assert late_found == 0, "Late event was not filtered by the 1h watermark"

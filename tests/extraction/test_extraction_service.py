@@ -1,6 +1,6 @@
 """Unit tests para ExtractionService (application service).
 
-Testa a lógica pura de orquestração sem boto3 ou requests.
+Tests pure orchestration logic without boto3 or requests.
 Usa mocks dos ports LandingStoragePort e CachePort.
 """
 from unittest.mock import MagicMock, call

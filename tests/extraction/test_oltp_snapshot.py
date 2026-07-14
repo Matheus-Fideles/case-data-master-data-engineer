@@ -1,7 +1,7 @@
-"""Unit tests para o extrator oltp_snapshot.
+"""Unit tests for the oltp_snapshot extractor.
 
-Testa validação, delegação ao ExtractionService e comportamento de
-extração incremental — sem abrir conexão real com Postgres.
+Tests validation, delegation to ExtractionService and incremental
+extraction behaviour — without opening a real Postgres connection.
 """
 from unittest.mock import MagicMock, patch
 
@@ -82,8 +82,8 @@ class TestOltpSnapshotRun:
         assert data_ref.isdigit()
 
     def test_incremental_passes_updated_since(self):
-        # O mock do service não executa fetch_fn automaticamente —
-        # extraímos o closure e o invocamos dentro do patch ativo.
+        # The service mock does not execute fetch_fn automatically —
+        # we extract the closure and invoke it inside the active patch.
         from pipelines.extraction import oltp_snapshot
 
         mock_svc = _mock_svc()
@@ -136,4 +136,4 @@ class TestOltpValidate:
     def test_passes_with_all_required_fields(self):
         from pipelines.extraction.oltp_snapshot import _validate
 
-        _validate(_SAMPLE_RECORDS)  # não deve levantar
+        _validate(_SAMPLE_RECORDS)  # must not raise

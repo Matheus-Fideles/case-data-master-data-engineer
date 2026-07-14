@@ -1,8 +1,8 @@
-"""Unit tests para SilverJob (Template Method).
+"""Unit tests for SilverJob (Template Method).
 
-Estratégia: mocka _read, _add_metadata, _write para isolar a orquestração
-sem precisar de SparkContext real — F.col/F.current_timestamp requerem JVM ativa.
-Os hooks puros (replace_condition, transform) são testados diretamente.
+Strategy: mocks _read, _add_metadata, _write to isolate orchestration
+without needing a real SparkContext — F.col/F.current_timestamp require an active JVM.
+Pure hooks (replace_condition, transform) are tested directly.
 """
 from unittest.mock import MagicMock, patch
 
@@ -28,7 +28,7 @@ class _SimpleSilverJob(SilverJob):
 
 
 class _TransformingSilverJob(SilverJob):
-    """Stub com transform que registra que foi chamado."""
+    """Stub whose transform records that it was called."""
 
     def __init__(self):
         self.transform_calls = []
@@ -47,7 +47,7 @@ class _TransformingSilverJob(SilverJob):
 
 
 class _CompositePartitionJob(SilverJob):
-    """Simula NotificacaoSilverJob com replace_condition composta."""
+    """Simulates NotificacaoSilverJob with a composite replace_condition."""
 
     def __init__(self, agravo: str) -> None:
         self._agravo = agravo
@@ -70,7 +70,7 @@ class _CompositePartitionJob(SilverJob):
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _patched_run(job, *, row_count=5, **kwargs):
-    """Executa job.run() com os métodos de infra mockados."""
+    """Runs job.run() with infrastructure methods mocked."""
     df = MagicMock()
     df.count.return_value = row_count
 
@@ -92,7 +92,7 @@ def _patched_run(job, *, row_count=5, **kwargs):
         return count, df, m_read, m_meta, m_write
 
 
-# ── testes de orquestração ────────────────────────────────────────────────────
+# ── orchestration tests ───────────────────────────────────────────────────────
 
 def test_run_returns_row_count():
     count, *_ = _patched_run(_SimpleSilverJob(), row_count=7)
@@ -159,17 +159,17 @@ def test_composite_replace_condition_zika():
 
 
 def test_write_uses_replace_condition_hook():
-    """_write() deve usar o valor retornado por replace_condition()."""
+    """_write() must use the value returned by replace_condition()."""
     job = _CompositePartitionJob(agravo="chikungunya")
     _, _, _, _, m_write = _patched_run(job, filter_col="ano_mes", filter_val="202401")
 
-    # replace_condition é chamado dentro de _write, que está mockado —
-    # verificamos indiretamente que o hook foi aplicado através do argumento passado a _write
+    # replace_condition is called inside _write, which is mocked —
+    # we verify indirectly that the hook was applied via the argument passed to _write
     m_write.assert_called_once()
 
 
 def test_replace_condition_used_in_actual_write():
-    """Testa a integração entre replace_condition() e _write() usando patch parcial."""
+    """Tests integration between replace_condition() and _write() using a partial patch."""
     job = _CompositePartitionJob(agravo="dengue")
     df = MagicMock()
     writer = MagicMock()

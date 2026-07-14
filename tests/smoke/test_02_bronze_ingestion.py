@@ -1,9 +1,9 @@
-"""Smoke 02 — Ingestão Bronze (OFFLINE_MODE com fixture local).
+"""Smoke 02 — Bronze ingestion (OFFLINE_MODE with local fixture).
 
-Usa OFFLINE_MODE=1 para ler de tests/fixtures/ em vez de chamar APIs reais.
-Verifica schema, contagem, partição e metadados após escrita Delta.
+Uses OFFLINE_MODE=1 to read from tests/fixtures/ instead of calling real APIs.
+Verifies schema, row count, partition, and metadata after Delta write.
 
-Tempo alvo: < 90s (inclui startup do Spark local)
+Target time: < 90s (includes local Spark startup)
 """
 from __future__ import annotations
 
@@ -19,34 +19,34 @@ pytestmark = pytest.mark.smoke
 
 
 def test_fixtures_exist():
-    """Fixtures de desenvolvimento existem antes de rodar qualquer pipeline."""
+    """Development fixtures exist before running any pipeline."""
     for fname in ["dengue_sample.json", "cnes_sample.json", "oltp_seed.sql"]:
         path = FIXTURES_DIR / fname
-        assert path.exists(), f"Fixture ausente: {path}"
+        assert path.exists(), f"Missing fixture: {path}"
 
 
 def test_dengue_fixture_has_minimum_fields():
     fixture = FIXTURES_DIR / "dengue_sample.json"
     records = json.loads(fixture.read_text())
-    assert len(records) >= 10, "Fixture dengue deve ter ≥ 10 registros"
+    assert len(records) >= 10, "Dengue fixture must have >= 10 records"
     required = {"nu_ano", "sg_uf_not"}
     for rec in records[:3]:
         missing = required - set(rec.keys())
-        assert not missing, f"Campos ausentes na fixture dengue: {missing}"
+        assert not missing, f"Missing fields in dengue fixture: {missing}"
 
 
 def test_cnes_fixture_has_minimum_fields():
     fixture = FIXTURES_DIR / "cnes_sample.json"
     records = json.loads(fixture.read_text())
-    assert len(records) >= 5, "Fixture CNES deve ter ≥ 5 registros"
+    assert len(records) >= 5, "CNES fixture must have >= 5 records"
     required = {"codigo_cnes", "nome_fantasia", "codigo_municipio"}
     for rec in records[:3]:
         missing = required - set(rec.keys())
-        assert not missing, f"Campos ausentes na fixture CNES: {missing}"
+        assert not missing, f"Missing fields in CNES fixture: {missing}"
 
 
 def test_bronze_arboviroses_offline(spark_session, s3, tmp_path):
-    """Pipeline Bronze dengue em modo offline escreve Delta válido."""
+    """Bronze dengue pipeline in offline mode writes a valid Delta table."""
     from pyspark.sql import functions as F
     from pipelines.batch.bronze_arboviroses import ArbovirosesBronzeJob
 
@@ -63,9 +63,9 @@ def test_bronze_arboviroses_offline(spark_session, s3, tmp_path):
         source_url="smoke://fixture/dengue",
     )
 
-    assert count > 0, "Bronze job deve escrever ≥ 1 linha"
+    assert count > 0, "Bronze job must write >= 1 row"
 
-    # Verifica que o Delta é legível e tem metadados
+    # Verify that the Delta table is readable and has metadata columns
     df = spark_session.read.format("delta").load(output)
     assert df.count() == count
     assert "_ingestion_ts" in df.columns
@@ -75,7 +75,7 @@ def test_bronze_arboviroses_offline(spark_session, s3, tmp_path):
 
 
 def test_bronze_cnes_offline(spark_session, s3):
-    """Pipeline Bronze CNES em modo offline escreve Delta com partição snapshot_date."""
+    """Bronze CNES pipeline in offline mode writes a Delta table with snapshot_date partition."""
     from pipelines.batch.bronze_cnes import CnesBronzeJob
 
     fixture = FIXTURES_DIR / "cnes_sample.json"
@@ -98,18 +98,18 @@ def test_bronze_cnes_offline(spark_session, s3):
 
 
 def test_bronze_metadata_columns_are_populated(spark_session, s3):
-    """Todas as colunas de metadados Bronze devem estar preenchidas (sem nulos)."""
+    """All Bronze metadata columns must be fully populated (no nulls)."""
     from pyspark.sql import functions as F
 
     df = spark_session.read.format("delta").load("s3a://bronze/smoke_test_dengue/")
 
     for col in ("_ingestion_ts", "_batch_id", "_source_url"):
         null_count = df.filter(F.col(col).isNull()).count()
-        assert null_count == 0, f"Coluna {col} tem {null_count} nulos"
+        assert null_count == 0, f"Column {col} has {null_count} nulls"
 
 
 def test_bronze_idempotency(spark_session, s3):
-    """Reexecutar o mesmo job Bronze não muda count nem cria duplicatas."""
+    """Re-running the same Bronze job does not change the row count or create duplicates."""
     from pipelines.batch.bronze_arboviroses import ArbovirosesBronzeJob
 
     fixture = FIXTURES_DIR / "dengue_sample.json"
@@ -117,7 +117,7 @@ def test_bronze_idempotency(spark_session, s3):
 
     count_before = spark_session.read.format("delta").load(output).count()
 
-    # Segunda execução com mesmo partition_val
+    # Second run with the same partition_val
     ArbovirosesBronzeJob().run(
         spark=spark_session,
         input_path=str(fixture),
@@ -129,4 +129,4 @@ def test_bronze_idempotency(spark_session, s3):
 
     count_after = spark_session.read.format("delta").load(output).count()
     assert count_after == count_before, \
-        f"Idempotência falhou: {count_before} → {count_after} linhas"
+        f"Idempotency failed: {count_before} -> {count_after} rows"

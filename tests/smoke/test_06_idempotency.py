@@ -1,11 +1,11 @@
-"""Smoke 06 — Idempotência de pipelines.
+"""Smoke 06 — Pipeline idempotency.
 
-Reexecuta cada job (Bronze e Silver) com o mesmo partition_val
-e verifica que a contagem final não muda.
+Re-runs each job (Bronze and Silver) with the same partition_val
+and verifies that the final row count does not change.
 
-Princípio: pipelines Delta com replaceWhere devem ser seguros de reexecutar.
+Principle: Delta pipelines using replaceWhere must be safe to re-run.
 
-Tempo alvo: < 90s
+Target time: < 90s
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def _count(spark, path: str) -> int:
 # ── Bronze Arboviroses ─────────────────────────────────────────────────────────
 
 def test_bronze_arboviroses_idempotent(spark_session, s3):
-    """Três execuções do job Bronze dengue com mesmo partition_val → mesmo count."""
+    """Three runs of the Bronze dengue job with the same partition_val -> same count."""
     from pipelines.batch.bronze_arboviroses import ArbovirosesBronzeJob
 
     fixture = FIXTURES_DIR / "dengue_sample.json"
@@ -48,13 +48,13 @@ def test_bronze_arboviroses_idempotent(spark_session, s3):
     count_3 = _count(spark_session, output)
 
     assert count_1 == count_2 == count_3, \
-        f"Bronze arboviroses não idempotente: {count_1} → {count_2} → {count_3}"
+        f"Bronze arboviroses not idempotent: {count_1} -> {count_2} -> {count_3}"
 
 
 # ── Bronze CNES ───────────────────────────────────────────────────────────────
 
 def test_bronze_cnes_idempotent(spark_session, s3):
-    """Três execuções do job Bronze CNES → mesmo count."""
+    """Three runs of the Bronze CNES job -> same count."""
     from pipelines.batch.bronze_cnes import CnesBronzeJob
 
     fixture = FIXTURES_DIR / "cnes_sample.json"
@@ -76,16 +76,16 @@ def test_bronze_cnes_idempotent(spark_session, s3):
     count_2 = _count(spark_session, output)
 
     assert count_1 == count_2, \
-        f"Bronze CNES não idempotente: {count_1} → {count_2}"
+        f"Bronze CNES not idempotent: {count_1} -> {count_2}"
 
 
 # ── Silver Paciente ────────────────────────────────────────────────────────────
 
 def test_silver_paciente_idempotent(spark_session, s3):
-    """Duas execuções do job Silver paciente → mesmo count."""
+    """Two runs of the Silver paciente job -> same count."""
     fixture = FIXTURES_DIR / "oltp_sample.json"
     if not fixture.exists():
-        pytest.skip("Fixture oltp_sample.json ausente")
+        pytest.skip("Fixture oltp_sample.json missing")
 
     from pipelines.batch.silver_paciente import PacienteSilverJob
 
@@ -106,13 +106,13 @@ def test_silver_paciente_idempotent(spark_session, s3):
     count_2 = _count(spark_session, output)
 
     assert count_1 == count_2, \
-        f"Silver paciente não idempotente: {count_1} → {count_2}"
+        f"Silver paciente not idempotent: {count_1} -> {count_2}"
 
 
-# ── Múltiplas partições não interferem ────────────────────────────────────────
+# ── Multiple partitions do not interfere ──────────────────────────────────────
 
 def test_different_partitions_accumulate(spark_session, s3):
-    """Partições distintas devem acumular (não sobrescrever) no Delta."""
+    """Distinct partitions must accumulate (not overwrite) in Delta."""
     from pipelines.batch.bronze_arboviroses import ArbovirosesBronzeJob
 
     fixture = FIXTURES_DIR / "dengue_sample.json"
@@ -141,4 +141,4 @@ def test_different_partitions_accumulate(spark_session, s3):
     count_jan_feb = _count(spark_session, output)
 
     assert count_jan_feb == count_jan * 2, \
-        f"Partições deveriam acumular: 1×{count_jan} + 1×{count_jan} ≠ {count_jan_feb}"
+        f"Partitions should accumulate: 1x{count_jan} + 1x{count_jan} != {count_jan_feb}"

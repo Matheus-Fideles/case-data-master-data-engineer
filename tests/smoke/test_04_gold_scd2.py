@@ -1,12 +1,12 @@
 """Smoke 04 — SCD Type 2 Gold DW.
 
-Verifica integridade do SCD2 na dimensão dim_paciente:
-  1. Primeira carga: todos os registros têm dt_fim = '9999-12-31' (current)
-  2. Segunda carga com 5 atualizações: versões antigas fechadas, novas abertas
-  3. Nenhum registro com dt_inicio > dt_fim
-  4. Overlap detection: não deve existir dois registros current para o mesmo hash
+Verifies SCD2 integrity on the dim_paciente dimension:
+  1. First load: all records have dt_fim = '9999-12-31' (current)
+  2. Second load with 5 updates: old versions closed, new versions opened
+  3. No record has dt_inicio > dt_fim
+  4. Overlap detection: no two current records for the same hash
 
-Tempo alvo: < 90s
+Target time: < 90s
 """
 from __future__ import annotations
 
@@ -46,21 +46,21 @@ def _count_closed(conn) -> int:
     return n
 
 
-# ── Testes de estrutura ───────────────────────────────────────────────────────
+# ── Structure tests ───────────────────────────────────────────────────────────
 
 def test_dim_paciente_table_exists(pg_gold):
-    """dim_paciente deve existir no schema gold_dw."""
+    """dim_paciente must exist in the gold_dw schema."""
     cur = pg_gold.cursor()
     cur.execute("""
         SELECT table_name FROM information_schema.tables
         WHERE table_schema = 'gold_dw' AND table_name = 'dim_paciente'
     """)
-    assert cur.fetchone() is not None, "Tabela gold_dw.dim_paciente não existe"
+    assert cur.fetchone() is not None, "Table gold_dw.dim_paciente does not exist"
     cur.close()
 
 
 def test_dim_paciente_scd2_columns(pg_gold):
-    """Colunas obrigatórias SCD2 devem existir."""
+    """Mandatory SCD2 columns must exist."""
     cur = pg_gold.cursor()
     cur.execute("""
         SELECT column_name FROM information_schema.columns
@@ -71,11 +71,11 @@ def test_dim_paciente_scd2_columns(pg_gold):
 
     required = {"id_paciente_hash", "dt_inicio", "dt_fim", "is_current", "sk_paciente"}
     missing = required - cols
-    assert not missing, f"Colunas SCD2 ausentes em dim_paciente: {missing}"
+    assert not missing, f"SCD2 columns missing from dim_paciente: {missing}"
 
 
 def test_no_pii_in_dim_paciente(pg_gold):
-    """dim_paciente não deve ter colunas PII."""
+    """dim_paciente must not have PII columns."""
     cur = pg_gold.cursor()
     cur.execute("""
         SELECT column_name FROM information_schema.columns
@@ -86,13 +86,13 @@ def test_no_pii_in_dim_paciente(pg_gold):
 
     pii = {"cpf", "nome", "data_nascimento", "email", "telefone"}
     leakage = pii & cols
-    assert not leakage, f"FALHA CRÍTICA: colunas PII em dim_paciente: {leakage}"
+    assert not leakage, f"CRITICAL FAILURE: PII columns in dim_paciente: {leakage}"
 
 
-# ── Testes de integridade temporal ────────────────────────────────────────────
+# ── Temporal integrity tests ──────────────────────────────────────────────────
 
 def test_no_inverted_dates(pg_gold):
-    """dt_inicio deve ser ≤ dt_fim para todos os registros."""
+    """dt_inicio must be <= dt_fim for all records."""
     cur = pg_gold.cursor()
     cur.execute("""
         SELECT COUNT(*) FROM gold_dw.dim_paciente
@@ -100,11 +100,11 @@ def test_no_inverted_dates(pg_gold):
     """)
     n = cur.fetchone()[0]
     cur.close()
-    assert n == 0, f"{n} registros com dt_inicio > dt_fim (inversão temporal)"
+    assert n == 0, f"{n} records with dt_inicio > dt_fim (temporal inversion)"
 
 
 def test_no_duplicate_current_records(pg_gold):
-    """Não deve existir dois registros is_current=true para o mesmo id_paciente_hash."""
+    """There must not be two is_current=true records for the same id_paciente_hash."""
     cur = pg_gold.cursor()
     cur.execute("""
         SELECT id_paciente_hash, COUNT(*) as c
@@ -116,11 +116,11 @@ def test_no_duplicate_current_records(pg_gold):
     duplicates = cur.fetchall()
     cur.close()
     assert not duplicates, \
-        f"Overlap SCD2: {len(duplicates)} hashes com múltiplos registros current"
+        f"SCD2 overlap: {len(duplicates)} hashes with multiple current records"
 
 
 def test_current_records_have_open_dt_fim(pg_gold):
-    """Registros is_current=true devem ter dt_fim = '9999-12-31'."""
+    """Records with is_current=true must have dt_fim = '9999-12-31'."""
     cur = pg_gold.cursor()
     cur.execute("""
         SELECT COUNT(*) FROM gold_dw.dim_paciente
@@ -128,11 +128,11 @@ def test_current_records_have_open_dt_fim(pg_gold):
     """)
     n = cur.fetchone()[0]
     cur.close()
-    assert n == 0, f"{n} registros current com dt_fim ≠ 9999-12-31"
+    assert n == 0, f"{n} current records with dt_fim != 9999-12-31"
 
 
 def test_closed_records_have_is_current_false(pg_gold):
-    """Registros com dt_fim < '9999-12-31' devem ter is_current = false."""
+    """Records with dt_fim < '9999-12-31' must have is_current = false."""
     cur = pg_gold.cursor()
     cur.execute("""
         SELECT COUNT(*) FROM gold_dw.dim_paciente
@@ -140,63 +140,63 @@ def test_closed_records_have_is_current_false(pg_gold):
     """)
     n = cur.fetchone()[0]
     cur.close()
-    assert n == 0, f"{n} registros fechados com is_current=true (inconsistência SCD2)"
+    assert n == 0, f"{n} closed records with is_current=true (SCD2 inconsistency)"
 
 
-# ── Teste de carga incremental com updates ────────────────────────────────────
+# ── Incremental load with updates ────────────────────────────────────────────
 
 @pytest.mark.skipif(
     not (FIXTURES_DIR / "oltp_seed_v2.sql").exists(),
-    reason="Fixture oltp_seed_v2.sql ausente — pula teste de segunda carga",
+    reason="Fixture oltp_seed_v2.sql missing — skipping second-load test",
 )
 def test_scd2_second_load_creates_versions(pg_gold, pg):
     """
-    Segunda carga com 5 atualizações:
-    - 5 registros antigos devem ser fechados (dt_fim = ontem)
-    - 5 novos registros devem ser abertos (is_current = true)
+    Second load with 5 updates:
+    - 5 old records must be closed (dt_fim = yesterday)
+    - 5 new records must be opened (is_current = true)
     """
     from pipelines.gold.dim_paciente import load_dim_paciente
 
     count_before = _count_dim(pg_gold)
     current_before = _count_current(pg_gold)
 
-    # Aplica updates no OLTP
+    # Apply updates in OLTP
     cur = pg.cursor()
     seed_v2 = (FIXTURES_DIR / "oltp_seed_v2.sql").read_text()
     cur.execute(seed_v2)
     pg.commit()
     cur.close()
 
-    # Roda carga Gold
+    # Run Gold load
     load_dim_paciente(snapshot_date=date.today().strftime("%Y%m%d"))
 
     count_after = _count_dim(pg_gold)
     current_after = _count_current(pg_gold)
     closed_after = _count_closed(pg_gold)
 
-    # 5 novas versões abertas + 5 antigas fechadas
+    # 5 new versions opened + 5 old ones closed
     assert count_after == count_before + 5, \
-        f"Esperado +5 registros (SCD2 versões): {count_before} → {count_after}"
+        f"Expected +5 records (SCD2 versions): {count_before} -> {count_after}"
     assert current_after == current_before, \
-        "Número de registros current não deve mudar (5 fechados + 5 abertos)"
-    assert closed_after >= 5, f"Esperado ≥ 5 registros fechados, encontrado {closed_after}"
+        "Number of current records must not change (5 closed + 5 opened)"
+    assert closed_after >= 5, f"Expected >= 5 closed records, found {closed_after}"
 
 
-# ── Fato Atendimento ──────────────────────────────────────────────────────────
+# ── Fact Atendimento ──────────────────────────────────────────────────────────
 
 def test_fato_atendimento_table_exists(pg_gold):
-    """fato_atendimento deve existir no schema gold_dw."""
+    """fato_atendimento must exist in the gold_dw schema."""
     cur = pg_gold.cursor()
     cur.execute("""
         SELECT table_name FROM information_schema.tables
         WHERE table_schema = 'gold_dw' AND table_name = 'fato_atendimento'
     """)
-    assert cur.fetchone() is not None, "Tabela gold_dw.fato_atendimento não existe"
+    assert cur.fetchone() is not None, "Table gold_dw.fato_atendimento does not exist"
     cur.close()
 
 
 def test_fato_referential_integrity(pg_gold):
-    """sk_paciente em fato_atendimento deve referenciar dim_paciente."""
+    """sk_paciente in fato_atendimento must reference dim_paciente."""
     cur = pg_gold.cursor()
     cur.execute("""
         SELECT COUNT(*) FROM gold_dw.fato_atendimento f
@@ -206,4 +206,4 @@ def test_fato_referential_integrity(pg_gold):
     orphans = cur.fetchone()[0]
     cur.close()
     assert orphans == 0, \
-        f"{orphans} fatos com sk_paciente sem correspondente em dim_paciente"
+        f"{orphans} facts with sk_paciente not found in dim_paciente"

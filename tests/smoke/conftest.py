@@ -1,7 +1,7 @@
-"""Fixtures compartilhadas pelos smoke tests.
+"""Shared fixtures for smoke tests.
 
-Todas as fixtures requerem infraestrutura real rodando (docker compose up).
-Para rodar localmente sem derrubar o compose: KEEP_COMPOSE=1 pytest tests/smoke/
+All fixtures require real infrastructure running (docker compose up).
+To run locally without tearing down compose: KEEP_COMPOSE=1 pytest tests/smoke/
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from typing import Generator
 
 import pytest
 
-# ── Constantes de conexão ─────────────────────────────────────────────────────
+# ── Connection constants ──────────────────────────────────────────────────────
 
 MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT_EXTERNAL", "http://localhost:9000")
 MINIO_ACCESS   = os.environ.get("MINIO_ROOT_USER", "minioadmin")
@@ -37,13 +37,13 @@ TRINO_PORT = int(os.environ.get("TRINO_PORT", "8085"))
 FIXTURES_DIR = Path(__file__).parents[1] / "fixtures"
 KEEP_COMPOSE = os.environ.get("KEEP_COMPOSE", "0") == "1"
 
-SMOKE_TIMEOUT = int(os.environ.get("SMOKE_TIMEOUT", "120"))  # segundos
+SMOKE_TIMEOUT = int(os.environ.get("SMOKE_TIMEOUT", "120"))  # seconds
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def wait_for(condition_fn, timeout: int = 30, interval: float = 2.0, label: str = "") -> None:
-    """Aguarda até que condition_fn() retorne True ou timeout estourar."""
+    """Waits until condition_fn() returns True or timeout expires."""
     deadline = time.time() + timeout
     last_exc = None
     while time.time() < deadline:
@@ -53,14 +53,14 @@ def wait_for(condition_fn, timeout: int = 30, interval: float = 2.0, label: str 
         except Exception as e:
             last_exc = e
         time.sleep(interval)
-    msg = f"Timeout ({timeout}s) aguardando: {label or condition_fn.__name__}"
+    msg = f"Timeout ({timeout}s) waiting for: {label or condition_fn.__name__}"
     if last_exc:
-        msg += f" — último erro: {last_exc}"
+        msg += f" — last error: {last_exc}"
     raise TimeoutError(msg)
 
 
 def pg_conn(user: str = PG_USER, password: str = PG_PASSWORD):
-    """Retorna psycopg2 connection. Importa lazy para não quebrar import em unit tests."""
+    """Returns a psycopg2 connection. Lazy import to avoid breaking unit test imports."""
     import psycopg2
     return psycopg2.connect(
         host=PG_HOST, port=PG_PORT, dbname=PG_DB,
@@ -70,7 +70,7 @@ def pg_conn(user: str = PG_USER, password: str = PG_PASSWORD):
 
 
 def minio_client():
-    """Retorna boto3 S3 client configurado para MinIO local."""
+    """Returns a boto3 S3 client configured for local MinIO."""
     import boto3
     return boto3.client(
         "s3",
@@ -81,11 +81,11 @@ def minio_client():
     )
 
 
-# ── Fixtures pytest ───────────────────────────────────────────────────────────
+# ── Pytest fixtures ───────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="session")
 def compose_up():
-    """Sobe docker compose core + streaming se KEEP_COMPOSE=0."""
+    """Brings up docker compose core + streaming if KEEP_COMPOSE=0."""
     if KEEP_COMPOSE:
         yield
         return
@@ -95,7 +95,7 @@ def compose_up():
         check=True, capture_output=True,
     )
 
-    # Aguarda Postgres e MinIO
+    # Wait for Postgres and MinIO
     wait_for(
         lambda: _pg_ready(),
         timeout=90, label="postgres ready",
@@ -153,7 +153,7 @@ def pg_gold(compose_up):
 
 @pytest.fixture(scope="session")
 def seed_oltp(pg, compose_up):
-    """Popula oltp.paciente com dados determinísticos (seed=42) se ainda vazio."""
+    """Populates oltp.paciente with deterministic data (seed=42) if still empty."""
     cur = pg.cursor()
     cur.execute("SELECT COUNT(*) FROM oltp.paciente")
     count = cur.fetchone()[0]
@@ -176,7 +176,7 @@ def _count_oltp(conn) -> int:
 
 @pytest.fixture(scope="session")
 def kafka_producer(compose_up):
-    """Retorna confluent_kafka Producer configurado para o broker local."""
+    """Returns a confluent_kafka Producer configured for the local broker."""
     from confluent_kafka import Producer
     p = Producer({"bootstrap.servers": KAFKA_BOOTSTRAP, "acks": "1"})
     yield p
@@ -185,7 +185,7 @@ def kafka_producer(compose_up):
 
 @pytest.fixture(scope="module")
 def spark_session(compose_up):
-    """SparkSession local com Delta + S3A apontando para MinIO."""
+    """Local SparkSession with Delta + S3A pointing to MinIO."""
     from delta import configure_spark_with_delta_pip
     from pyspark.sql import SparkSession
 

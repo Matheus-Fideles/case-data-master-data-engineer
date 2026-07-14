@@ -1,14 +1,14 @@
 """Bronze job: landing/oltp_paciente → s3://bronze/oltp_paciente/ (Delta Lake).
 
-⚠️  CONTÉM PII — particionado por snapshot_date (YYYYMMDD).
-Dado mascarado apenas no Silver (ADR-0004). Acesso Bronze restrito
-ao role gold_engineer via RBAC Postgres + MinIO bucket policy.
+⚠️  CONTAINS PII — partitioned by snapshot_date (YYYYMMDD).
+Data masked in Silver only (ADR-0004). Bronze access restricted
+to the gold_engineer role via Postgres RBAC + MinIO bucket policy.
 
 Args:
   --snapshot_date  YYYYMMDD
   --batch_id       DAG run_id
-  --input_path     override (opcional)
-  --output_path    override (opcional)
+  --input_path     override (optional)
+  --output_path    override (optional)
 """
 from __future__ import annotations
 
@@ -26,8 +26,8 @@ from pyspark.sql.types import (
 from pipelines.batch.bronze_base import BronzeJob
 from pipelines.common.spark import build_spark
 
-# Campos PII presentes intencionalmente — Bronze é a única camada raw.
-# Silver mascara antes de qualquer propagação (ADR-0004).
+# PII fields present intentionally — Bronze is the only raw layer.
+# Silver masks before any propagation (ADR-0004).
 _SCHEMA = StructType([
     StructField("id_paciente",           LongType(),      False),
     StructField("cpf",                   StringType(),    False),  # PII

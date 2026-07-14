@@ -1,16 +1,16 @@
-"""Smoke 03 — Mascaramento Silver (LGPD).
+"""Smoke 03 — Silver masking (LGPD).
 
-Esse é o assert mais importante do projeto. Se quebrar, demo é cancelada.
+This is the most critical assertion in the project. If it breaks, the demo is cancelled.
 
-Verifica:
-  1. Nenhum CPF do Bronze sobrevive no Silver (EXCEPT / anti-join)
-  2. SHA-256 determinístico: mesmo CPF → mesmo hash
-  3. email/telefone suprimidos (NULL)
-  4. CEP truncado a 3 dígitos
-  5. data_nascimento generalizada para ano (sem dia/mês)
-  6. masking_version presente e preenchido
+Verifies:
+  1. No CPF from Bronze survives in Silver (EXCEPT / anti-join)
+  2. Deterministic SHA-256: same CPF -> same hash
+  3. email/telefone suppressed (NULL)
+  4. CEP truncated to 3 digits
+  5. data_nascimento generalised to year only (no day/month)
+  6. masking_version present and populated
 
-Tempo alvo: < 60s (depende de test_02 ter rodado antes na mesma session)
+Target time: < 60s (requires test_02 to have run first in the same session)
 """
 from __future__ import annotations
 
@@ -29,12 +29,12 @@ SILVER_PATH  = "s3a://silver/smoke_paciente/"
 
 @pytest.fixture(scope="module")
 def silver_df(spark_session, s3):
-    """Roda PacienteSilverJob sobre fixture OLTP e retorna DataFrame Silver."""
+    """Runs PacienteSilverJob on the OLTP fixture and returns the Silver DataFrame."""
     from pipelines.batch.silver_paciente import PacienteSilverJob
 
     fixture = FIXTURES_DIR / "oltp_sample.json"
     if not fixture.exists():
-        pytest.skip("Fixture oltp_sample.json ausente — rode test_02 primeiro")
+        pytest.skip("Fixture oltp_sample.json missing — run test_02 first")
 
     job = PacienteSilverJob()
     job.run(
@@ -50,136 +50,136 @@ def silver_df(spark_session, s3):
 
 @pytest.fixture(scope="module")
 def bronze_oltp_df(spark_session, s3):
-    """Lê a fixture OLTP diretamente (bronze raw) para o EXCEPT check."""
+    """Reads the OLTP fixture directly (bronze raw) for the EXCEPT check."""
     fixture = FIXTURES_DIR / "oltp_sample.json"
     if not fixture.exists():
-        pytest.skip("Fixture oltp_sample.json ausente")
+        pytest.skip("Fixture oltp_sample.json missing")
     return spark_session.read.json(str(fixture))
 
 
-# ── O assert mais crítico ──────────────────────────────────────────────────────
+# ── The most critical assertion ────────────────────────────────────────────────
 
 def test_cpf_not_in_silver(silver_df):
-    """Nenhum CPF do OLTP deve aparecer no Silver (LGPD Art. 16)."""
+    """No CPF from OLTP must appear in Silver (LGPD Art. 16)."""
     assert "cpf" not in silver_df.columns, \
-        "FALHA CRÍTICA: coluna 'cpf' presente no Silver — vazamento de PII!"
+        "CRITICAL FAILURE: column 'cpf' present in Silver — PII leakage!"
 
 
 def test_no_pii_columns_in_silver(silver_df):
-    """Lista completa de colunas PII não deve existir no Silver."""
+    """The full list of PII columns must not exist in Silver."""
     pii_cols = {"cpf", "nome", "data_nascimento", "email", "telefone"}
     leakage = pii_cols & set(silver_df.columns)
-    assert not leakage, f"FALHA CRÍTICA: colunas PII no Silver: {leakage}"
+    assert not leakage, f"CRITICAL FAILURE: PII columns in Silver: {leakage}"
 
 
-# ── Hash determinístico ────────────────────────────────────────────────────────
+# ── Deterministic hash ────────────────────────────────────────────────────────
 
 def test_cpf_hash_is_deterministic(silver_df):
-    """O mesmo CPF deve sempre gerar o mesmo hash (SHA-256 + salt)."""
+    """The same CPF must always produce the same hash (SHA-256 + salt)."""
     from pyspark.sql import functions as F
 
     assert "id_paciente_hash" in silver_df.columns, \
-        "Coluna id_paciente_hash ausente no Silver"
+        "Column id_paciente_hash missing from Silver"
 
-    # Verifica que não há duplicatas de hash (cada CPF único → hash único)
+    # Verify there are no hash duplicates (each unique CPF -> unique hash)
     total = silver_df.count()
     distinct_hashes = silver_df.select("id_paciente_hash").distinct().count()
     assert distinct_hashes == total, \
-        f"Colisão de hash detectada: {total} rows, {distinct_hashes} hashes únicos"
+        f"Hash collision detected: {total} rows, {distinct_hashes} unique hashes"
 
 
 def test_cpf_hash_is_sha256_format(silver_df):
-    """Hash deve ter 64 chars hex (SHA-256)."""
+    """Hash must be 64 hex characters (SHA-256)."""
     from pyspark.sql import functions as F
 
     sample = silver_df.select("id_paciente_hash").first()
     if sample is None:
-        pytest.skip("Silver vazio")
+        pytest.skip("Silver is empty")
     h = sample["id_paciente_hash"]
-    assert len(h) == 64, f"Hash com comprimento errado: {len(h)} (esperado 64)"
+    assert len(h) == 64, f"Hash has wrong length: {len(h)} (expected 64)"
     assert all(c in "0123456789abcdef" for c in h.lower()), \
-        f"Hash não é hexadecimal: {h[:20]}..."
+        f"Hash is not hexadecimal: {h[:20]}..."
 
 
 def test_id_paciente_hash_no_nulls(silver_df):
-    """Nenhum hash deve ser NULL — todo paciente deve ter identidade hasheada."""
+    """No hash must be NULL — every patient must have a hashed identity."""
     from pyspark.sql import functions as F
 
     null_count = silver_df.filter(F.col("id_paciente_hash").isNull()).count()
-    assert null_count == 0, f"{null_count} pacientes sem id_paciente_hash"
+    assert null_count == 0, f"{null_count} patients without id_paciente_hash"
 
 
-# ── Supressão email/telefone ───────────────────────────────────────────────────
+# ── email/telefone suppression ────────────────────────────────────────────────
 
 def test_email_suppressed_in_silver(silver_df):
-    """email não deve existir como coluna no Silver."""
-    assert "email" not in silver_df.columns, "email presente no Silver — supressão falhou"
+    """email must not exist as a column in Silver."""
+    assert "email" not in silver_df.columns, "email present in Silver — suppression failed"
 
 
 def test_telefone_suppressed_in_silver(silver_df):
-    """telefone não deve existir como coluna no Silver."""
-    assert "telefone" not in silver_df.columns, "telefone presente no Silver — supressão falhou"
+    """telefone must not exist as a column in Silver."""
+    assert "telefone" not in silver_df.columns, "telefone present in Silver — suppression failed"
 
 
-# ── CEP truncado ──────────────────────────────────────────────────────────────
+# ── Truncated CEP ────────────────────────────────────────────────────────────
 
 def test_cep_truncated_to_3_digits(silver_df):
-    """cep deve ter sido truncado para 3 dígitos (cep_regiao)."""
-    assert "cep" not in silver_df.columns, "cep completo presente no Silver"
-    assert "cep_regiao" in silver_df.columns, "cep_regiao ausente no Silver"
+    """cep must have been truncated to 3 digits (cep_regiao)."""
+    assert "cep" not in silver_df.columns, "Full cep present in Silver"
+    assert "cep_regiao" in silver_df.columns, "cep_regiao missing from Silver"
 
     from pyspark.sql import functions as F
 
     invalid = silver_df.filter(F.length(F.col("cep_regiao")) != 3).count()
-    assert invalid == 0, f"{invalid} registros com cep_regiao com comprimento diferente de 3"
+    assert invalid == 0, f"{invalid} records with cep_regiao length different from 3"
 
 
-# ── Generalização de data_nascimento ──────────────────────────────────────────
+# ── data_nascimento generalisation ───────────────────────────────────────────
 
 def test_data_nascimento_generalized_to_year(silver_df):
-    """data_nascimento deve ter sido substituída por ano_nascimento (int)."""
+    """data_nascimento must have been replaced by ano_nascimento (int)."""
     assert "data_nascimento" not in silver_df.columns, \
-        "data_nascimento presente no Silver — generalização falhou"
-    assert "ano_nascimento" in silver_df.columns, "ano_nascimento ausente no Silver"
+        "data_nascimento present in Silver — generalisation failed"
+    assert "ano_nascimento" in silver_df.columns, "ano_nascimento missing from Silver"
 
     from pyspark.sql import functions as F
     from pyspark.sql.types import IntegerType
 
-    # Valores de ano devem ser razoáveis (1900–2024)
+    # Year values must be reasonable (1900-2024)
     invalid = silver_df.filter(
         (F.col("ano_nascimento") < 1900) | (F.col("ano_nascimento") > 2024)
     ).count()
-    assert invalid == 0, f"{invalid} registros com ano_nascimento fora do intervalo 1900–2024"
+    assert invalid == 0, f"{invalid} records with ano_nascimento outside the range 1900-2024"
 
 
-# ── Metadados de mascaramento ─────────────────────────────────────────────────
+# ── Masking metadata ──────────────────────────────────────────────────────────
 
 def test_masking_version_present(silver_df):
-    """masking_version deve estar preenchido em todas as linhas."""
+    """masking_version must be populated on every row."""
     from pyspark.sql import functions as F
 
-    assert "masking_version" in silver_df.columns, "masking_version ausente no Silver"
+    assert "masking_version" in silver_df.columns, "masking_version missing from Silver"
 
     null_count = silver_df.filter(F.col("masking_version").isNull()).count()
-    assert null_count == 0, f"{null_count} linhas sem masking_version"
+    assert null_count == 0, f"{null_count} rows without masking_version"
 
 
 def test_masking_version_value(silver_df):
-    """masking_version deve seguir padrão semântico 'masking-X.Y.Z'."""
+    """masking_version must follow the semantic pattern 'masking-X.Y.Z'."""
     from pyspark.sql import functions as F
 
     versions = silver_df.select("masking_version").distinct().collect()
-    assert len(versions) == 1, "masking_version não deve variar na mesma carga"
+    assert len(versions) == 1, "masking_version must not vary within the same load"
     v = versions[0]["masking_version"]
-    assert v.startswith("masking-"), f"masking_version inesperado: {v}"
+    assert v.startswith("masking-"), f"Unexpected masking_version: {v}"
 
 
 def test_masked_at_no_nulls(silver_df):
-    """masked_at deve estar preenchido (timestamp do mascaramento)."""
+    """masked_at must be populated (masking timestamp)."""
     from pyspark.sql import functions as F
 
     if "masked_at" not in silver_df.columns:
-        pytest.skip("masked_at não implementado nesta versão")
+        pytest.skip("masked_at not implemented in this version")
 
     null_count = silver_df.filter(F.col("masked_at").isNull()).count()
-    assert null_count == 0, f"{null_count} linhas sem masked_at"
+    assert null_count == 0, f"{null_count} rows without masked_at"

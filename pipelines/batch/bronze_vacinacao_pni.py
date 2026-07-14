@@ -6,7 +6,7 @@ Partitioned by year_month (YYYYMM). The partition is DERIVED from the data_vacin
 codigo_paciente arrives pre-hashed by the Ministry — no PII in this table.
 
 Args:
-  --ano_mes     YYYYMM (usado como replaceWhere e fallback de partição)
+  --ano_mes     YYYYMM (used as replaceWhere and partition fallback)
   --batch_id    DAG run_id
   --input_path  override (opcional)
   --output_path override (opcional)

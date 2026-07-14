@@ -1,6 +1,6 @@
 """Silver job: bronze/arboviroses → s3://silver/notificacao/ (Delta Lake).
 
-Une dengue, zika e chikungunya num único dataset de notificações.
+Merges dengue, zika and chikungunya into a single notification dataset.
 Particionado por (agravo, ano_mes). replaceWhere usa ambas as colunas.
 
 Args:

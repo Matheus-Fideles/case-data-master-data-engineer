@@ -1,4 +1,4 @@
-"""Strategy: carrega dim_agravo (tabela estática — seed)."""
+"""Strategy: loads dim_agravo (static seed table)."""
 from __future__ import annotations
 
 from pyspark.sql.types import StringType, StructField, StructType
