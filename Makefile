@@ -38,8 +38,8 @@ up-all: ## Sobe todos os profiles (demo completa)
 	$(COMPOSE) --profile core --profile streaming --profile serving --profile observability up -d
 	@echo "Aguardando Airflow healthy (max 90s)..."
 	@until curl -sf http://localhost:8080/health 2>/dev/null | grep -q '"status":"healthy"'; do sleep 3; done
-	@echo "Todos os serviços prontos. Rodando smoke tests..."
-	@$(MAKE) smoke
+	@echo "Todos os serviços prontos. Rodando health check..."
+	@$(MAKE) health-check
 
 down: ## Para e remove todos os containers
 	$(COMPOSE) --profile core --profile streaming --profile serving --profile observability down
@@ -50,9 +50,9 @@ logs: ## Tails de logs de todos os serviços
 	$(COMPOSE) --profile core --profile streaming --profile serving --profile observability logs -f
 
 # ── Health checks ─────────────────────────────────────────────────────────────
-.PHONY: smoke
-smoke: ## Verifica saúde de todos os serviços
-	@echo "=== Smoke tests ==="
+.PHONY: health-check
+health-check: ## Verifica saúde de todos os serviços via curl
+	@echo "=== Health check dos serviços ==="
 	@curl -sf http://localhost:8080/health > /dev/null && echo "  ✓ Airflow" || echo "  ✗ Airflow"
 	@curl -sf http://localhost:9000/minio/health/live > /dev/null && echo "  ✓ MinIO" || echo "  ✗ MinIO"
 	@docker exec $$($(COMPOSE) ps -q postgres) pg_isready -U postgres > /dev/null 2>&1 && echo "  ✓ Postgres" || echo "  ✗ Postgres"
@@ -61,6 +61,21 @@ smoke: ## Verifica saúde de todos os serviços
 	@curl -sf http://localhost:9090/-/healthy > /dev/null && echo "  ✓ Prometheus" || echo "  ✗ Prometheus"
 	@curl -sf http://localhost:3000/api/health > /dev/null && echo "  ✓ Grafana" || echo "  ✗ Grafana"
 	@curl -sf http://localhost:5000/api/v1/namespaces > /dev/null && echo "  ✓ Marquez" || echo "  ✗ Marquez"
+
+# ── Smoke tests (pytest) ──────────────────────────────────────────────────────
+.PHONY: smoke smoke-min
+
+smoke: ## Roda suite completa de smoke tests (tests/smoke/)
+	KEEP_COMPOSE=1 python -m pytest tests/smoke/ -v --tb=short -m smoke
+
+smoke-min: ## Roda smoke mínimo: infra + bronze + masking + idempotência + segurança
+	KEEP_COMPOSE=1 python -m pytest \
+		tests/smoke/test_01_infra_health.py \
+		tests/smoke/test_02_bronze_ingestion.py \
+		tests/smoke/test_03_silver_masking.py \
+		tests/smoke/test_06_idempotency.py \
+		tests/smoke/test_08_security_invariants.py \
+		-v --tb=short -m smoke
 
 # ── Kubernetes / Spark ────────────────────────────────────────────────────────
 .PHONY: k8s-check k8s-setup k8s-spark-image k8s-namespace k8s-spark-install
@@ -145,7 +160,7 @@ lint: ## Roda pre-commit em todos os arquivos
 test-unit: ## Roda testes unitários (sem infraestrutura)
 	python -m pytest tests/extraction/ tests/batch/ -v
 
-test-smoke: smoke ## Alias para smoke tests
+test-smoke: smoke ## Alias para smoke tests (requer docker compose up)
 
 # ── Pre-aquecimento (antes da demo) ──────────────────────────────────────────
 .PHONY: warmup
