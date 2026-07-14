@@ -49,7 +49,7 @@ class TestExtractionServiceOnline:
     def test_raises_when_fetch_returns_empty(self):
         svc = ExtractionService(landing=_make_landing(), cache=_make_cache(), offline=False)
 
-        with pytest.raises(ValueError, match="Nenhum registro"):
+        with pytest.raises(ValueError, match="No records obtained"):
             svc.run(fonte="test", data_ref="2024", fetch_fn=MagicMock(return_value=[]), source_url="http://x")
 
 
@@ -71,5 +71,5 @@ class TestExtractionServiceOffline:
         cache.load.return_value = []
         svc = ExtractionService(landing=_make_landing(), cache=cache, offline=True)
 
-        with pytest.raises(ValueError, match="Nenhum registro"):
+        with pytest.raises(ValueError, match="No records obtained"):
             svc.run(fonte="test", data_ref="2024", fetch_fn=MagicMock(), source_url="http://x")

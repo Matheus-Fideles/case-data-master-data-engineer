@@ -1,6 +1,6 @@
-"""Extrator CNES (Cadastro Nacional de Estabelecimentos de Saúde).
+"""CNES extractor (National Registry of Healthcare Establishments).
 
-Paginação offset/limit. Usa ExtractionService + OffsetPagination (DIP + Strategy).
+Offset/limit pagination. Uses ExtractionService + OffsetPagination (DIP + Strategy).
 """
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ log = logging.getLogger(__name__)
 
 _PATH = "/cnes/estabelecimentos"
 _DATA_KEY = "estabelecimentos"
-_CAMPOS_MINIMOS = {"codigo_cnes", "nome_fantasia", "codigo_municipio"}
+_REQUIRED_FIELDS = {"codigo_cnes", "nome_fantasia", "codigo_municipio"}
 
 
 def _validate(records: list[dict]) -> None:
     if records:
-        missing = _CAMPOS_MINIMOS - set(records[0].keys())
+        missing = _REQUIRED_FIELDS - set(records[0].keys())
         if missing:
-            raise ValueError(f"Campos obrigatórios ausentes no CNES: {missing}")
+            raise ValueError(f"Required fields missing in CNES: {missing}")
 
 
 def run(snapshot_date: str | None = None) -> dict:

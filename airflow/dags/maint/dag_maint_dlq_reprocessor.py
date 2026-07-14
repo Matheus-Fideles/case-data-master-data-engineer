@@ -1,18 +1,18 @@
-"""DAG de Reprocessamento do DLQ Kafka.
+"""Kafka DLQ Reprocessing DAG.
 
-Roda a cada hora e consome mensagens do tópico `notificacoes.dlq`,
-roteando cada uma conforme o motivo de falha:
+Runs hourly and consumes messages from the `notificacoes.dlq` topic,
+routing each one based on the failure reason:
 
-  LATE_EVENT     → Reenvia ao Bronze com flag `is_late=true`
-  SCHEMA_INVALID → Persiste em s3://landing/dlq/schema_invalid/ para revisão humana
-  UNKNOWN_FIELD  → Log + descarte (campo inesperado não crítico)
+  LATE_EVENT     → Re-sends to Bronze with flag `is_late=true`
+  SCHEMA_INVALID → Persists to s3://landing/dlq/schema_invalid/ for human review
+  UNKNOWN_FIELD  → Log + discard (unexpected non-critical field)
 
-Estratégia de offset: commita o offset após processamento bem-sucedido.
-Falha em um batch não avança o offset — a próxima execução reprocessa.
+Offset strategy: commits offset after successful processing.
+Failure in a batch does not advance the offset — next run reprocesses.
 
-Métricas: `dlq_reprocessed_total{reason}` → Prometheus Pushgateway.
+Metrics: `dlq_reprocessed_total{reason}` → Prometheus Pushgateway.
 
-Spec: docs/specs/airflow-dags.md — seção "dag_maint_dlq_reprocessor"
+Spec: docs/specs/airflow-dags.md — section "dag_maint_dlq_reprocessor"
 """
 from __future__ import annotations
 
@@ -42,11 +42,11 @@ _DEFAULT_ARGS = {
 
 
 def _consume_dlq(**context) -> dict:
-    """Consome até MAX_POLL_RECORDS mensagens do DLQ e classifica por motivo."""
+    """Consumes up to MAX_POLL_RECORDS messages from the DLQ and classifies by reason."""
     try:
         from confluent_kafka import Consumer, KafkaError
     except ImportError:
-        log.warning("confluent_kafka não disponível — pulando DLQ reprocessing")
+        log.warning("confluent_kafka not available — skipping DLQ reprocessing")
         return {"late": [], "schema_invalid": [], "unknown": [], "skipped": True}
 
     consumer = Consumer({
@@ -94,7 +94,7 @@ def _consume_dlq(**context) -> dict:
 
         consumer.commit()
         log.info(
-            "[dlq] Consumidas %d mensagens: late=%d, invalid=%d, unknown=%d",
+            "[dlq] Consumed %d messages: late=%d, invalid=%d, unknown=%d",
             count,
             len(buckets["late"]),
             len(buckets["schema_invalid"]),
@@ -106,17 +106,17 @@ def _consume_dlq(**context) -> dict:
     context["ti"].xcom_push(key="dlq_buckets_summary", value={
         k: len(v) for k, v in buckets.items()
     })
-    # Armazena listas no XCom (pequeno o suficiente para metadados)
+    # Store lists in XCom (small enough for metadata)
     context["ti"].xcom_push(key="late_events", value=buckets["late"][:50])
     context["ti"].xcom_push(key="schema_invalid", value=buckets["schema_invalid"][:50])
     return {k: len(v) for k, v in buckets.items()}
 
 
 def _reprocess_late_events(**context) -> str:
-    """Reenvia LATE_EVENTs ao Bronze com flag is_late=true."""
+    """Re-sends LATE_EVENTs to Bronze with flag is_late=true."""
     late = context["ti"].xcom_pull(task_ids="consume_dlq", key="late_events") or []
     if not late:
-        log.info("[dlq/late] Nenhum evento tardio para reprocessar")
+        log.info("[dlq/late] No late events to reprocess")
         return "empty"
 
     import boto3
@@ -138,15 +138,15 @@ def _reprocess_late_events(**context) -> str:
     ).encode()
 
     s3.put_object(Bucket="landing", Key=key, Body=payload_bytes)
-    log.info("[dlq/late] %d eventos tardios enviados para landing/%s", len(late), key)
+    log.info("[dlq/late] %d late events sent to landing/%s", len(late), key)
     return f"reprocessed:{len(late)}"
 
 
 def _store_schema_invalid(**context) -> str:
-    """Persiste SCHEMA_INVALID em landing/dlq/schema_invalid/ para revisão humana."""
+    """Persists SCHEMA_INVALID to landing/dlq/schema_invalid/ for human review."""
     invalid = context["ti"].xcom_pull(task_ids="consume_dlq", key="schema_invalid") or []
     if not invalid:
-        log.info("[dlq/invalid] Nenhum evento inválido")
+        log.info("[dlq/invalid] No invalid events")
         return "empty"
 
     import boto3
@@ -164,12 +164,12 @@ def _store_schema_invalid(**context) -> str:
 
     payload_bytes = "\n".join(json.dumps(ev) for ev in invalid).encode()
     s3.put_object(Bucket="landing", Key=key, Body=payload_bytes)
-    log.info("[dlq/invalid] %d eventos inválidos armazenados em landing/%s", len(invalid), key)
+    log.info("[dlq/invalid] %d invalid events stored at landing/%s", len(invalid), key)
     return f"stored:{len(invalid)}"
 
 
 def _emit_metrics(**context) -> str:
-    """Publica contadores de DLQ no Prometheus Pushgateway."""
+    """Publishes DLQ counters to Prometheus Pushgateway."""
     summary = context["ti"].xcom_pull(task_ids="consume_dlq", key="dlq_buckets_summary") or {}
     if not summary:
         return "no_metrics"
@@ -187,9 +187,9 @@ def _emit_metrics(**context) -> str:
             data=lines + "\n",
             timeout=5,
         )
-        log.info("[dlq/metrics] Métricas publicadas: %s", summary)
+        log.info("[dlq/metrics] Metrics published: %s", summary)
     except Exception as e:
-        log.warning("[dlq/metrics] Falha ao publicar métricas: %s", e)
+        log.warning("[dlq/metrics] Failed to publish metrics: %s", e)
 
     return str(summary)
 

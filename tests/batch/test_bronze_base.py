@@ -135,7 +135,7 @@ def test_validate_called_with_count():
 def test_validate_raises_on_empty():
     job = _SimpleBronzeJob()
 
-    with pytest.raises(ValueError, match="Nenhuma linha lida"):
+    with pytest.raises(ValueError, match="No rows read from"):
         job._validate(0, "s3a://empty.json")
 
 

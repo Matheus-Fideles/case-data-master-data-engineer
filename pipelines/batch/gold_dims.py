@@ -1,12 +1,12 @@
-"""Gold entry point: carrega dimensões no schema gold_dw (Postgres).
+"""Gold entry point: loads dimensions into the gold_dw schema (Postgres).
 
-Dispatcher fino — seleciona a Strategy pelo nome e delega.
-Adicionar nova dimensão = criar novo arquivo em gold/dims/ sem tocar aqui.
+Thin dispatcher — selects the Strategy by name and delegates.
+Adding a new dimension = creating a new file in gold/dims/ without touching this file.
 
 Args:
   --dim           municipio | agravo | vacina | tempo
-  --snapshot_date YYYYMMDD  (para dim_municipio)
-  --ano_mes       YYYYMM    (para dim_vacina e dim_tempo)
+  --snapshot_date YYYYMMDD  (for dim_municipio)
+  --ano_mes       YYYYMM    (for dim_vacina and dim_tempo)
   --batch_id      DAG run_id
 """
 from __future__ import annotations
@@ -50,7 +50,7 @@ def main():
         ano_mes=args.ano_mes,
         batch_id=args.batch_id,
     )
-    print(f"[gold_dims/{args.dim}] {count} linhas escritas")
+    print(f"[gold_dims/{args.dim}] {count} rows written")
     spark.stop()
 
 

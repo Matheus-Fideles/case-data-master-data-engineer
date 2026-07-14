@@ -1,7 +1,7 @@
-"""Extrator de municípios (IBGE × regiões de saúde).
+"""Municipality extractor (IBGE × health regions).
 
-API retorna todos os ~5570 municípios numa única chamada — usa SingleCallStrategy.
-Sem paginação. Usa ExtractionService (DIP) + SingleCallStrategy.
+API returns all ~5570 municipalities in a single call — uses SingleCallStrategy.
+No pagination. Uses ExtractionService (DIP) + SingleCallStrategy.
 """
 from __future__ import annotations
 
@@ -15,15 +15,15 @@ log = logging.getLogger(__name__)
 
 _PATH = "/macrorregiao-e-regiao-de-saude/municipio"
 _DATA_KEY = "macrorregiao_regiao_saude_municipios"
-_CAMPOS_MINIMOS = {"codigo_municipio", "municipio", "uf"}
+_REQUIRED_FIELDS = {"codigo_municipio", "municipio", "uf"}
 
 
 def _validate(records: list[dict]) -> None:
     if not records:
-        raise ValueError("API retornou lista vazia de municípios")
-    missing = _CAMPOS_MINIMOS - set(records[0].keys())
+        raise ValueError("API returned empty municipality list")
+    missing = _REQUIRED_FIELDS - set(records[0].keys())
     if missing:
-        raise ValueError(f"Campos obrigatórios ausentes em municípios: {missing}")
+        raise ValueError(f"Required fields missing in municipalities: {missing}")
 
 
 def run(snapshot_date: str | None = None) -> dict:

@@ -1,7 +1,7 @@
-"""Extrator de arboviroses (dengue, zika, chikungunya) — SINAN API.
+"""Arbovirus extractor (dengue, zika, chikungunya) — SINAN API.
 
-Padrão de paginação: offset/limit com data_key "parametros".
-Usa ExtractionService (DIP) + OffsetPagination (Strategy Pattern).
+Pagination pattern: offset/limit with data_key "parametros".
+Uses ExtractionService (DIP) + OffsetPagination (Strategy Pattern).
 """
 from __future__ import annotations
 
@@ -18,20 +18,20 @@ _PATHS: dict[str, str] = {
     "chikungunya": "/arboviroses/chikungunya",
 }
 
-_CAMPOS_OBRIGATORIOS = {"id_agravo", "dt_notific", "id_municip"}
+_REQUIRED_FIELDS = {"id_agravo", "dt_notific", "id_municip"}
 
 
 def _validate(records: list[dict], agravo: str) -> None:
     if not records:
         return
-    missing = _CAMPOS_OBRIGATORIOS - set(records[0].keys())
+    missing = _REQUIRED_FIELDS - set(records[0].keys())
     if missing:
-        raise ValueError(f"Campos obrigatórios ausentes em {agravo}: {missing}")
+        raise ValueError(f"Required fields missing in {agravo}: {missing}")
 
 
 def run(agravo: str, ano: int | str = 2024) -> dict:
-    """Entrypoint chamado pelo PythonOperator no Airflow."""
-    path = _PATHS[agravo]  # KeyError intencional para agravo inválido
+    """Entrypoint called by PythonOperator in Airflow."""
+    path = _PATHS[agravo]  # intentional KeyError for invalid agravo
     cfg = make_pagination_config()
     paginator = OffsetPagination(
         base_url=cfg["base_url"],

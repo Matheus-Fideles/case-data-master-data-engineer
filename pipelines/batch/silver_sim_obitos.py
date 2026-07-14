@@ -1,6 +1,6 @@
 """Silver job: bronze/sim_obitos → s3://silver/sim_obitos/ (Delta Lake).
 
-Normaliza tipos e aplica mascaramento defensivo de PII (LGPD).
+Normalizes types and applies defensive PII masking (LGPD).
 Particionado por ano_part.
 
 Args:

@@ -1,7 +1,7 @@
-"""Gold entry point: carrega fatos no schema gold_dw (Postgres).
+"""Gold entry point: loads facts into the gold_dw schema (Postgres).
 
-Dispatcher fino — seleciona a Strategy pelo nome e delega.
-Adicionar novo fato = criar novo arquivo em gold/fatos/ sem tocar aqui.
+Thin dispatcher — selects the Strategy by name and delegates.
+Adding a new fact = creating a new file in gold/fatos/ without touching this file.
 
 Args:
   --fato     notificacao | obito | vacinacao
@@ -48,7 +48,7 @@ def main():
         ano=args.ano,
         batch_id=args.batch_id,
     )
-    print(f"[gold_fatos/{args.fato}] {count} linhas escritas")
+    print(f"[gold_fatos/{args.fato}] {count} rows written")
     spark.stop()
 
 

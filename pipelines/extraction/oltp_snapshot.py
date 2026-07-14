@@ -1,15 +1,15 @@
-"""Extrator OLTP — snapshot diário de oltp.paciente.
+"""OLTP extractor — daily snapshot of oltp.paciente.
 
-Diferente dos outros extratores (REST API), este usa psycopg2 para ler
-diretamente do Postgres. Retorna registros como lista de dicts e persiste
-em MinIO landing/ via ExtractionService (mesma interface dos demais).
+Unlike other extractors (REST API), this uses psycopg2 to read
+directly from Postgres. Returns records as a list of dicts and persists
+to MinIO landing/ via ExtractionService (same interface as others).
 
-⚠️  ATENÇÃO PII: esta é a única extração que lida com dados pessoais em claro
-(cpf, nome, data_nascimento, cep, email, telefone). O dado permanece em claro
-apenas na camada Bronze; o job Silver aplica mascaramento (ADR-0004) antes de
-qualquer uso downstream.
+⚠️  PII WARNING: this is the only extraction that handles plaintext personal data
+(cpf, nome, data_nascimento, cep, email, telefone). Data remains in plaintext
+only in the Bronze layer; the Silver job applies masking (ADR-0004) before
+any downstream use.
 
-Campos PII presentes neste arquivo por necessidade de extração — ver ADR-0004.
+PII fields present in this file due to extraction requirements — see ADR-0004.
 """
 from __future__ import annotations
 
@@ -22,10 +22,10 @@ from pipelines.extraction.factory import make_extraction_service
 log = logging.getLogger(__name__)
 
 _SOURCE_LABEL = "postgres://oltp/paciente"
-_CAMPOS_MINIMOS = {"id_paciente", "cpf", "nome", "data_nascimento"}
+_REQUIRED_FIELDS = {"id_paciente", "cpf", "nome", "data_nascimento"}
 
-# Colunas PII — listadas aqui apenas para documentação e validação de extração.
-# Não usar fora deste módulo e de tests/.
+# PII columns — listed here only for documentation and extraction validation.
+# Do not use outside this module and tests/.
 _PII_COLS = ("cpf", "nome", "data_nascimento", "cep", "email", "telefone")
 
 
@@ -40,11 +40,11 @@ def _pg_dsn() -> str:
 
 
 def _fetch_pacientes(updated_since: str | None = None) -> list[dict]:
-    """Lê oltp.paciente via psycopg2.
+    """Reads oltp.paciente via psycopg2.
 
-    Se updated_since for fornecido (ISO date), retorna apenas registros
-    modificados desde essa data — permite extração incremental.
-    Caso contrário, faz snapshot completo.
+    If updated_since is provided (ISO date), returns only records
+    modified since that date — enables incremental extraction.
+    Otherwise, performs a full snapshot.
     """
     import psycopg2
     import psycopg2.extras
@@ -67,32 +67,31 @@ def _fetch_pacientes(updated_since: str | None = None) -> list[dict]:
     records = []
     for row in rows:
         rec = dict(row)
-        # converte tipos não serializáveis em JSON
         for key, val in rec.items():
             if hasattr(val, "isoformat"):
                 rec[key] = val.isoformat()
         records.append(rec)
 
-    log.info("Lidos %d registros de oltp.paciente", len(records))
+    log.info("Read %d records from oltp.paciente", len(records))
     return records
 
 
 def _validate(records: list[dict]) -> None:
     if not records:
-        raise ValueError("oltp.paciente retornou zero registros")
-    missing = _CAMPOS_MINIMOS - set(records[0].keys())
+        raise ValueError("oltp.paciente returned zero records")
+    missing = _REQUIRED_FIELDS - set(records[0].keys())
     if missing:
-        raise ValueError(f"Campos obrigatórios ausentes em oltp_snapshot: {missing}")
+        raise ValueError(f"Required fields missing in oltp_snapshot: {missing}")
 
 
 def run(snapshot_date: str | None = None, incremental: bool = False) -> dict:
-    """Executa o snapshot de oltp.paciente.
+    """Runs the oltp.paciente snapshot.
 
     Args:
-        snapshot_date: data de referência no formato YYYYMMDD.
-                       Se None, usa a data de hoje.
-        incremental:   se True, filtra por updated_at >= snapshot_date
-                       (extração incremental). Se False, snapshot completo.
+        snapshot_date: reference date in YYYYMMDD format.
+                       If None, uses today's date.
+        incremental:   if True, filters by updated_at >= snapshot_date
+                       (incremental extraction). If False, full snapshot.
     """
     snap = snapshot_date or date.today().strftime("%Y%m%d")
     updated_since = snap if incremental else None

@@ -1,7 +1,7 @@
-"""Ports (interfaces) da camada de extração — Arquitetura Hexagonal.
+"""Ports (interfaces) for the extraction layer — Hexagonal Architecture.
 
-A lógica de domínio (o QUE extrair e ONDE guardar) é expressa em termos
-desses protocolos. Os adapters concretos ficam em adapters/.
+Domain logic (WHAT to extract and WHERE to store) is expressed in terms
+of these protocols. Concrete adapters are in adapters/.
 """
 from __future__ import annotations
 
@@ -10,16 +10,16 @@ from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class DataSourcePort(Protocol):
-    """Port de entrada: qualquer coisa que forneça registros brutos."""
+    """Input port: anything that provides raw records."""
 
     def fetch(self) -> list[dict]:
-        """Retorna todos os registros disponíveis."""
+        """Returns all available records."""
         ...
 
 
 @runtime_checkable
 class LandingStoragePort(Protocol):
-    """Port de saída: qualquer coisa que persista registros na landing zone."""
+    """Output port: anything that persists records in the landing zone."""
 
     def write(
         self,
@@ -28,13 +28,13 @@ class LandingStoragePort(Protocol):
         data_ref: str,
         source_url: str,
     ) -> str:
-        """Persiste records e retorna o caminho de saída (s3a:// ou file://)."""
+        """Persists records and returns the output path (s3a:// or file://)."""
         ...
 
 
 @runtime_checkable
 class CachePort(Protocol):
-    """Port de saída secundária: cache local para OFFLINE_MODE."""
+    """Secondary output port: local cache for OFFLINE_MODE."""
 
     def save(self, records: list[dict], fonte: str, data_ref: str) -> None: ...
 

@@ -1,7 +1,7 @@
-"""Application Service: orquestra extração sem depender de infraestrutura.
+"""Application Service: orchestrates extraction without depending on infrastructure.
 
-Recebe os ports por injeção de dependência (DIP).
-Não importa boto3, requests, boto3 ou qualquer SDK diretamente.
+Receives ports via dependency injection (DIP).
+Does not import boto3, requests, or any SDK directly.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ class ExtractionResult:
 
 
 class ExtractionService:
-    """Orquestra fetch → (cache) → landing com DIP nos dois ports."""
+    """Orchestrates fetch → (cache) → landing with DIP on both ports."""
 
     def __init__(
         self,
@@ -48,10 +48,10 @@ class ExtractionService:
             self._cache.save(records, fonte, data_ref)
 
         if not records:
-            raise ValueError(f"Nenhum registro obtido para {fonte}/{data_ref}")
+            raise ValueError(f"No records obtained for {fonte}/{data_ref}")
 
         output_path = self._landing.write(records, fonte, data_ref, source_url)
-        log.info("Extração concluída: %d registros → %s", len(records), output_path)
+        log.info("Extraction complete: %d records → %s", len(records), output_path)
         return ExtractionResult(
             row_count=len(records),
             output_path=output_path,

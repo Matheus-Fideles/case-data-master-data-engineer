@@ -1,7 +1,7 @@
-"""Extrator PNI — doses aplicadas (vacinação).
+"""PNI extractor — doses applied (vaccination).
 
-Paginação page/size. Usa ExtractionService + PageNumberPagination (DIP + Strategy).
-codigo_paciente já chega pré-hasheado pelo Ministério — sem PII.
+Page/size pagination. Uses ExtractionService + PageNumberPagination (DIP + Strategy).
+codigo_paciente arrives pre-hashed by the Ministry — no PII.
 """
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ log = logging.getLogger(__name__)
 
 _PATH = "/vacinacao/doses-aplicadas-pni-2024"
 _DATA_KEY = "doses_aplicadas_pni"
-_CAMPOS_MINIMOS = {"codigo_documento", "codigo_vacina", "data_vacina"}
+_REQUIRED_FIELDS = {"codigo_documento", "codigo_vacina", "data_vacina"}
 
 
 def _validate(records: list[dict]) -> None:
     if records:
-        missing = _CAMPOS_MINIMOS - set(records[0].keys())
+        missing = _REQUIRED_FIELDS - set(records[0].keys())
         if missing:
-            raise ValueError(f"Campos obrigatórios ausentes em vacinacao_pni: {missing}")
+            raise ValueError(f"Required fields missing in vacinacao_pni: {missing}")
 
 
 def run(ano: str | int = "2024") -> dict:

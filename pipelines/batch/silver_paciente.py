@@ -1,21 +1,21 @@
 """Silver job: bronze/oltp_paciente → s3://silver/paciente/ (Delta Lake).
 
-Aplica mascaramento LGPD conforme ADR-0004:
-  - cpf        → SHA-256 + salt → id_paciente_hash (determinístico para joins)
-  - nome       → suprimido (sem valor analítico direto)
-  - data_nascimento → generalizado para ano_nascimento (IntegerType)
-  - cep        → truncado para 3 primeiros dígitos (microrregião)
-  - email      → suprimido (NULL)
-  - telefone   → suprimido (NULL)
+Applies LGPD masking per ADR-0004:
+  - cpf        → SHA-256 + salt → id_paciente_hash (deterministic for joins)
+  - nome       → suppressed (no direct analytical value)
+  - data_nascimento → generalized to ano_nascimento (IntegerType)
+  - cep        → truncated to first 3 digits (micro-region)
+  - email      → suppressed (NULL)
+  - telefone   → suppressed (NULL)
 
-Após a transformação, validate_no_pii() garante que nenhuma coluna PII
-sobreviveu — falha aqui bloqueia escrita no Silver.
+After transformation, validate_no_pii() ensures no PII column survived
+— failure here blocks writing to Silver.
 
 Args:
   --snapshot_date  YYYYMMDD
   --batch_id       DAG run_id
-  --input_path     override (opcional)
-  --output_path    override (opcional)
+  --input_path     override (optional)
+  --output_path    override (optional)
 """
 from __future__ import annotations
 
@@ -30,10 +30,10 @@ from pipelines.batch.silver_base import SilverJob
 from pipelines.common.masking import mask_paciente, validate_no_pii
 from pipelines.common.spark import build_spark
 
-# Versão do algoritmo de mascaramento — rastreável em cada linha Silver.
+# Masking algorithm version — traceable on each Silver row.
 MASKING_VERSION = "masking-1.0.0"
 
-# Colunas PII que devem desaparecer após transform().
+# PII columns that must disappear after transform().
 _PII_COLS = ["cpf", "nome", "email", "telefone"]
 
 
@@ -45,23 +45,23 @@ class PacienteSilverJob(SilverJob):
         # 1. hash CPF → id_paciente_hash; remove cpf original
         df = mask_paciente(df, cpf_col="cpf", output_col="id_paciente_hash")
 
-        # 2. generaliza data de nascimento → apenas ano
+        # 2. generalize date of birth → year only
         df = df.withColumn(
             "ano_nascimento",
             F.year(F.to_date(F.col("data_nascimento"))).cast(IntegerType()),
         ).drop("data_nascimento", "nome")
 
-        # 3. trunca CEP para 3 primeiros dígitos (microrregião)
+        # 3. truncate CEP to first 3 digits (micro-region)
         df = df.withColumn("cep_regiao", F.substring(F.col("cep"), 1, 3)).drop("cep")
 
-        # 4. suprime email e telefone
+        # 4. suppress email and telefone
         df = df.drop("email", "telefone")
 
-        # 5. adiciona metadados de mascaramento
+        # 5. add masking metadata
         df = df.withColumn("masking_version", F.lit(MASKING_VERSION))
         df = df.withColumn("masked_at", F.current_timestamp())
 
-        # 6. guarda: validate_no_pii levanta ValueError se qualquer PII sobreviveu
+        # 6. guard: validate_no_pii raises ValueError if any PII survived
         validate_no_pii(df, pii_cols=_PII_COLS + ["data_nascimento"])
 
         return df

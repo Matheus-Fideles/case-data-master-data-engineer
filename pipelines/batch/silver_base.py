@@ -1,10 +1,10 @@
-"""Template Method para jobs Silver.
+"""Template Method for Silver jobs.
 
-Fluxo fixo:  read Delta (bronze) → filter → transform → add metadata → write Delta (silver)
-O que varia: normalização de tipos, nomes de colunas, mascaramento PII — implementados em transform().
+Fixed flow:  read Delta (bronze) → filter → transform → add metadata → write Delta (silver)
+What varies: type normalization, column names, PII masking — implemented in transform().
 
-Para partições compostas (ex.: silver/notificacao/ usa agravo + ano_mes),
-a subclasse pode sobrescrever replace_condition().
+For composite partitions (e.g.: silver/notificacao/ uses disease + year_month),
+the subclass can override replace_condition().
 """
 from __future__ import annotations
 
@@ -29,14 +29,14 @@ class SilverJob(ABC):
     @property
     @abstractmethod
     def partition_cols(self) -> list[str]:
-        """Colunas de partição do Delta Silver (pode ser mais de uma)."""
+        """Delta Silver partition columns (can be more than one)."""
 
     @abstractmethod
     def transform(self, df: DataFrame) -> DataFrame:
-        """Normaliza tipos, renomeia colunas e aplica mascaramento PII."""
+        """Normalizes types, renames columns, and applies PII masking."""
 
     def replace_condition(self, filter_col: str, filter_val: str) -> str:
-        """Condição do replaceWhere. Override para partições compostas."""
+        """replaceWhere condition. Override for composite partitions."""
         return f"{filter_col} = '{filter_val}'"
 
     # ── template method ──────────────────────────────────────────────────────
@@ -55,12 +55,12 @@ class SilverJob(ABC):
         df = self._add_metadata(df, batch_id)
 
         count = df.count()
-        log.info("[%s] %d linhas | %s=%s", self.source_name, count, filter_col, filter_val)
+        log.info("[%s] %d rows | %s=%s", self.source_name, count, filter_col, filter_val)
 
         self._write(df, output_path, filter_col, filter_val)
         return count
 
-    # ── passos comuns ─────────────────────────────────────────────────────────
+    # ── shared steps ─────────────────────────────────────────────────────────
 
     def _read(self, spark: SparkSession, path: str, filter_col: str, filter_val: str) -> DataFrame:
         return (

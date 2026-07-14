@@ -1,20 +1,20 @@
-"""Spark Structured Streaming — consumer do tópico notificacoes.raw.
+"""Spark Structured Streaming — consumer for the notificacoes.raw topic.
 
-Fluxo:
+Flow:
   Kafka (notificacoes.raw)
-    → parse JSON + validação de schema
-    → withWatermark("ts_evento", "1 hora")    [ADR 0005]
-    → foreachBatch: MERGE idempotente no Delta bronze/atendimentos_stream/
-    → foreachBatch: MERGE no Postgres gold_dw.fato_atendimento_stream
+    → parse JSON + schema validation
+    → withWatermark("ts_evento", "1 hour")    [ADR 0005]
+    → foreachBatch: idempotent MERGE into Delta bronze/atendimentos_stream/
+    → foreachBatch: MERGE into Postgres gold_dw.fato_atendimento_stream
 
-Eventos atrasados (ts_evento < watermark) são roteados para o tópico DLQ
-atendimentos.dlq com motivo LATE_EVENT.
+Late events (ts_evento < watermark) are routed to the DLQ topic
+atendimentos.dlq with reason LATE_EVENT.
 
-Checkpoint em s3a://landing/_checkpoints/atendimentos_stream_consumer/
-garante exactly-once após restart (ADR 0005).
+Checkpoint at s3a://landing/_checkpoints/atendimentos_stream_consumer/
+guarantees exactly-once after restart (ADR 0005).
 
-Trigger configurável via STREAM_TRIGGER_SECS (default 30s).
-Em CI usa Trigger.AvailableNow() via STREAM_CI_MODE=1.
+Trigger configurable via STREAM_TRIGGER_SECS (default 30s).
+In CI uses Trigger.AvailableNow() via STREAM_CI_MODE=1.
 """
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ from pipelines.common.spark import build_spark
 
 log = logging.getLogger(__name__)
 
-# ── Configuração ──────────────────────────────────────────────────────────────
+# ── Configuration ────────────────────────────────────────────────────────────
 
 KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 KAFKA_TOPIC = os.environ.get("KAFKA_TOPIC", "notificacoes.raw")
@@ -66,7 +66,7 @@ _PG_TABLE_STREAM = "fato_atendimento_stream"
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _parse_kafka(raw_df: DataFrame) -> tuple[DataFrame, DataFrame]:
-    """Parseia payload Kafka → (válidos, DLQ)."""
+    """Parses Kafka payload → (valid, DLQ)."""
     parsed = (
         raw_df
         .select(
@@ -84,7 +84,7 @@ def _parse_kafka(raw_df: DataFrame) -> tuple[DataFrame, DataFrame]:
 
 
 def _write_bronze(microbatch: DataFrame, batch_id: int) -> None:
-    """Escreve micro-batch no Delta bronze via MERGE (idempotente — ADR 0002)."""
+    """Writes micro-batch to Delta bronze via MERGE (idempotent — ADR 0002)."""
     enriched = (
         microbatch
         .withColumn("_batch_id", F.lit(batch_id))
@@ -116,7 +116,7 @@ def _write_bronze(microbatch: DataFrame, batch_id: int) -> None:
 
 
 def _write_gold_postgres(microbatch: DataFrame, batch_id: int) -> None:
-    """Replica micro-batch para Postgres gold_dw via JDBC (append)."""
+    """Replicates micro-batch to Postgres gold_dw via JDBC (append)."""
     pg_url, pg_props = make_pg_connection()
 
     gold_df = (
@@ -144,7 +144,7 @@ def _write_gold_postgres(microbatch: DataFrame, batch_id: int) -> None:
 
 
 def _send_to_dlq(spark: SparkSession, invalid_df: DataFrame, reason: str) -> None:
-    """Envia registros inválidos para o tópico DLQ Kafka."""
+    """Sends invalid records to the Kafka DLQ topic."""
     if invalid_df.rdd.isEmpty():
         return
 
@@ -168,7 +168,7 @@ def _send_to_dlq(spark: SparkSession, invalid_df: DataFrame, reason: str) -> Non
     log.warning("[DLQ] %s: %d events sent to %s", reason, dlq_df.count(), KAFKA_DLQ_TOPIC)
 
 
-# ── Orquestração ──────────────────────────────────────────────────────────────
+# ── Orchestration ────────────────────────────────────────────────────────────
 
 def _make_foreachbatch(spark: SparkSession):
     def _process(microbatch: DataFrame, batch_id: int) -> None:
@@ -192,7 +192,7 @@ def _make_foreachbatch(spark: SparkSession):
         try:
             _write_gold_postgres(watermarked, batch_id)
         except Exception:
-            log.exception("[gold/stream] falha ao escrever no Postgres — batch=%d", batch_id)
+            log.exception("[gold/stream] failed to write to Postgres — batch=%d", batch_id)
 
     return _process
 
@@ -230,7 +230,7 @@ def run(spark: SparkSession | None = None) -> None:
 
     stream = query.start()
     log.info(
-        "Streaming iniciado | topic=%s trigger=%ss watermark=%s",
+        "Stream started | topic=%s trigger=%ss watermark=%s",
         KAFKA_TOPIC, TRIGGER_SECS, WATERMARK,
     )
 

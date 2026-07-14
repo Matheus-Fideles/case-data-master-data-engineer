@@ -1,8 +1,8 @@
-"""Strategy Pattern: estratégias de paginação para APIs REST.
+"""Strategy Pattern: pagination strategies for REST APIs.
 
-Resolve o problema de duas funções quase idênticas (fetch_paginated e
-fetch_paginated_by_page) — cada estratégia encapsula um contrato de paginação
-diferente sem duplicar código.
+Solves the problem of two nearly identical functions (fetch_paginated and
+fetch_paginated_by_page) — each strategy encapsulates a different pagination
+contract without duplicating code.
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def _make_retry(max_attempts: int):
 
 
 class PaginationStrategy(ABC):
-    """Porta interna: contrato de paginação."""
+    """Internal port: pagination contract."""
 
     def __init__(self, base_url: str, page_size: int, max_retries: int) -> None:
         self._base_url = base_url
@@ -41,7 +41,7 @@ class PaginationStrategy(ABC):
         self._max_retries = max_retries
 
     def fetch_all(self, path: str, data_key: str, params: dict) -> list[dict]:
-        """Template Method: loop de paginação com estratégia plugável."""
+        """Template Method: pagination loop with pluggable strategy."""
         results: list[dict] = []
         state = self._initial_state()
         while True:
@@ -49,7 +49,7 @@ class PaginationStrategy(ABC):
             self._apply_state(page_params, state)
             page = self._fetch_page(f"{self._base_url}{path}", page_params, data_key)
             results.extend(page)
-            log.info("GET %s%s → %d registros (total: %d)", self._base_url, path, len(page), len(results))
+            log.info("GET %s%s → %d records (total: %d)", self._base_url, path, len(page), len(results))
             if len(page) < self._page_size:
                 break
             state = self._next_state(state, len(page))
@@ -79,7 +79,7 @@ class PaginationStrategy(ABC):
 
 
 class OffsetPagination(PaginationStrategy):
-    """Estratégia offset/limit — usada por arboviroses, CNES e SIM."""
+    """Offset/limit strategy — used by arboviroses, CNES, and SIM."""
 
     def __init__(
         self,
@@ -103,7 +103,7 @@ class OffsetPagination(PaginationStrategy):
 
 
 class PageNumberPagination(PaginationStrategy):
-    """Estratégia page/size — usada pela API de vacinação PNI."""
+    """Page/size strategy — used by the PNI vaccination API."""
 
     def _initial_state(self) -> dict:
         return {"page": 0, "size": self._page_size}

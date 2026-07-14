@@ -1,7 +1,7 @@
-"""Adapter: Strategy para APIs sem paginação (chamada única).
+"""Adapter: Strategy for APIs without pagination (single call).
 
-Implementa a mesma interface que PaginationStrategy mas faz uma única
-requisição HTTP — usado pela API de municípios que retorna ~5570 registros.
+Implements the same interface as PaginationStrategy but makes a single
+HTTP request — used by the municipality API which returns ~5570 records.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 
 class SingleCallStrategy:
-    """Busca todos os registros numa única requisição GET."""
+    """Fetches all records in a single GET request."""
 
     def __init__(self, base_url: str, max_retries: int = 5, timeout: int = 60) -> None:
         self._base_url = base_url
@@ -49,5 +49,5 @@ class SingleCallStrategy:
 
         items = _get().json().get(data_key, [])
         records = items if isinstance(items, list) else []
-        log.info("Fetched %d registros de %s", len(records), url)
+        log.info("Fetched %d records from %s", len(records), url)
         return records

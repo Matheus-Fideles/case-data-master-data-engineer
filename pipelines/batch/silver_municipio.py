@@ -1,6 +1,6 @@
 """Silver job: bronze/municipios → s3://silver/municipio/ (Delta Lake).
 
-Normaliza e tipifica a tabela de municípios. Particionado por snapshot_date.
+Normalizes and types the municipality table. Partitioned by snapshot_date.
 
 Args:
   --snapshot_date  YYYYMMDD

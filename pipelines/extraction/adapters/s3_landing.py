@@ -1,6 +1,6 @@
 """Adapter: LandingStoragePort → MinIO/S3 (boto3).
 
-Implementa o port de saída. A lógica de domínio nunca importa boto3 diretamente.
+Implements the output port. Domain logic never imports boto3 directly.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 
 class S3LandingAdapter:
-    """Implementa LandingStoragePort gravando NDJSON no MinIO via S3A."""
+    """Implements LandingStoragePort by writing NDJSON to MinIO via S3A."""
 
     def __init__(
         self,
@@ -52,5 +52,5 @@ class S3LandingAdapter:
             ContentType="application/x-ndjson",
             Metadata={"source_url": source_url[:1024]},
         )
-        log.info("Escrito %d registros em s3://%s/%s", len(records), self._bucket, s3_key)
+        log.info("Written %d records to s3://%s/%s", len(records), self._bucket, s3_key)
         return f"s3a://{self._bucket}/{s3_key}"

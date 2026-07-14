@@ -1,6 +1,6 @@
-"""Adapter: CachePort → sistema de arquivos local.
+"""Adapter: CachePort → local filesystem.
 
-Usado quando OFFLINE_MODE=True para evitar chamadas às APIs externas.
+Used when OFFLINE_MODE=True to avoid calls to external APIs.
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 
 class LocalCacheAdapter:
-    """Implementa CachePort usando o diretório data/raw/."""
+    """Implements CachePort using the data/raw/ directory."""
 
     def __init__(self, root: Path | str = "data/raw") -> None:
         self._root = Path(root)
@@ -24,7 +24,7 @@ class LocalCacheAdapter:
         cache_dir.mkdir(parents=True, exist_ok=True)
         out = cache_dir / "data.json"
         out.write_text(json.dumps(records, ensure_ascii=False, default=str))
-        log.info("Cache: %d registros salvos em %s", len(records), out)
+        log.info("Cache: %d records saved to %s", len(records), out)
 
     def load(self, fonte: str, data_ref: str) -> list[dict]:
         cache_dir = self._root / fonte / data_ref
@@ -32,5 +32,5 @@ class LocalCacheAdapter:
         for f in sorted(cache_dir.glob("*.json")):
             data = json.loads(f.read_text())
             records.extend(data if isinstance(data, list) else [data])
-        log.info("Cache: %d registros carregados de %s", len(records), cache_dir)
+        log.info("Cache: %d records loaded from %s", len(records), cache_dir)
         return records

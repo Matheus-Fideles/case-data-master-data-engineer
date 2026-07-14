@@ -1,6 +1,6 @@
-"""Extrator SIM — Sistema de Informação sobre Mortalidade.
+"""SIM extractor — Mortality Information System.
 
-Paginação offset/limit com parâmetro ano. Usa ExtractionService + OffsetPagination.
+Offset/limit pagination with year parameter. Uses ExtractionService + OffsetPagination.
 """
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ log = logging.getLogger(__name__)
 
 _PATH = "/vigilancia-e-meio-ambiente/sistema-de-informacao-sobre-mortalidade"
 _DATA_KEY = "sim"
-_CAMPOS_MINIMOS = {"contador", "causabas", "dtobito"}
+_REQUIRED_FIELDS = {"contador", "causabas", "dtobito"}
 
 
 def _validate(records: list[dict]) -> None:
     if records:
-        missing = _CAMPOS_MINIMOS - set(records[0].keys())
+        missing = _REQUIRED_FIELDS - set(records[0].keys())
         if missing:
-            raise ValueError(f"Campos obrigatórios ausentes no SIM: {missing}")
+            raise ValueError(f"Required fields missing in SIM: {missing}")
 
 
 def run(ano: str | int | None = None) -> dict:

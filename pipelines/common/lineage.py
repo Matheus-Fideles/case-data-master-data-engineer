@@ -1,19 +1,19 @@
-"""Cliente OpenLineage para emissão explícita de lineage em contextos não-Spark.
+"""OpenLineage client for explicit lineage emission in non-Spark contexts.
 
-Usado por:
-  - PythonOperators de extração (landing → Marquez)
-  - Tasks de emit_lineage nos DAGs Airflow
-  - Utilitários de manutenção
+Used by:
+  - Extraction PythonOperators (landing → Marquez)
+  - emit_lineage tasks in Airflow DAGs
+  - Maintenance utilities
 
-Para jobs Spark (Bronze/Silver/Gold), o listener automático
-`io.openlineage.spark.agent.OpenLineageSparkListener` captura tudo via
-`spark.extraListeners` — não é necessário chamar este módulo nesses jobs.
+For Spark jobs (Bronze/Silver/Gold), the automatic listener
+`io.openlineage.spark.agent.OpenLineageSparkListener` captures everything via
+`spark.extraListeners` — calling this module is not necessary for those jobs.
 
-Env vars esperadas:
-  OPENLINEAGE_URL        URL base do Marquez (ex.: http://marquez:5000)
-  OPENLINEAGE_NAMESPACE  Namespace para agrupamento (ex.: "batch", "streaming")
+Expected env vars:
+  OPENLINEAGE_URL        Base URL of Marquez (e.g.: http://marquez:5000)
+  OPENLINEAGE_NAMESPACE  Namespace for grouping (e.g.: "batch", "streaming")
 
-Se OPENLINEAGE_URL não estiver definida, todas as funções são no-ops.
+If OPENLINEAGE_URL is not set, all functions are no-ops.
 """
 from __future__ import annotations
 
@@ -33,9 +33,9 @@ _PRODUCER     = "https://github.com/matheusfideles/case-data-master-data-enginee
 
 @dataclass
 class Dataset:
-    """Representa um dataset de input ou output no grafo de lineage."""
-    name: str                           # ex.: "s3://bronze/dengue/"
-    namespace: str = "s3"              # ex.: "s3", "postgres", "kafka"
+    """Represents an input or output dataset in the lineage graph."""
+    name: str                           # e.g.: "s3://bronze/dengue/"
+    namespace: str = "s3"              # e.g.: "s3", "postgres", "kafka"
     facets: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -64,7 +64,7 @@ def emit_start(
     outputs: list[Dataset] | None = None,
     job_facets: dict[str, Any] | None = None,
 ) -> str | None:
-    """Emite evento START de lineage. Retorna o run_id gerado (ou None se desabilitado)."""
+    """Emits a START lineage event. Returns the generated run_id (or None if disabled)."""
     if not _OL_URL:
         return None
     rid = run_id or str(uuid4())
@@ -79,7 +79,7 @@ def emit_complete(
     outputs: list[Dataset] | None = None,
     output_facets: dict[str, Any] | None = None,
 ) -> None:
-    """Emite evento COMPLETE de lineage."""
+    """Emits a COMPLETE lineage event."""
     if not _OL_URL:
         return
     _post_event("COMPLETE", job_name, run_id, inputs or [], outputs or [], {}, output_facets)
@@ -92,7 +92,7 @@ def emit_fail(
     inputs: list[Dataset] | None = None,
     outputs: list[Dataset] | None = None,
 ) -> None:
-    """Emite evento FAIL de lineage."""
+    """Emits a FAIL lineage event."""
     if not _OL_URL:
         return
     facets = {}
@@ -112,7 +112,7 @@ def with_lineage(
     inputs: list[Dataset] | None = None,
     outputs: list[Dataset] | None = None,
 ):
-    """Decorator que envolve uma função com emissão automática de START/COMPLETE/FAIL."""
+    """Decorator that wraps a function with automatic START/COMPLETE/FAIL emission."""
     def decorator(fn):
         def wrapper(*args, **kwargs):
             run_id = emit_start(job_name, inputs=inputs, outputs=outputs)
@@ -128,7 +128,7 @@ def with_lineage(
     return decorator
 
 
-# ── Implementação interna ─────────────────────────────────────────────────────
+# ── Internal implementation ───────────────────────────────────────────────────
 
 def _post_event(
     event_type: str,
@@ -186,9 +186,8 @@ def _post_event(
         )
         if resp.status_code not in (200, 201, 204):
             log.warning(
-                "[lineage] Marquez retornou %d para evento %s/%s",
+                "[lineage] Marquez returned %d for event %s/%s",
                 resp.status_code, event_type, job_name,
             )
     except Exception as e:
-        # Lineage nunca deve quebrar o pipeline
-        log.warning("[lineage] Falha ao emitir evento %s: %s", event_type, e)
+        log.warning("[lineage] Failed to emit event %s: %s", event_type, e)

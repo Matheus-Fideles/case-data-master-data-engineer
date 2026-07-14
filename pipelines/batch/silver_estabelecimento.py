@@ -1,6 +1,6 @@
 """Silver job: bronze/cnes → s3://silver/estabelecimento/ (Delta Lake).
 
-Normaliza estabelecimentos de saúde do CNES. Particionado por snapshot_date.
+Normalizes CNES healthcare establishments. Partitioned by snapshot_date.
 
 Args:
   --snapshot_date  YYYYMMDD

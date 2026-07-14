@@ -1,6 +1,6 @@
-"""Fábrica de conexão JDBC com Postgres — espelho de common/spark.py.
+"""JDBC connection factory for Postgres — mirrors common/spark.py.
 
-Único lugar que lê credenciais do ambiente para acesso ao DW Gold.
+Single place that reads credentials from the environment for Gold DW access.
 """
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import os
 
 
 def make_pg_connection() -> tuple[str, dict]:
-    """Retorna (jdbc_url, properties) prontos para df.write.jdbc(...)."""
+    """Returns (jdbc_url, properties) ready for df.write.jdbc(...)."""
     url = os.environ.get(
         "POSTGRES_JDBC_URL",
         "jdbc:postgresql://host.docker.internal:5432/postgres",

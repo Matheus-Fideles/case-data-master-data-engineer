@@ -1,10 +1,10 @@
-"""DAG de supervisão do job Spark Structured Streaming.
+"""Supervision DAG for the Spark Structured Streaming job.
 
-Roda a cada 5 minutos e verifica se o SparkApplication
-'streaming-atendimento-consumer' está no estado RUNNING no k3s.
-Se não estiver (FAILED, COMPLETED, ausente), submete um novo CRD.
+Runs every 5 minutes and checks if the SparkApplication
+'streaming-atendimento-consumer' is in RUNNING state on k3s.
+If not (FAILED, COMPLETED, absent), submits a new CRD.
 
-Spec: docs/specs/airflow-dags.md — seção "Streaming"
+Spec: docs/specs/airflow-dags.md — section "Streaming"
 ADR: docs/architecture/decisions/0007-spark-on-kubernetes.md
 """
 from __future__ import annotations
@@ -35,7 +35,7 @@ with DAG(
 ) as dag:
 
     def _check_and_restart(**context) -> str:
-        """Verifica estado do SparkApplication; submete novo CRD se necessário."""
+        """Checks SparkApplication state; submits new CRD if necessary."""
         try:
             from kubernetes import client, config as k8s_config
 
@@ -67,15 +67,15 @@ with DAG(
             log.info("SparkApplication %s state=%s", _APP_NAME, state)
 
             if state == "RUNNING":
-                return "running — nenhuma ação necessária"
+                return "running — no action needed"
 
-            # Estado não é RUNNING — submete novo CRD
+            # State is not RUNNING — submit a new CRD
             log.warning(
-                "SparkApplication %s não está RUNNING (state=%s) — submetendo novo CRD",
+                "SparkApplication %s is not RUNNING (state=%s) — submitting new CRD",
                 _APP_NAME, state,
             )
 
-            # Remove o CRD antigo se existir (evita conflito de nome)
+            # Remove old CRD if it exists (avoids name conflict)
             if state != "NOT_FOUND":
                 try:
                     custom.delete_namespaced_custom_object(
@@ -85,7 +85,7 @@ with DAG(
                         plural="sparkapplications",
                         name=_APP_NAME,
                     )
-                    log.info("CRD antigo removido: %s", _APP_NAME)
+                    log.info("Old CRD removed: %s", _APP_NAME)
                 except client.exceptions.ApiException:
                     pass
 
@@ -105,10 +105,10 @@ with DAG(
                 plural="sparkapplications",
                 body=app_manifest,
             )
-            msg = f"Novo CRD submetido: {_APP_NAME}"
+            msg = f"New CRD submitted: {_APP_NAME}"
             log.info(msg)
 
-            # Incrementa contador Prometheus (melhor esforço)
+            # Increment Prometheus counter (best-effort)
             try:
                 import requests
                 requests.post(
@@ -122,8 +122,7 @@ with DAG(
             return msg
 
         except ImportError:
-            # kubernetes não instalado — ambiente de teste
-            log.warning("kubernetes lib não disponível — pulando check real")
+            log.warning("kubernetes lib not available — skipping real check")
             return "skipped (no kubernetes lib)"
 
     check_and_restart = PythonOperator(

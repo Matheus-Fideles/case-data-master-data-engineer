@@ -1,9 +1,9 @@
 """Bronze job: landing/vacinacao_pni → s3://bronze/vacinacao_pni/ (Delta Lake).
 
-Particionado por ano_mes (YYYYMM). A partição é DERIVADA do campo data_vacina
-(formato YYYY-MM-DD), não recebida como literal — por isso override de add_partition().
+Partitioned by year_month (YYYYMM). The partition is DERIVED from the data_vacina field
+(format YYYY-MM-DD), not received as a literal — hence the override of add_partition().
 
-codigo_paciente já chega pré-hasheado pelo Ministério — sem PII nesta tabela.
+codigo_paciente arrives pre-hashed by the Ministry — no PII in this table.
 
 Args:
   --ano_mes     YYYYMM (usado como replaceWhere e fallback de partição)
@@ -56,10 +56,10 @@ class VacinacaoPniBronzeJob(BronzeJob):
     partition_col = "ano_mes"
 
     def add_partition(self, df: DataFrame, partition_val: str) -> DataFrame:
-        """Deriva ano_mes de data_vacina (YYYY-MM-DD → YYYYMM).
+        """Derives year_month from data_vacina (YYYY-MM-DD → YYYYMM).
 
-        Override do hook base: a partição não é um literal externo,
-        é calculada a partir de um campo da própria fonte.
+        Override of the base hook: the partition is not an external literal,
+        it is computed from a field in the source data itself.
         """
         return df.withColumn(
             self.partition_col,

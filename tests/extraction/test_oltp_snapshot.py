@@ -124,13 +124,13 @@ class TestOltpValidate:
     def test_raises_on_empty_records(self):
         from pipelines.extraction.oltp_snapshot import _validate
 
-        with pytest.raises(ValueError, match="zero registros"):
+        with pytest.raises(ValueError, match="zero records"):
             _validate([])
 
     def test_raises_on_missing_required_fields(self):
         from pipelines.extraction.oltp_snapshot import _validate
 
-        with pytest.raises(ValueError, match="Campos obrigatórios ausentes"):
+        with pytest.raises(ValueError, match="Required fields missing"):
             _validate([{"id_paciente": 1}])  # falta cpf, nome, data_nascimento
 
     def test_passes_with_all_required_fields(self):

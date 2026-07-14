@@ -1,8 +1,8 @@
-"""Factory: compõe os adapters com o serviço de aplicação.
+"""Factory: composes adapters with the application service.
 
-Único lugar que lê variáveis de ambiente e instancia infraestrutura.
-Os extratores individuais chamam `make_extraction_service()` e recebem
-um ExtractionService pronto — sem acoplamento direto ao boto3 ou ao filesystem.
+Single place that reads environment variables and instantiates infrastructure.
+Individual extractors call `make_extraction_service()` and receive
+a ready ExtractionService — without direct coupling to boto3 or the filesystem.
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from pipelines.extraction.service import ExtractionService
 
 
 def make_extraction_service() -> ExtractionService:
-    """Compõe e retorna um ExtractionService configurado pelo ambiente."""
+    """Composes and returns an ExtractionService configured from the environment."""
     landing = S3LandingAdapter(
         endpoint=os.environ.get("MINIO_ENDPOINT", "http://minio:9000"),
         access_key=os.environ.get("MINIO_ROOT_USER", "minioadmin"),
@@ -28,7 +28,7 @@ def make_extraction_service() -> ExtractionService:
 
 
 def make_pagination_config() -> dict:
-    """Retorna configurações de paginação lidas do ambiente."""
+    """Returns pagination configuration read from the environment."""
     return {
         "base_url": os.environ.get("API_BASE_URL", "https://apidadosabertos.saude.gov.br"),
         "page_size": int(os.environ.get("API_PAGE_SIZE", "100")),

@@ -1,6 +1,6 @@
 """Silver job: bronze/vacinacao_pni → s3://silver/vacinacao_pni/ (Delta Lake).
 
-Normaliza tipos. codigo_paciente já é um hash do Ministério — sem PII.
+Normalizes types. codigo_paciente arrives pre-hashed by the Ministry — no PII.
 Particionado por ano_mes.
 
 Args:
