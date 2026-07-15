@@ -3,7 +3,7 @@
 [![CI](https://github.com/Matheus-Fideles/case-data-master-data-engineer/actions/workflows/ci.yml/badge.svg)](https://github.com/Matheus-Fideles/case-data-master-data-engineer/actions/workflows/ci.yml)
 [![Smoke](https://github.com/Matheus-Fideles/case-data-master-data-engineer/actions/workflows/smoke.yml/badge.svg)](https://github.com/Matheus-Fideles/case-data-master-data-engineer/actions/workflows/smoke.yml)
 
-> **Status dos testes:** 104 unit tests ✅ | 60 smoke tests ✅ (6 skipped por design) | 0 falhas
+> **Status dos testes:** 104 unit tests ✅ | 36 smoke tests ✅ (3 skipped por design) | 0 falhas
 
 Case técnico de Engenharia de Dados para a Academia Santander. Pipeline end-to-end que ingere dados de APIs públicas do Ministério da Saúde, processa via arquitetura Lambda (batch + streaming) e expõe análises epidemiológicas para suporte a decisão em saúde pública.
 
@@ -80,9 +80,11 @@ make run-demo-pipeline      # triggers bronze → silver → gold DAGs via Airfl
 Add serving / observability layers:
 
 ```bash
-make up-serving             # Trino + Metabase
+make up-serving             # Trino + Metabase (bloqueia ~30 min no 1º boot para migrações Liquibase)
 make up-observability       # Prometheus + Grafana + Marquez
 ```
+
+> **Nota Metabase:** `make up-serving` aguarda o Metabase ficar pronto e cria o admin automaticamente com as credenciais de `.env` (`MB_ADMIN_EMAIL` / `MB_ADMIN_PASSWORD`). No primeiro boot, leva ~30 minutos para completar 367 migrações de banco. Em boots subsequentes, fica pronto em ~2 min.
 
 Stop and reset:
 
@@ -119,7 +121,7 @@ make smoke                  # full suite (requires compose up)
 | Airflow | http://localhost:8080 | admin / admin |
 | MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
 | Trino UI | http://localhost:8085/ui | trino / (no password) |
-| Metabase | http://localhost:3001 | admin@local.dev / admin123 |
+| Metabase | http://localhost:3001 | admin@local.dev / Admin1234! (configurado via `make metabase-setup`) |
 | Grafana | http://localhost:3000 | admin / admin |
 | Marquez UI | http://localhost:5000 | — |
 | Prometheus | http://localhost:9090 | — |

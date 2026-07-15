@@ -17,7 +17,7 @@ help: ## Mostra este help
 		| sort
 
 # ── Docker Compose ───────────────────────────────────────────────────────────
-.PHONY: up-core up-streaming up-serving up-observability up-all down restart logs
+.PHONY: up-core up-streaming up-serving up-observability up-all down restart logs metabase-setup
 
 up-core: ## Sobe postgres + minio + airflow (profile core)
 	$(COMPOSE) --profile core up -d
@@ -28,8 +28,27 @@ up-core: ## Sobe postgres + minio + airflow (profile core)
 up-streaming: ## Adiciona kafka + stream-producer
 	$(COMPOSE) --profile streaming up -d
 
-up-serving: ## Adiciona trino + metabase
+up-serving: ## Adiciona trino + metabase (bloqueia até Metabase pronto, ~30 min 1ª vez)
 	$(COMPOSE) --profile serving up -d
+	@$(MAKE) --no-print-directory metabase-setup
+
+metabase-setup: ## Configura admin do Metabase via API (idempotente)
+	@echo "Configurando admin do Metabase (aguardando startup, ~30 min 1ª vez)..."
+	@set -a; . ./.env 2>/dev/null; set +a; \
+	until curl -sf --max-time 5 http://localhost:3001/api/health 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('status')=='ok' else 1)" 2>/dev/null; do \
+		printf '.'; sleep 15; \
+	done; \
+	echo ""; \
+	TOKEN=$$(curl -sf http://localhost:3001/api/session/properties | python3 -c "import sys,json; print(json.load(sys.stdin).get('setup-token') or '')" 2>/dev/null); \
+	if [ -n "$$TOKEN" ]; then \
+		curl -sf -X POST http://localhost:3001/api/setup \
+			-H "Content-Type: application/json" \
+			-d "{\"token\":\"$$TOKEN\",\"user\":{\"first_name\":\"Admin\",\"last_name\":\"Santander\",\"email\":\"$${MB_ADMIN_EMAIL:-admin@local.dev}\",\"password\":\"$${MB_ADMIN_PASSWORD:-Admin1234!}\"},\"prefs\":{\"site_name\":\"$${MB_SITE_NAME:-Data Lake Epidemiologico}\",\"allow_tracking\":false}}" > /dev/null \
+		&& echo "  ✓ Metabase configurado: $${MB_ADMIN_EMAIL:-admin@local.dev}" \
+		|| echo "  ✗ Falha ao configurar Metabase"; \
+	else \
+		echo "  ✓ Metabase já configurado."; \
+	fi
 
 up-observability: ## Adiciona prometheus + grafana + marquez
 	$(COMPOSE) --profile observability up -d
@@ -83,6 +102,7 @@ demo: ## One command: compose up + airflow setup + smoke-min + open UIs
 	@printf '\n  \033[36mAirflow\033[0m   http://localhost:8080  (admin / admin)\n'
 	@printf '  \033[36mMinIO\033[0m     http://localhost:9001  (minioadmin / minioadmin)\n'
 	@printf '\n  Trigger pipelines :  \033[33mmake run-demo-pipeline\033[0m\n'
+	@printf '  Add serving layer  :  \033[33mmake up-serving\033[0m  → Trino :8085 / Metabase :3001 (~30 min 1º boot)\n'
 	@printf '  Add lineage UI     :  \033[33mmake up-observability\033[0m  → Marquez :5000\n'
 	@printf '  Stop demo          :  \033[33mmake demo-stop\033[0m\n\n'
 
