@@ -203,7 +203,7 @@ services:
 
   stream-producer:
     build:
-      context: ./stream-producer
+      context: ./apps/streaming/producer
       dockerfile: Dockerfile
     profiles: [streaming]
     env_file: .env

@@ -114,58 +114,49 @@ class TestWriteBronze:
         microbatch.write.save.assert_called_once_with(c.BRONZE_PATH)
 
 
-# ── testes de _write_gold_postgres ────────────────────────────────────────────
+# ── testes de _write_gold_delta ───────────────────────────────────────────────
 
 
-class TestWriteGoldPostgres:
-    def test_writes_via_jdbc_with_correct_table(self):
+class TestWriteGoldDelta:
+    def test_writes_delta_format(self):
         from apps.streaming.jobs import atendimento_consumer as c
 
         microbatch = _make_df([{"ts_evento": "2024-01-01"}])
-        mock_url = "jdbc:postgresql://host:5432/postgres"
-        mock_props = {
-            "user": "u",
-            "password": "p",
-            "driver": "org.postgresql.Driver",
-            "currentSchema": "gold_dw",
-        }
 
-        with (
-            patch.object(c, "F", _mock_F()),
-            patch(
-                "apps.streaming.jobs.atendimento_consumer.make_pg_connection",
-                return_value=(mock_url, mock_props),
-            ),
-        ):
-            c._write_gold_postgres(microbatch, batch_id=3)
+        with patch.object(c, "F", _mock_F()):
+            c._write_gold_delta(microbatch, batch_id=3)
 
-        microbatch.write.jdbc.assert_called_once()
-        jdbc_kwargs = microbatch.write.jdbc.call_args.kwargs
-        assert jdbc_kwargs["url"] == mock_url
-        assert jdbc_kwargs["mode"] == "append"
-        assert jdbc_kwargs["table"] == "fato_atendimento_stream"
+        microbatch.write.format.assert_called_with("delta")
 
-    def test_passes_pg_props_to_jdbc(self):
+    def test_uses_append_mode(self):
         from apps.streaming.jobs import atendimento_consumer as c
 
-        microbatch = _make_df([{}])
-        props = {
-            "user": "eng",
-            "password": "secret",
-            "driver": "org.postgresql.Driver",
-            "currentSchema": "gold_dw",
-        }
+        microbatch = _make_df([{"ts_evento": "2024-01-01"}])
 
-        with (
-            patch.object(c, "F", _mock_F()),
-            patch(
-                "apps.streaming.jobs.atendimento_consumer.make_pg_connection",
-                return_value=("jdbc://x", props),
-            ),
-        ):
-            c._write_gold_postgres(microbatch, batch_id=4)
+        with patch.object(c, "F", _mock_F()):
+            c._write_gold_delta(microbatch, batch_id=3)
 
-        assert microbatch.write.jdbc.call_args.kwargs["properties"] == props
+        microbatch.write.mode.assert_called_with("append")
+
+    def test_saves_to_gold_path(self):
+        from apps.streaming.jobs import atendimento_consumer as c
+
+        microbatch = _make_df([{"ts_evento": "2024-01-01"}])
+
+        with patch.object(c, "F", _mock_F()):
+            c._write_gold_delta(microbatch, batch_id=3)
+
+        microbatch.write.save.assert_called_once_with(c.GOLD_PATH)
+
+    def test_partitions_by_ano_mes(self):
+        from apps.streaming.jobs import atendimento_consumer as c
+
+        microbatch = _make_df([{"ts_evento": "2024-01-01"}])
+
+        with patch.object(c, "F", _mock_F()):
+            c._write_gold_delta(microbatch, batch_id=4)
+
+        microbatch.write.partitionBy.assert_called_with("ano_mes")
 
 
 # ── testes de _send_to_dlq ────────────────────────────────────────────────────
@@ -223,7 +214,7 @@ class TestForEachBatch:
         m_parse.assert_not_called()
         m_bronze.assert_not_called()
 
-    def test_calls_bronze_and_postgres_on_valid_batch(self):
+    def test_calls_bronze_and_gold_on_valid_batch(self):
         from apps.streaming.jobs import atendimento_consumer as c
 
         spark = MagicMock()
@@ -236,12 +227,12 @@ class TestForEachBatch:
         with (
             patch.object(c, "_parse_kafka", return_value=(valid_df, invalid_df)),
             patch.object(c, "_write_bronze") as m_bronze,
-            patch.object(c, "_write_gold_postgres") as m_pg,
+            patch.object(c, "_write_gold_delta") as m_gold,
         ):
             process_fn(microbatch, batch_id=5)
 
         m_bronze.assert_called_once()
-        m_pg.assert_called_once()
+        m_gold.assert_called_once()
 
     def test_sends_invalid_records_to_dlq(self):
         from apps.streaming.jobs import atendimento_consumer as c
@@ -257,28 +248,14 @@ class TestForEachBatch:
             patch.object(c, "_parse_kafka", return_value=(valid_df, invalid_df)),
             patch.object(c, "_send_to_dlq") as m_dlq,
             patch.object(c, "_write_bronze"),
-            patch.object(c, "_write_gold_postgres"),
+            patch.object(c, "_write_gold_delta"),
         ):
             process_fn(microbatch, batch_id=6)
 
         m_dlq.assert_called_once_with(spark, invalid_df, "SCHEMA_INVALID")
 
-    def test_postgres_failure_does_not_abort_batch(self):
-        """A Postgres failure must not abort the entire micro-batch."""
+    def test_gold_path_uses_streaming_domain_prefix(self):
+        """Gold path deve usar prefixo de domínio s3a://gold/streaming/ (ADR-0009)."""
         from apps.streaming.jobs import atendimento_consumer as c
 
-        spark = MagicMock()
-        process_fn = c._make_foreachbatch(spark)
-
-        microbatch = _make_df([{"value": "{}"}], empty=False)
-        valid_df = _make_df([{"id_atendimento": "a"}], empty=False)
-        invalid_df = _make_df(empty=True)
-
-        with (
-            patch.object(c, "_parse_kafka", return_value=(valid_df, invalid_df)),
-            patch.object(c, "_write_bronze") as m_bronze,
-            patch.object(c, "_write_gold_postgres", side_effect=Exception("jdbc timeout")),
-        ):
-            process_fn(microbatch, batch_id=7)  # must not raise
-
-        m_bronze.assert_called_once()  # Bronze must always be written
+        assert c.GOLD_PATH.startswith("s3a://gold/streaming/")

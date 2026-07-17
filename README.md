@@ -206,7 +206,9 @@ make warmup   # pre-pull Docker + k8s images
 │   ├── hospitalar/              # CNES, SIM (óbitos)
 │   ├── geografico/              # Municípios IBGE
 │   ├── vacinal/                 # PNI doses aplicadas
-│   ├── streaming/               # Kafka → Spark Structured Streaming
+│   ├── streaming/
+│   │   ├── producer/            # Faker → Kafka (container Docker standalone)
+│   │   └── jobs/                # Spark Structured Streaming consumer (k3s)
 │   └── oltp/                    # Snapshot Postgres OLTP (PII source)
 ├── data-products/               # Descritores Data Mesh por domínio
 │   ├── epidemiologico/          # dengue/, notificacao/, paciente/
@@ -215,7 +217,6 @@ make warmup   # pre-pull Docker + k8s images
 │   ├── vacinal/                 # vacinacao-pni/
 │   └── streaming/               # atendimento/
 ├── airflow/dags/                # DAGs Airflow (bronze/, silver/, gold/, quality/, maint/)
-├── stream-producer/             # Faker → Kafka (container Python standalone)
 ├── infra/                       # Configs: Trino, Grafana, Prometheus, Postgres, Hive Metastore
 │   └── hive-metastore/          # Dockerfile + hive-site.xml (HMS standalone)
 ├── k8s/                         # SparkApplication YAMLs + namespace/RBAC k8s

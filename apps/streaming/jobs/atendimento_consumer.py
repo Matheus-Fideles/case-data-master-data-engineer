@@ -4,11 +4,11 @@ Flow:
   Kafka (notificacoes.raw)
     → parse JSON + schema validation
     → withWatermark("ts_evento", "1 hour")    [ADR 0005]
-    → foreachBatch: idempotent MERGE into Delta bronze/atendimentos_stream/
-    → foreachBatch: MERGE into Postgres gold_dw.fato_atendimento_stream
+    → foreachBatch: idempotent MERGE into Delta bronze/streaming/atendimentos_stream/
+    → foreachBatch: append into Delta gold/streaming/fatos_atendimento_stream/
 
 Late events (ts_evento < watermark) are routed to the DLQ topic
-atendimentos.dlq with reason LATE_EVENT.
+notificacoes.dlq with reason LATE_EVENT.
 
 Checkpoint at s3a://landing/_checkpoints/atendimentos_stream_consumer/
 guarantees exactly-once after restart (ADR 0005).
@@ -31,7 +31,6 @@ from pyspark.sql.types import (
     StructType,
 )
 
-from apps.shared.postgres import make_pg_connection
 from apps.shared.spark import build_spark
 
 log = logging.getLogger(__name__)
@@ -41,7 +40,8 @@ log = logging.getLogger(__name__)
 KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 KAFKA_TOPIC = os.environ.get("KAFKA_TOPIC", "notificacoes.raw")
 KAFKA_DLQ_TOPIC = os.environ.get("KAFKA_DLQ_TOPIC", "notificacoes.dlq")
-BRONZE_PATH = os.environ.get("BRONZE_STREAM_PATH", "s3a://bronze/atendimentos_stream/")
+BRONZE_PATH = os.environ.get("BRONZE_STREAM_PATH", "s3a://bronze/streaming/atendimentos_stream/")
+GOLD_PATH = os.environ.get("GOLD_STREAM_PATH", "s3a://gold/streaming/fatos_atendimento_stream/")
 CHECKPOINT_PATH = os.environ.get(
     "STREAM_CHECKPOINT_PATH",
     "s3a://landing/_checkpoints/atendimentos_stream_consumer/",
@@ -62,8 +62,6 @@ _PAYLOAD_SCHEMA = StructType(
         StructField("triagem", StringType(), True),
     ]
 )
-
-_PG_TABLE_STREAM = "fato_atendimento_stream"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -111,31 +109,31 @@ def _write_bronze(microbatch: DataFrame, batch_id: int) -> None:
     log.info("[bronze/stream] batch=%d rows=%d", batch_id, enriched.count())
 
 
-def _write_gold_postgres(microbatch: DataFrame, batch_id: int) -> None:
-    """Replicates micro-batch to Postgres gold_dw via JDBC (append)."""
-    pg_url, pg_props = make_pg_connection()
-
+def _write_gold_delta(microbatch: DataFrame, batch_id: int) -> None:
+    """Appends micro-batch to Delta gold/streaming/ (ADR-0011: gold no lake, não Postgres)."""
     gold_df = (
         microbatch.withColumn("evento_ts", F.col("ts_evento"))
         .withColumn("sk_tempo", F.date_format("ts_evento", "yyyyMMdd").cast("int"))
+        .withColumn("ano_mes", F.date_format("ts_evento", "yyyyMM"))
+        .withColumn("_batch_id", F.lit(batch_id))
         .withColumn("_load_ts", F.current_timestamp())
         .select(
             "evento_ts",
             "sk_tempo",
             "id_paciente_hash",
+            "id_cnes",
             "tipo_atendimento",
+            "triagem",
             "_kafka_offset",
+            "_kafka_partition",
+            "ano_mes",
+            "_batch_id",
             "_load_ts",
         )
     )
 
-    gold_df.write.jdbc(
-        url=pg_url,
-        table=_PG_TABLE_STREAM,
-        mode="append",
-        properties=pg_props,
-    )
-    log.info("[gold/stream] batch=%d written to postgres", batch_id)
+    gold_df.write.format("delta").mode("append").option("mergeSchema", "true").partitionBy("ano_mes").save(GOLD_PATH)
+    log.info("[gold/stream] batch=%d rows=%d path=%s", batch_id, gold_df.count(), GOLD_PATH)
 
 
 def _send_to_dlq(spark: SparkSession, invalid_df: DataFrame, reason: str) -> None:
@@ -183,11 +181,7 @@ def _make_foreachbatch(spark: SparkSession):
         watermarked = valid.withWatermark("ts_evento", WATERMARK)
 
         _write_bronze(watermarked, batch_id)
-
-        try:
-            _write_gold_postgres(watermarked, batch_id)
-        except Exception:
-            log.exception("[gold/stream] failed to write to Postgres — batch=%d", batch_id)
+        _write_gold_delta(watermarked, batch_id)
 
     return _process
 
