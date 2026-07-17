@@ -185,14 +185,17 @@ make warmup   # pre-pull Docker + k8s images
 
 ```
 .
-├── docs/                        # Documentação consolidada (5 docs + ADRS.md)
+├── docs/                        # Documentação
 │   ├── 01-contexto-negocio.md   # Problema, domínios, fontes e escopo técnico
-│   ├── 02-arquitetura.md        # Stack, diagramas, padrões e modelo dimensional
-│   ├── 03-integrações.md        # Guias de extração por fonte (CNES, SINAN, PNI, OLTP, Kafka)
-│   ├── 04-governanca-lgpd.md    # LGPD, mascaramento PII, RBAC, dicionário de dados
-│   ├── 05-observabilidade-sre.md # Prometheus, Grafana, Marquez, runbook e testes
+│   ├── 02-arquitetura.md        # Stack, padrões, modelo dimensional e matriz comparativa
+│   ├── 03-integrações.md        # Resumo das fontes de dados (índice para integrations/)
+│   ├── 04-governanca-lgpd.md    # LGPD, mascaramento PII, RBAC e padrões de código
+│   ├── 05-observabilidade-sre.md # Prometheus, Grafana, Marquez, runbook e smoke tests
 │   ├── ADRS.md                  # Todas as 11 decisões arquiteturais (ADR-001 a ADR-011)
-│   └── assets/                  # Diagramas Draw.io (arquitetura, fluxo, deployment)
+│   ├── data-dictionary.md       # Dicionário coluna-a-coluna das tabelas Gold
+│   ├── assets/                  # Diagramas Draw.io (arquitetura, fluxo, deployment)
+│   ├── integrations/            # Guias detalhados por fonte (CNES, SINAN, PNI, OLTP, Kafka)
+│   └── specs/                   # Specs técnicas: DAGs Airflow, schemas Bronze, smoke tests
 ├── apps/                        # Código por domínio de negócio (Data Mesh + Hexagonal)
 │   ├── shared/                  # Kernel compartilhado: spark, masking, lineage, base classes
 │   ├── epidemiologico/          # Dengue, Zika, Chikungunya, SINAN

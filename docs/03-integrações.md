@@ -1,6 +1,6 @@
 # Guias de Integração — Fontes de Dados
 
-> Documenta como cada fonte é extraída, seu schema, estratégia de cache offline e armadilhas conhecidas.
+> Visão consolidada das fontes. Guias detalhados (endpoints completos, paginação, armadilhas, schemas exatos) em [`integrations/`](./integrations/).
 
 ---
 
