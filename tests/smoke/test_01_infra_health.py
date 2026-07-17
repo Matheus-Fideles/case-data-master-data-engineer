@@ -9,9 +9,18 @@ Target time: < 30s
 from __future__ import annotations
 
 import os
+import socket
 
 import pytest
 import requests
+
+
+def _port_open(host: str, port: int, timeout: float = 1.0) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 from tests.smoke.conftest import (
     KAFKA_BOOTSTRAP,
@@ -89,7 +98,10 @@ def test_minio_buckets_are_not_public(compose_up):
 
 # ── Kafka ─────────────────────────────────────────────────────────────────────
 
+_kafka_available = _port_open("localhost", 19092)
 
+
+@pytest.mark.skipif(not _kafka_available, reason="Kafka não está rodando (perfil streaming)")
 def test_kafka_accepts_connection(compose_up):
     from confluent_kafka.admin import AdminClient
 
@@ -98,6 +110,7 @@ def test_kafka_accepts_connection(compose_up):
     assert metadata is not None
 
 
+@pytest.mark.skipif(not _kafka_available, reason="Kafka não está rodando (perfil streaming)")
 def test_kafka_topic_notificacoes_exists_or_creatable(compose_up):
     from confluent_kafka.admin import AdminClient, NewTopic
 

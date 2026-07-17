@@ -161,16 +161,18 @@ k8s-status: ## Status dos pods Spark no k3s
 .PHONY: airflow-setup run-demo-pipeline
 
 airflow-setup: ## Cria conexões, variáveis e pools no Airflow
+	$(eval _MINIO_USER := $(shell grep '^MINIO_ROOT_USER=' .env | cut -d= -f2 | awk '{print $$1}'))
+	$(eval _MINIO_PASS := $(shell grep '^MINIO_ROOT_PASSWORD=' .env | cut -d= -f2 | awk '{print $$1}'))
 	$(AIRFLOW_CLI) connections add minio \
 		--conn-type aws \
-		--conn-login $${MINIO_ROOT_USER} \
-		--conn-password $${MINIO_ROOT_PASSWORD} \
+		--conn-login "$(_MINIO_USER)" \
+		--conn-password "$(_MINIO_PASS)" \
 		--conn-extra '{"endpoint_url": "http://minio:9000", "region_name": "us-east-1"}' || true
 	$(AIRFLOW_CLI) connections add kubernetes_default \
 		--conn-type kubernetes \
 		--conn-extra '{"in_cluster": false, "kube_config_path": "/opt/airflow/.kube/config", "context": "rancher-desktop"}' || true
-	$(AIRFLOW_CLI) variables set OFFLINE_MODE "$${OFFLINE_MODE:-0}"
-	$(AIRFLOW_CLI) variables set DATA_REF_ANO "$${DATA_REF_ANO:-2024}"
+	$(COMPOSE) exec airflow-scheduler bash -c 'airflow variables set OFFLINE_MODE "$${OFFLINE_MODE:-0}"'
+	$(COMPOSE) exec airflow-scheduler bash -c 'airflow variables set DATA_REF_ANO "$${DATA_REF_ANO:-2024}"'
 	$(AIRFLOW_CLI) pools set spark_pool 4 "Slots para SparkKubernetesOperator"
 	$(AIRFLOW_CLI) pools set extraction_pool 8 "Slots para extratores REST"
 	$(AIRFLOW_CLI) pools set dw_load_pool 2 "Slots para carga no DW Gold"

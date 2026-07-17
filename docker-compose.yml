@@ -116,6 +116,11 @@ services:
     command: webserver
     ports:
       - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -126,6 +131,11 @@ services:
     <<: *airflow-common
     profiles: [core]
     command: scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"]
       interval: 30s
