@@ -10,6 +10,7 @@
 #   docker compose --profile streaming up -d
 #
 # Perfis disponíveis: core | streaming | serving | observability
+# UIs: Airflow :8080 · MinIO :9001 · Trino :8085 · Metabase :3001 · Grafana :3000 · Marquez :5001
 
 x-airflow-common: &airflow-common
   image: apache/airflow:2.9.3
@@ -227,8 +228,14 @@ services:
       context: ./infra/hive-metastore
       dockerfile: Dockerfile
     profiles: [serving]
+    env_file: .env
     environment:
       SERVICE_NAME: metastore
+      # Lidos pelo hive-site.xml via ${env.VAR} (substituição nativa do Hadoop)
+      HIVE_DB_USER: ${POSTGRES_HIVE_USER}
+      HIVE_DB_PASSWORD: ${POSTGRES_HIVE_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
       - "9083:9083"
     depends_on:
@@ -248,6 +255,11 @@ services:
   trino:
     image: trinodb/trino:448
     profiles: [serving]
+    env_file: .env
+    environment:
+      # Lidos pelo delta.properties via ${ENV:VAR} (substituição nativa do Trino 348+)
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - ./infra/trino/catalog:/etc/trino/catalog:ro
       - ./infra/trino/etc:/etc/trino/etc:ro
@@ -263,6 +275,32 @@ services:
       timeout: 35s
       retries: 10
       start_period: 120s
+    networks:
+      - lake
+
+  metabase:
+    image: metabase/metabase:v0.51.4
+    profiles: [serving]
+    environment:
+      MB_DB_TYPE: h2
+      MB_DB_FILE: /metabase-data/metabase.db
+      # Trino (Presto-compat) — pré-configurado via variáveis de ambiente
+      # Conexão manual na 1ª vez: host=trino port=8080 catalog=delta schema=gold
+      JAVA_TIMEZONE: America/Sao_Paulo
+    volumes:
+      - metabase-data:/metabase-data
+    ports:
+      - "3001:3000"
+    depends_on:
+      trino:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    restart: unless-stopped
     networks:
       - lake
 
@@ -352,6 +390,7 @@ volumes:
   airflow-logs:
   prometheus-data:
   grafana-data:
+  metabase-data:
 
 networks:
   lake:

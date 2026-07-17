@@ -28,11 +28,12 @@ up-core: ## Sobe postgres + minio + airflow (profile core)
 up-streaming: ## Adiciona kafka + stream-producer
 	$(COMPOSE) --profile streaming up -d
 
-up-serving: ## Adiciona hive-metastore + trino (serving layer via Delta Lake)
+up-serving: ## Adiciona hive-metastore + trino + metabase (serving layer via Delta Lake)
 	$(COMPOSE) --profile serving up -d
 	@echo "Aguardando Trino healthy..."
 	@until curl -sf http://localhost:8085/v1/info > /dev/null 2>&1; do sleep 5; done
 	@echo "  ✓ Trino pronto: http://localhost:8085/ui"
+	@echo "  ✓ Metabase:     http://localhost:3001  (1º boot ~2min — configurar Trino: host=trino port=8080 catalog=delta)"
 
 up-observability: ## Adiciona prometheus + grafana + marquez
 	$(COMPOSE) --profile observability up -d
@@ -60,6 +61,7 @@ health-check: ## Verifica saúde de todos os serviços via curl
 	@curl -sf http://localhost:9000/minio/health/live > /dev/null && echo "  ✓ MinIO" || echo "  ✗ MinIO"
 	@docker exec $$($(COMPOSE) ps -q postgres) pg_isready -U postgres > /dev/null 2>&1 && echo "  ✓ Postgres" || echo "  ✗ Postgres"
 	@curl -sf http://localhost:8085/v1/info > /dev/null && echo "  ✓ Trino" || echo "  ✗ Trino"
+	@curl -sf http://localhost:3001/api/health > /dev/null && echo "  ✓ Metabase" || echo "  ✗ Metabase"
 	@curl -sf http://localhost:9090/-/healthy > /dev/null && echo "  ✓ Prometheus" || echo "  ✗ Prometheus"
 	@curl -sf http://localhost:3000/api/health > /dev/null && echo "  ✓ Grafana" || echo "  ✗ Grafana"
 	@curl -sf http://localhost:5000/api/v1/namespaces > /dev/null && echo "  ✓ Marquez" || echo "  ✗ Marquez"
@@ -85,7 +87,7 @@ demo: ## One command: compose up + airflow setup + smoke-min + open UIs
 	@printf '\n  \033[36mAirflow\033[0m   http://localhost:8080  (admin / admin)\n'
 	@printf '  \033[36mMinIO\033[0m     http://localhost:9001  (minioadmin / minioadmin)\n'
 	@printf '\n  Trigger pipelines :  \033[33mmake run-demo-pipeline\033[0m\n'
-	@printf '  Add serving layer  :  \033[33mmake up-serving\033[0m  → Hive Metastore :9083 + Trino :8085\n'
+	@printf '  Add serving layer  :  \033[33mmake up-serving\033[0m  → HMS :9083 + Trino :8085 + Metabase :3001\n'
 	@printf '  Add lineage UI     :  \033[33mmake up-observability\033[0m  → Marquez :5000\n'
 	@printf '  Stop demo          :  \033[33mmake demo-stop\033[0m\n\n'
 
@@ -139,9 +141,14 @@ k8s-spark-image: ## Build + push imagem Spark customizada para registry local
 	docker build -t $(SPARK_IMAGE) -f infra/spark/Dockerfile infra/spark/
 	docker push $(SPARK_IMAGE)
 
-k8s-secrets: ## Aplica secrets do MinIO e Postgres no namespace spark
-	kubectl --context rancher-desktop apply -f k8s/minio-secret.yaml
-	kubectl --context rancher-desktop apply -f k8s/postgres-secret.yaml
+k8s-secrets: ## Aplica secrets do MinIO e Postgres no namespace spark (lê .env via envsubst)
+	@test -f .env || (echo "ERRO: .env não encontrado. Copie .env.example para .env e preencha." && exit 1)
+	@set -a && source .env && set +a && \
+	  envsubst '$$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD $$MINIO_ENDPOINT $$MINIO_BUCKET_LANDING $$MINIO_BUCKET_BRONZE $$MINIO_BUCKET_SILVER $$MINIO_BUCKET_GOLD' \
+	  < k8s/minio-secret.yaml | kubectl --context rancher-desktop apply -f -
+	@set -a && source .env && set +a && \
+	  envsubst '$$POSTGRES_GOLD_USER $$POSTGRES_GOLD_PASSWORD $$POSTGRES_JDBC_URL $$PII_SALT' \
+	  < k8s/postgres-secret.yaml | kubectl --context rancher-desktop apply -f -
 
 k8s-setup: k8s-namespace k8s-spark-install k8s-secrets ## Setup completo do k8s (namespace + spark-operator + secrets)
 	@echo "k8s setup concluído. Verifique com: kubectl get pods -n spark"

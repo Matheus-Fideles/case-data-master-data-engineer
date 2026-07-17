@@ -1,0 +1,324 @@
+<mxfile>
+  <diagram name="Fluxo de Dados" id="fluxo-dados">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Background -->
+        <mxCell id="bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="2200" height="1100" as="geometry" />
+        </mxCell>
+
+        <!-- Title -->
+        <mxCell id="title" value="Fluxo de Dados — Arquitetura Medallion (Bronze → Silver → Gold)" style="text;html=1;fontSize=20;fontStyle=1;align=center;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="300" y="10" width="1600" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Delta Lake ACID · PII Masking SHA-256+salt (ADR-004) · Star Schema + SCD2 · Hive Metastore Catalog · Trino Query Engine" style="text;html=1;fontSize=11;align=center;fillColor=none;strokeColor=none;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="300" y="42" width="1600" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- GRUPO 1: FONTES DE DADOS -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <mxCell id="g-fontes" value="📥  FONTES DE DADOS" style="swimlane;fontStyle=1;fontSize=12;fillColor=#FFF3E0;strokeColor=#E65100;startSize=35;rounded=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="20" y="70" width="200" height="620" as="geometry" />
+        </mxCell>
+
+        <mxCell id="src-api" value="REST API&#10;Ministério da Saúde&#10;SINAN · SIM · CNES&#10;PNI · IBGE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=10;fontStyle=1;" vertex="1" parent="g-fontes">
+          <mxGeometry x="10" y="45" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="src-oltp" value="Postgres OLTP&#10;Cadastro Pacientes&#10;⚠ PII: CPF · nome&#10;schema: oltp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=10;fontStyle=1;" vertex="1" parent="g-fontes">
+          <mxGeometry x="10" y="135" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="src-kafka" value="Kafka KRaft&#10;notif.raw (3 part.)&#10;Faker → JSON&#10;10 eventos/seg" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=10;fontStyle=1;" vertex="1" parent="g-fontes">
+          <mxGeometry x="10" y="225" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="src-offline" value="Cache Offline&#10;data/raw/&#10;OFFLINE_MODE=1&#10;para demo sem internet" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCCBC;strokeColor=#BF360C;fontSize=10;dashed=1;" vertex="1" parent="g-fontes">
+          <mxGeometry x="10" y="315" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- GRUPO 2: INGESTÃO (SPARK) -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <mxCell id="g-ingest" value="⚙  INGESTÃO" style="swimlane;fontStyle=1;fontSize=12;fillColor=#E3F2FD;strokeColor=#0D47A1;startSize=35;rounded=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="250" y="70" width="200" height="280" as="geometry" />
+        </mxCell>
+
+        <mxCell id="spark-in" value="Apache Spark&#10;Ingestão Batch&#10;apps/*/jobs/ingest_*.py&#10;MERGE NK · upsert" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#0D47A1;fontSize=10;fontStyle=1;" vertex="1" parent="g-ingest">
+          <mxGeometry x="10" y="45" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="spark-stream-in" value="Spark Structured&#10;Streaming&#10;apps/streaming/&#10;jobs/stream_consumer.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#0D47A1;fontSize=10;fontStyle=1;" vertex="1" parent="g-ingest">
+          <mxGeometry x="10" y="135" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- GRUPO 3: BRONZE -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <mxCell id="g-bronze" value="🥉  BRONZE  ·  s3a://bronze/  ·  Delta Lake ACID · raw + MERGE NK" style="swimlane;fontStyle=1;fontSize=12;fillColor=#FFF8E1;strokeColor=#F57F17;startSize=35;rounded=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="480" y="70" width="220" height="690" as="geometry" />
+        </mxCell>
+
+        <mxCell id="br-epi" value="epidemiologico/&#10;dengue · zika · chik&#10;Part: nu_ano · uf&#10;~2M rows/ano" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFECB3;strokeColor=#F57F17;fontSize=10;fontStyle=1;" vertex="1" parent="g-bronze">
+          <mxGeometry x="10" y="45" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="br-hosp" value="hospitalar/&#10;sim_obitos · cnes&#10;Part: ano · uf&#10;establ. saúde" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFECB3;strokeColor=#F57F17;fontSize=10;fontStyle=1;" vertex="1" parent="g-bronze">
+          <mxGeometry x="10" y="135" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="br-vac" value="vacinal+geo/&#10;vacinacao_pni&#10;municipios_ibge&#10;Part: ano · uf" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFECB3;strokeColor=#F57F17;fontSize=10;fontStyle=1;" vertex="1" parent="g-bronze">
+          <mxGeometry x="10" y="225" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="br-oltp" value="oltp/paciente/&#10;⚠ PII PRESENTE&#10;CPF · nome · nasc.&#10;Part: snapshot_dt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCCBC;strokeColor=#BF360C;fontSize=10;fontStyle=1;" vertex="1" parent="g-bronze">
+          <mxGeometry x="10" y="315" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="br-stream" value="streaming/&#10;atendimentos_rt&#10;watermark 1h&#10;Delta append" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFECB3;strokeColor=#F57F17;fontSize=10;fontStyle=1;" vertex="1" parent="g-bronze">
+          <mxGeometry x="10" y="405" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="br-note" value="✓ Schema Evolution&#10;✓ Time Travel&#10;✓ MERGE NK upsert&#10;✗ Sem PII masking" style="text;html=1;align=left;fontSize=9;fillColor=#FFF9C4;strokeColor=#F9A825;rounded=1;" vertex="1" parent="g-bronze">
+          <mxGeometry x="10" y="495" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- GRUPO 4: TRANSFORMAÇÃO (SPARK) -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <mxCell id="g-transform" value="⚙  TRANSFORMAÇÃO + PII MASKING" style="swimlane;fontStyle=1;fontSize=12;fillColor=#E8EAF6;strokeColor=#283593;startSize=35;rounded=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="730" y="70" width="220" height="280" as="geometry" />
+        </mxCell>
+
+        <mxCell id="spark-tf" value="Apache Spark&#10;Transformação&#10;apps/*/jobs/transform_*.py&#10;Great Expectations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C5CAE9;strokeColor=#283593;fontSize=10;fontStyle=1;" vertex="1" parent="g-transform">
+          <mxGeometry x="10" y="45" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="masking" value="PII Masking (ADR-004)&#10;apps/shared/masking.py&#10;CPF → SHA-256+salt&#10;PII_SALT: k8s secret" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9FA8DA;strokeColor=#283593;fontSize=10;fontStyle=1;" vertex="1" parent="g-transform">
+          <mxGeometry x="10" y="135" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- GRUPO 5: SILVER -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <mxCell id="g-silver" value="🥈  SILVER  ·  s3a://silver/  ·  Limpeza + PII Masking · sem dados sensíveis" style="swimlane;fontStyle=1;fontSize=12;fillColor=#E0F2F1;strokeColor=#004D40;startSize=35;rounded=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="980" y="70" width="220" height="690" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sv-epi" value="arboviroses/&#10;decode faixa etária&#10;padroniza datas ISO&#10;CID-10 join" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2DFDB;strokeColor=#004D40;fontSize=10;fontStyle=1;" vertex="1" parent="g-silver">
+          <mxGeometry x="10" y="45" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sv-hosp" value="hospitalar_norm/&#10;sim · cnes normatiz.&#10;CID-10 decode&#10;geocode IBGE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2DFDB;strokeColor=#004D40;fontSize=10;fontStyle=1;" vertex="1" parent="g-silver">
+          <mxGeometry x="10" y="135" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sv-vac" value="vacinacao_norm/&#10;faixa etária std&#10;CNES enrich&#10;cobertura %mun" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2DFDB;strokeColor=#004D40;fontSize=10;fontStyle=1;" vertex="1" parent="g-silver">
+          <mxGeometry x="10" y="225" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sv-pac" value="paciente_anon/&#10;✓ CPF→SHA256+salt&#10;✓ id_hash (sem PII)&#10;✓ ADR-004 compliant" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#A5D6A7;strokeColor=#1B5E20;fontSize=10;fontStyle=1;" vertex="1" parent="g-silver">
+          <mxGeometry x="10" y="315" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sv-stream" value="atend_norm/&#10;validação schema&#10;erros → notif.dlq&#10;Delta append mode" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2DFDB;strokeColor=#004D40;fontSize=10;fontStyle=1;" vertex="1" parent="g-silver">
+          <mxGeometry x="10" y="405" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sv-note" value="✓ Sem PII raw&#10;✓ Schema validado&#10;✓ DLQ tratado&#10;✓ Ready for analytics" style="text;html=1;align=left;fontSize=9;fillColor=#E8F5E9;strokeColor=#4CAF50;rounded=1;" vertex="1" parent="g-silver">
+          <mxGeometry x="10" y="495" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- GRUPO 6: STAR SCHEMA (SPARK) -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <mxCell id="g-star" value="⚙  STAR SCHEMA + SCD2" style="swimlane;fontStyle=1;fontSize=12;fillColor=#E8EAF6;strokeColor=#283593;startSize=35;rounded=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="70" width="220" height="280" as="geometry" />
+        </mxCell>
+
+        <mxCell id="spark-gd" value="Apache Spark&#10;Star Schema&#10;apps/*/jobs/gold_*.py&#10;MERGE fato + dim" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C5CAE9;strokeColor=#283593;fontSize=10;fontStyle=1;" vertex="1" parent="g-star">
+          <mxGeometry x="10" y="45" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="scd2" value="SCD2 Postgres&#10;dim_paciente&#10;dim_estabelecimento&#10;dt_inicio · is_current" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9FA8DA;strokeColor=#283593;fontSize=10;fontStyle=1;" vertex="1" parent="g-star">
+          <mxGeometry x="10" y="135" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- GRUPO 7: GOLD -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <mxCell id="g-gold" value="🥇  GOLD  ·  s3a://gold/ + Postgres SCD2  ·  Star Schema analytics-ready" style="swimlane;fontStyle=1;fontSize=12;fillColor=#FFFDE7;strokeColor=#F57F17;startSize=35;rounded=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="70" width="220" height="690" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gd-fato-notif" value="fato_notificacao&#10;Delta Lake (s3a://gold/)&#10;id_notif · id_pac_hash&#10;id_mun · id_vac · data" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=10;fontStyle=1;" vertex="1" parent="g-gold">
+          <mxGeometry x="10" y="45" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gd-fato-atend" value="fato_atendimento&#10;Delta Lake (s3a://gold/)&#10;streaming → append&#10;id_atend · cid10" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=10;fontStyle=1;" vertex="1" parent="g-gold">
+          <mxGeometry x="10" y="135" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gd-fato-vac" value="fato_vacinacao&#10;Delta Lake (s3a://gold/)&#10;id_vac · id_mun&#10;qt_doses · cobertura" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=10;fontStyle=1;" vertex="1" parent="g-gold">
+          <mxGeometry x="10" y="225" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gd-dim-mun" value="dim_municipio&#10;Delta Lake (s3a://gold/)&#10;ibge_cod · nome&#10;uf · regiao · lat/lon" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=10;fontStyle=1;" vertex="1" parent="g-gold">
+          <mxGeometry x="10" y="315" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gd-dim-pac" value="dim_paciente (SCD2)&#10;Postgres schema:gold&#10;id_hash · faixa_et.&#10;dt_inicio · is_current" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=10;fontStyle=1;" vertex="1" parent="g-gold">
+          <mxGeometry x="10" y="405" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gd-dim-est" value="dim_estabelecimento (SCD2)&#10;Postgres schema:gold&#10;cnes_cod · nome&#10;dt_inicio · is_current" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=10;fontStyle=1;" vertex="1" parent="g-gold">
+          <mxGeometry x="10" y="495" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- GRUPO 8: SERVING -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <mxCell id="g-serving" value="🔍  SERVING LAYER" style="swimlane;fontStyle=1;fontSize=12;fillColor=#E8F5E9;strokeColor=#1B5E20;startSize=35;rounded=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="1730" y="70" width="200" height="400" as="geometry" />
+        </mxCell>
+
+        <mxCell id="hms" value="Hive Metastore&#10;thrift:9083&#10;Catálogo Delta&#10;bronze·silver·gold" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#1B5E20;fontSize=10;fontStyle=1;" vertex="1" parent="g-serving">
+          <mxGeometry x="10" y="45" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="trino" value="Trino 448&#10;:8085 UI / :8086 JDBC&#10;catalog: delta&#10;SELECT gold.*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#1B5E20;fontSize=10;fontStyle=1;" vertex="1" parent="g-serving">
+          <mxGeometry x="10" y="135" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rbac" value="Postgres RBAC&#10;role: reader · analyst&#10;admin · lineage&#10;GRANT por schema" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#1B5E20;fontSize=10;fontStyle=1;" vertex="1" parent="g-serving">
+          <mxGeometry x="10" y="225" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- ARESTAS — FONTES → INGESTÃO -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <mxCell id="e-api-in" value="REST mensal" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="src-api" target="spark-in">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-oltp-in" value="JDBC diário" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="src-oltp" target="spark-in">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-kafka-streamin" value="consume" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="src-kafka" target="spark-stream-in">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- INGESTÃO → BRONZE -->
+        <mxCell id="e-in-br-epi" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-in" target="br-epi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-in-br-hosp" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-in" target="br-hosp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-in-br-vac" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-in" target="br-vac">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-in-br-oltp" value="MERGE NK" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-in" target="br-oltp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-streamin-br" value="append" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-stream-in" target="br-stream">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- BRONZE → TRANSFORMAÇÃO -->
+        <mxCell id="e-br-epi-tf" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="br-epi" target="spark-tf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-br-hosp-tf" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="br-hosp" target="spark-tf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-br-vac-tf" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="br-vac" target="spark-tf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-br-oltp-tf" value="PII masking" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="br-oltp" target="masking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-br-stream-tf" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="br-stream" target="spark-tf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- TRANSFORMAÇÃO → SILVER -->
+        <mxCell id="e-tf-sv-epi" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-tf" target="sv-epi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-tf-sv-hosp" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-tf" target="sv-hosp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-tf-sv-vac" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-tf" target="sv-vac">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-mask-sv-pac" value="id_hash ✓" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="masking" target="sv-pac">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-tf-sv-stream" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-tf" target="sv-stream">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- SILVER → STAR SCHEMA -->
+        <mxCell id="e-sv-epi-gd" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="sv-epi" target="spark-gd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-sv-hosp-gd" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="sv-hosp" target="spark-gd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-sv-vac-gd" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="sv-vac" target="spark-gd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-sv-pac-scd2" value="SCD2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="sv-pac" target="scd2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-sv-stream-gd" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="sv-stream" target="spark-gd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- STAR SCHEMA → GOLD -->
+        <mxCell id="e-gd-fato-notif" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-gd" target="gd-fato-notif">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-gd-fato-atend" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-gd" target="gd-fato-atend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-gd-fato-vac" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-gd" target="gd-fato-vac">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-gd-dim-mun" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="spark-gd" target="gd-dim-mun">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-scd2-dim-pac" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="scd2" target="gd-dim-pac">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-scd2-dim-est" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="scd2" target="gd-dim-est">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- GOLD → SERVING -->
+        <mxCell id="e-gd-hms" value="cataloga" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="gd-fato-notif" target="hms">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-gd-hms2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="gd-dim-mun" target="hms">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-gd-pg-trino" value="expõe" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="gd-dim-pac" target="trino">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-hms-trino" value="catálogo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="hms" target="trino">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-trino-rbac" value="RBAC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;" edge="1" parent="1" source="trino" target="rbac">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

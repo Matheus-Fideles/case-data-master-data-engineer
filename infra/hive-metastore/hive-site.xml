@@ -3,6 +3,8 @@
 <configuration>
 
   <!-- ── Metastore Backend (PostgreSQL) ──────────────────────────────── -->
+  <!-- Credenciais via ${env.VAR} — substituição nativa do Hadoop Configuration -->
+  <!-- Valores definidos em .env e injetados pelo Docker Compose              -->
   <property>
     <name>javax.jdo.option.ConnectionURL</name>
     <value>jdbc:postgresql://postgres:5432/hive?createDatabaseIfNotExist=true</value>
@@ -13,11 +15,11 @@
   </property>
   <property>
     <name>javax.jdo.option.ConnectionUserName</name>
-    <value>hive</value>
+    <value>${env.HIVE_DB_USER}</value>
   </property>
   <property>
     <name>javax.jdo.option.ConnectionPassword</name>
-    <value>hive</value>
+    <value>${env.HIVE_DB_PASSWORD}</value>
   </property>
 
   <!-- ── Schema auto-init ────────────────────────────────────────────── -->
@@ -55,11 +57,11 @@
   </property>
   <property>
     <name>fs.s3a.access.key</name>
-    <value>minioadmin</value>
+    <value>${env.MINIO_ROOT_USER}</value>
   </property>
   <property>
     <name>fs.s3a.secret.key</name>
-    <value>minioadmin</value>
+    <value>${env.MINIO_ROOT_PASSWORD}</value>
   </property>
   <property>
     <name>fs.s3a.path.style.access</name>

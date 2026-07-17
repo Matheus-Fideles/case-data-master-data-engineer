@@ -130,17 +130,30 @@ RBAC granular por coluna (ex.: mascarar CPF para analistas externos) é evoluç�
 
 ## 5. Gestão de Segredos
 
-| Segredo | Storage | Mecanismo |
-|---|---|---|
-| `PII_SALT` | k8s Secret (`k8s/postgres-secret.yaml`) | Env var no pod Spark |
-| Credenciais Postgres | k8s Secret / `.env` (local) | Env var |
-| Credenciais MinIO | `.env` (local) / k8s Secret (produção) | Env var |
-| Credenciais Kafka | `.env` | Env var |
+### Princípio: `.env` como fonte única de verdade
+
+**Nenhuma credencial** é hardcoded em arquivos de configuração, YAML ou XML. O `.env` é o único ponto onde valores concretos existem — e nunca é commitado.
+
+```
+.env  (gitignored)  →  Docker Compose (env_file: .env)
+                    →  hive-site.xml  via ${env.VAR}     ← Hadoop Configuration nativo
+                    →  delta.properties via ${ENV:VAR}   ← Trino 348+ nativo
+                    →  k8s/secrets via make k8s-secrets  ← envsubst antes de kubectl apply
+```
+
+| Segredo | Storage local | Storage produção | Mecanismo de injeção |
+|---|---|---|---|
+| `PII_SALT` | `.env` → `make k8s-secrets` | AWS Secrets Manager + ESO | k8s Secret → env var no pod |
+| Credenciais Postgres | `.env` | AWS Secrets Manager | Env var / k8s Secret |
+| Credenciais MinIO (S3A) | `.env` | AWS IAM Role (IRSA) | `${env.VAR}` no hive-site.xml · `${ENV:VAR}` no delta.properties |
+| Credenciais Kafka | `.env` | AWS MSK IAM auth | Env var |
+| Hive Metastore DB | `.env` (`POSTGRES_HIVE_*`) | RDS IAM auth | `${env.VAR}` no hive-site.xml |
 
 **Regras:**
-- `.env` **nunca commitado** (`.gitignore`); `.env.example` tem apenas placeholders
-- `detect-secrets` no pre-commit bloqueia qualquer segredo acidental
-- Em produção: rotação de segredos via k8s Secrets com `ExternalSecrets` (evolução futura)
+- `.env` **nunca commitado** (`.gitignore`); `.env.example` tem apenas valores de demo
+- Arquivos `k8s/*.yaml` são **templates** com `${VAR}` — `make k8s-secrets` faz o `envsubst` e aplica
+- `detect-secrets` no pre-commit bloqueia qualquer segredo acidental em commit
+- Em produção: External Secrets Operator sincroniza AWS Secrets Manager → k8s Secrets automaticamente
 
 ---
 
