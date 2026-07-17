@@ -125,7 +125,7 @@ def test_streaming_consumer_ci_mode(spark_session, s3):
     try:
         import importlib
 
-        import pipelines.streaming.atendimento_consumer as _mod
+        import apps.streaming.jobs.atendimento_consumer as _mod
 
         importlib.reload(_mod)  # pick up env vars set above
         _mod.run(spark=spark_session)
@@ -211,7 +211,7 @@ def test_late_event_filtered_by_watermark(kafka_producer, spark_session, s3):
 
     os.environ["STREAM_CI_MODE"] = "1"
     try:
-        from pipelines.streaming.atendimento_consumer import run as stream_run
+        from apps.streaming.jobs.atendimento_consumer import run as stream_run
 
         stream_run(spark=spark_session)
     finally:

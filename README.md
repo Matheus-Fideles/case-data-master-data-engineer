@@ -12,17 +12,45 @@ Case técnico de Engenharia de Dados para a Academia Santander. Pipeline end-to-
 ```
 REST API (apidadosabertos.saude.gov.br)
     │
-    └──[PythonOperator · Airflow]──────────────────→  MinIO  landing/   (JSON)
+    └──[PythonOperator · Airflow]──────────────────→  MinIO  landing/{domínio}/   (JSON)
                 │
-                └──[SparkKubernetesOperator · k3s]──→  MinIO  bronze/   (Delta ACID)
+                └──[SparkKubernetesOperator · k3s]──→  MinIO  bronze/{domínio}/   (Delta ACID)
                               │
-                              └──[SparkKubernetesOperator · k3s]──→  MinIO  silver/   (Delta + PII masking)
+                              └──[SparkKubernetesOperator · k3s]──→  MinIO  silver/{domínio}/   (Delta + PII masking)
                                             │
-                                            └──[SparkKubernetesOperator · k3s]──→  MinIO  gold/   (Delta star schema)
+                                            └──[SparkKubernetesOperator · k3s]──→  MinIO  gold/{domínio}/   (Delta star schema)
                                                                                        │
-                                                                             Postgres  gold_dw ←→ Trino ←→ Metabase
+                                                                          Hive Metastore (thrift:9083)
+                                                                                       │
+                                                                             Trino 448 (catalog: delta)
+                                                                                       │
+                                                                                  Metabase
 
-Faker container ──→ Kafka ──→ [Spark Structured Streaming · k3s] ──→ bronze/stream/ ──→ gold/
+Faker container ──→ Kafka ──→ [Spark Structured Streaming · k3s] ──→ bronze/streaming/ ──→ gold/streaming/
+```
+
+### Data Mesh + Medallion
+
+O projeto combina **Medallion Architecture** (Bronze → Silver → Gold, ADR-0001) com **Data Mesh** (ADR-0009):
+
+| Domínio | Owner | Produtos de Dados |
+|---|---|---|
+| `epidemiologico` | team-epidemiologico | dengue, zika, chikungunya, notificacao, dim_paciente |
+| `hospitalar` | team-hospitalar | sim-obitos, cnes-estabelecimentos |
+| `geografico` | team-geografico | dim-municipio |
+| `vacinal` | team-vacinal | vacinacao-pni, dim-vacina |
+| `streaming` | team-streaming | atendimento-stream |
+
+Cada domínio possui descritores YAML em `data-products/{domínio}/{produto}/dataproduct.yaml` com SLOs, schema contracts e lineage.
+
+### Arquitetura Hexagonal (ADR-0010)
+
+```
+apps/{domínio}/
+├── domain/         # entidades e serviços de negócio (sem deps de infra)
+├── ports/          # interfaces (inbound/outbound)
+├── adapters/       # implementações concretas
+└── jobs/           # orquestradores: montam ports + adapters + executam
 ```
 
 ## Requisitos técnicos cobertos
@@ -31,7 +59,9 @@ Faker container ──→ Kafka ──→ [Spark Structured Streaming · k3s] �
 |---|---|
 | **Extração de dados** | 7 endpoints REST + OLTP Faker + Kafka stream |
 | **Ingestão** | Airflow DAGs (PythonOperator + SparkKubernetesOperator) |
-| **Armazenamento** | MinIO (Delta Lake) + Postgres (Gold DW) |
+| **Armazenamento** | MinIO (Delta Lake) — todo o Gold no lake, não em Postgres |
+| **Serving layer** | Trino 448 + Hive Metastore (thrift) + Metabase |
+| **Organização** | Data Mesh (domínios) + Arquitetura Hexagonal (Ports & Adapters) |
 | **Observabilidade** | Prometheus + Grafana + Marquez (OpenLineage) |
 | **Segurança de dados** | RBAC (Postgres roles + Trino ACL) + TLS (evolução) |
 | **Mascaramento de dados** | SHA-256+salt (CPF), generalização (data nasc.), supressão (telefone) |
@@ -120,8 +150,9 @@ make smoke                  # full suite (requires compose up)
 |---|---|---|
 | Airflow | http://localhost:8080 | admin / admin |
 | MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
-| Trino UI | http://localhost:8085/ui | trino / (no password) |
-| Metabase | http://localhost:3001 | admin@local.dev / Admin1234! (configurado via `make metabase-setup`) |
+| Hive Metastore | thrift://localhost:9083 | — (interno) |
+| Trino UI | http://localhost:8085/ui | trino / (sem senha) |
+| Metabase | http://localhost:3001 | admin@local.dev / Admin1234! (via `make metabase-setup`) |
 | Grafana | http://localhost:3000 | admin / admin |
 | Marquez UI | http://localhost:5000 | — |
 | Prometheus | http://localhost:9090 | — |
@@ -161,7 +192,7 @@ make warmup   # pre-pull Docker + k8s images
 .
 ├── docs/                        # Arquitetura e especificações
 │   ├── architecture/
-│   │   ├── decisions/           # ADRs (0001–0008)
+│   │   ├── decisions/           # ADRs (0001–0011)
 │   │   ├── diagrams/            # Diagramas de solução, fluxo e deployment
 │   │   ├── data-model.md        # Star schema dimensional (fatos + dims + SCD2)
 │   │   ├── comparative-matrix.md # Por que X e não Y (Delta vs Iceberg, Spark vs Flink, etc.)
@@ -174,14 +205,24 @@ make warmup   # pre-pull Docker + k8s images
 │   ├── integrations/            # Documentação de cada fonte de dados
 │   ├── security.md              # LGPD + mascaramento PII + RBAC
 │   └── observability.md         # Prometheus + Grafana + Marquez (OpenLineage)
+├── apps/                        # Código por domínio de negócio (Data Mesh + Hexagonal)
+│   ├── shared/                  # Kernel compartilhado: spark, masking, lineage, base classes
+│   ├── epidemiologico/          # Dengue, Zika, Chikungunya, SINAN
+│   ├── hospitalar/              # CNES, SIM (óbitos)
+│   ├── geografico/              # Municípios IBGE
+│   ├── vacinal/                 # PNI doses aplicadas
+│   ├── streaming/               # Kafka → Spark Structured Streaming
+│   └── oltp/                    # Snapshot Postgres OLTP (PII source)
+├── data-products/               # Descritores Data Mesh por domínio
+│   ├── epidemiologico/          # dengue/, notificacao/, paciente/
+│   ├── hospitalar/              # sim-obitos/, cnes/
+│   ├── geografico/              # municipios/
+│   ├── vacinal/                 # vacinacao-pni/
+│   └── streaming/               # atendimento/
 ├── airflow/dags/                # DAGs Airflow (bronze/, silver/, gold/, quality/, maint/)
-├── pipelines/                   # Código dos jobs Spark + extratores Python
-│   ├── extraction/              # PythonOperator → landing/  (API REST → MinIO)
-│   ├── batch/                   # SparkKubernetesOperator → bronze/silver/gold
-│   ├── streaming/               # Spark Structured Streaming (Kafka → gold)
-│   └── common/                  # masking.py (SHA-256+salt) e utilitários
 ├── stream-producer/             # Faker → Kafka (container Python standalone)
-├── infra/                       # Configs dos serviços (Trino, Grafana, Prometheus, Postgres init)
+├── infra/                       # Configs: Trino, Grafana, Prometheus, Postgres, Hive Metastore
+│   └── hive-metastore/          # Dockerfile + hive-site.xml (HMS standalone)
 ├── k8s/                         # SparkApplication YAMLs + namespace/RBAC k8s
 ├── data/raw/                    # Cache offline de APIs (gitignored — gerado por make seed)
 └── tests/                       # Testes unitários (extraction, batch) e smoke tests
@@ -237,6 +278,9 @@ Mascaramento ocorre na transição **Bronze → Silver**. Gold nunca vê PII.
 | [0006](docs/architecture/decisions/0006-scd2.md) | SCD Tipo 2 → **dt_inicio/dt_fim + is_current** |
 | [0007](docs/architecture/decisions/0007-spark-on-kubernetes.md) | Spark → **k3s via Rancher Desktop** |
 | [0008](docs/architecture/decisions/0008-ingestion-layers.md) | Ingestão → **Python extrai, Spark transforma** |
+| [0009](docs/architecture/decisions/0009-data-mesh-domains.md) | Organização → **Data Mesh por domínio de negócio** |
+| [0010](docs/architecture/decisions/0010-hexagonal-architecture.md) | Design → **Hexagonal (Ports & Adapters)** |
+| [0011](docs/architecture/decisions/0011-trino-hms-delta.md) | Serving → **Trino + Hive Metastore + Delta Lake** |
 
 ## Escalabilidade para cloud
 
@@ -244,12 +288,14 @@ A arquitetura é desenhada com mapeamento 1:1 para AWS — migração é configu
 
 | Local (Compose + k3s) | AWS equivalente |
 |---|---|
-| MinIO | S3 |
+| MinIO (Delta Lake) | S3 + Delta Lake OSS |
+| Hive Metastore (thrift) | AWS Glue Data Catalog |
 | Kafka KRaft | MSK Serverless |
 | Spark on k3s | EMR Serverless / EKS |
 | Airflow | MWAA |
 | Postgres | RDS Aurora PostgreSQL |
-| Marquez | AWS Glue Data Catalog + DataZone |
+| Trino | Athena / Trino on EKS |
+| Marquez (OpenLineage) | AWS Glue Data Catalog + DataZone |
 | Prometheus + Grafana | CloudWatch + Managed Grafana |
 
 Ver `docs/architecture/comparative-matrix.md` §7 para a análise completa de cloud vs. on-premises.

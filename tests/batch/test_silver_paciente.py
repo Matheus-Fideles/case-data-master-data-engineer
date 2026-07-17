@@ -10,7 +10,7 @@ Verifies that:
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pipelines.batch.silver_paciente import MASKING_VERSION, PacienteSilverJob
+from apps.epidemiologico.jobs.silver_paciente import MASKING_VERSION, PacienteSilverJob
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -71,7 +71,7 @@ class TestPacienteTransform:
         return df
 
     def test_transform_calls_mask_paciente(self):
-        from pipelines.batch import silver_paciente as sp
+        import apps.epidemiologico.jobs.silver_paciente as sp
 
         job = PacienteSilverJob()
         df = self._mock_df_with_cols(["cpf", "nome", "data_nascimento", "cep", "email", "telefone"])
@@ -79,30 +79,30 @@ class TestPacienteTransform:
 
         with (
             patch.object(sp, "F", MagicMock()),
-            patch("pipelines.batch.silver_paciente.mask_paciente", return_value=df) as m_mask,
-            patch("pipelines.batch.silver_paciente.validate_no_pii"),
+            patch("apps.epidemiologico.jobs.silver_paciente.mask_paciente", return_value=df) as m_mask,
+            patch("apps.epidemiologico.jobs.silver_paciente.validate_no_pii"),
         ):
             job.transform(df)
 
         m_mask.assert_called_once_with(df, cpf_col="cpf", output_col="id_paciente_hash")
 
     def test_transform_calls_validate_no_pii(self):
-        from pipelines.batch import silver_paciente as sp
+        import apps.epidemiologico.jobs.silver_paciente as sp
 
         job = PacienteSilverJob()
         df = self._mock_df_with_cols([])
 
         with (
             patch.object(sp, "F", MagicMock()),
-            patch("pipelines.batch.silver_paciente.mask_paciente", return_value=df),
-            patch("pipelines.batch.silver_paciente.validate_no_pii") as m_validate,
+            patch("apps.epidemiologico.jobs.silver_paciente.mask_paciente", return_value=df),
+            patch("apps.epidemiologico.jobs.silver_paciente.validate_no_pii") as m_validate,
         ):
             job.transform(df)
 
         m_validate.assert_called_once()
 
     def test_transform_adds_masking_version(self):
-        from pipelines.batch import silver_paciente as sp
+        import apps.epidemiologico.jobs.silver_paciente as sp
 
         job = PacienteSilverJob()
         df = self._mock_df_with_cols([])
@@ -110,8 +110,8 @@ class TestPacienteTransform:
 
         with (
             patch.object(sp, "F", mock_f),
-            patch("pipelines.batch.silver_paciente.mask_paciente", return_value=df),
-            patch("pipelines.batch.silver_paciente.validate_no_pii"),
+            patch("apps.epidemiologico.jobs.silver_paciente.mask_paciente", return_value=df),
+            patch("apps.epidemiologico.jobs.silver_paciente.validate_no_pii"),
         ):
             job.transform(df)
 
@@ -124,7 +124,7 @@ class TestPacienteTransform:
 
     def test_validate_no_pii_blocks_pii_leakage(self):
         """validate_no_pii must raise if cpf survives (critical regression)."""
-        from pipelines.common.masking import validate_no_pii
+        from apps.shared.masking import validate_no_pii
 
         df_with_pii = MagicMock()
         df_with_pii.columns = ["id_paciente_hash", "cpf", "ano_nascimento"]  # cpf sobrou

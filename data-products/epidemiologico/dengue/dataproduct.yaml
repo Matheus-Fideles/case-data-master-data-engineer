@@ -1,0 +1,58 @@
+apiVersion: data-mesh/v1
+kind: DataProduct
+metadata:
+  name: dengue-notificacoes
+  domain: epidemiologico
+  owner: team-epidemiologico
+  version: "1.0.0"
+  description: >
+    Notificações de dengue do SINAN via API DataSUS. Cobre casos confirmados,
+    suspeitos e descartados com granularidade municipal e semana epidemiológica.
+  tags: [arbovirose, dengue, sinan, saude-publica]
+
+slo:
+  freshness_hours: 24
+  availability_percent: 99.0
+  quality_score_min: 0.95
+
+schema:
+  bronze:
+    path: s3a://bronze/epidemiologico/dengue/
+    format: delta
+    partition: [ano_notificacao]
+  silver:
+    path: s3a://silver/epidemiologico/notificacao/
+    format: delta
+    partition: [agravo, ano_mes]
+  gold:
+    path: s3a://gold/epidemiologico/fatos_notificacao/
+    format: delta
+    key_fields: [id_agravo, dt_notific, co_municipio]
+
+lineage:
+  upstream:
+    - source: apidadosabertos.saude.gov.br
+      type: rest_api
+      endpoint: /arboviroses/dengue
+      frequency: daily
+  downstream:
+    - product: epidemiologico/notificacao
+      type: data_product
+    - consumer: metabase
+      type: bi_dashboard
+
+ports:
+  input:
+    - name: api_dengue
+      type: rest_api
+      auth: none
+  output:
+    - name: trino_gold
+      type: sql
+      catalog: delta
+      schema: epidemiologico
+      table: fatos_notificacao
+    - name: delta_lake
+      type: object_storage
+      path: s3a://gold/epidemiologico/fatos_notificacao/
+      format: delta

@@ -8,7 +8,7 @@ spec:
   mode: cluster
   image: registry.rancher.com:5000/spark-custom:3.5-delta
   imagePullPolicy: IfNotPresent
-  mainApplicationFile: local:///opt/spark/work-dir/pipelines/batch/silver_municipio.py
+  mainApplicationFile: local:///opt/spark/work-dir/apps/geografico/jobs/silver_municipio.py
   arguments:
     - --snapshot_date={{ SNAPSHOT_DATE }}
     - --batch_id={{ BATCH_ID }}

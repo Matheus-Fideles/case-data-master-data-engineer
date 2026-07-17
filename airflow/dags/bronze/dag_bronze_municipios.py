@@ -23,7 +23,7 @@ with DAG(
 ) as dag:
 
     def _extract(**context):
-        from pipelines.extraction.municipios import run
+        from apps.geografico.jobs.extract_municipios import run
 
         result = run()
         context["ti"].xcom_push(key="extraction_result", value=result)
@@ -43,7 +43,7 @@ with DAG(
     )
 
     def _emit_lineage(**context):
-        from pipelines.common.lineage import Dataset, emit_complete, emit_start
+        from apps.shared.lineage import Dataset, emit_complete, emit_start
 
         run_id = emit_start(
             job_name="dag_bronze_municipios.extract",

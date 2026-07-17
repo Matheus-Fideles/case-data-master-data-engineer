@@ -8,7 +8,7 @@ SparkContext — F.lit/F.col require an active JVM.
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pipelines.batch.bronze_base import BronzeJob
+from apps.shared.bronze_base import BronzeJob
 from pyspark.sql.types import StringType, StructField, StructType
 
 # ── stubs concretos ───────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ def test_run_calls_steps_in_order():
         ),
         patch.object(job, "_validate", side_effect=lambda *a, **kw: call_order.append("validate")),
         patch.object(job, "_write", side_effect=lambda *a, **kw: call_order.append("write")),
-        patch("pipelines.batch.bronze_base.F") as mock_f,
+        patch("apps.shared.bronze_base.F") as mock_f,
     ):
         mock_f.lit.return_value = MagicMock()
         job.run(
@@ -164,7 +164,7 @@ def test_default_add_partition_calls_withcolumn():
     df = MagicMock()
     df.withColumn.return_value = df
 
-    with patch("pipelines.batch.bronze_base.F") as mock_f:
+    with patch("apps.shared.bronze_base.F") as mock_f:
         mock_f.lit.return_value = MagicMock()
         job.add_partition(df, "202401")
 

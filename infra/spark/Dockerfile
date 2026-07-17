@@ -30,7 +30,7 @@ RUN curl -fsSL \
     -o /opt/spark/jars/openlineage-spark_2.12-${OL_VERSION}.jar
 
 # Copy pipeline code into image so SparkKubernetesOperator can reference it
-COPY pipelines/ /opt/spark/work-dir/pipelines/
+COPY apps/ /opt/spark/work-dir/apps/
 
 RUN chown -R spark:spark /opt/spark/work-dir
 

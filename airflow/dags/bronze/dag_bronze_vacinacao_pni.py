@@ -25,7 +25,7 @@ with DAG(
 ) as dag:
 
     def _extract(**context):
-        from pipelines.extraction.vacinacao_pni import run
+        from apps.vacinal.jobs.extract_vacinacao_pni import run
 
         year = context["data_interval_start"].year
         result = run(ano=year)
@@ -46,7 +46,7 @@ with DAG(
     )
 
     def _emit_lineage(**context):
-        from pipelines.common.lineage import Dataset, emit_complete, emit_start
+        from apps.shared.lineage import Dataset, emit_complete, emit_start
 
         run_id = emit_start(
             job_name="dag_bronze_vacinacao_pni.extract",

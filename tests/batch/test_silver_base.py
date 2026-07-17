@@ -7,7 +7,7 @@ Pure hooks (replace_condition, transform) are tested directly.
 
 from unittest.mock import MagicMock, patch
 
-from pipelines.batch.silver_base import SilverJob
+from apps.shared.silver_base import SilverJob
 from pyspark.sql import DataFrame
 
 # ── stubs concretos ───────────────────────────────────────────────────────────

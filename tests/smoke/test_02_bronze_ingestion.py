@@ -52,7 +52,7 @@ def test_cnes_fixture_has_minimum_fields():
 
 def test_bronze_arboviroses_offline(spark_session, s3, tmp_path):
     """Bronze dengue pipeline in offline mode writes a valid Delta table."""
-    from pipelines.batch.bronze_arboviroses import ArbovirosesBronzeJob
+    from apps.epidemiologico.jobs.bronze_arboviroses import ArbovirosesBronzeJob
 
     fixture = FIXTURES_DIR / "dengue_sample.json"
     output = "s3a://bronze/smoke_test_dengue/"
@@ -80,7 +80,7 @@ def test_bronze_arboviroses_offline(spark_session, s3, tmp_path):
 
 def test_bronze_cnes_offline(spark_session, s3):
     """Bronze CNES pipeline in offline mode writes a Delta table with snapshot_date partition."""
-    from pipelines.batch.bronze_cnes import CnesBronzeJob
+    from apps.hospitalar.jobs.bronze_cnes import CnesBronzeJob
 
     fixture = FIXTURES_DIR / "cnes_sample.json"
     output = "s3a://bronze/smoke_test_cnes/"
@@ -114,7 +114,7 @@ def test_bronze_metadata_columns_are_populated(spark_session, s3):
 
 def test_bronze_idempotency(spark_session, s3):
     """Re-running the same Bronze job does not change the row count or create duplicates."""
-    from pipelines.batch.bronze_arboviroses import ArbovirosesBronzeJob
+    from apps.epidemiologico.jobs.bronze_arboviroses import ArbovirosesBronzeJob
 
     fixture = FIXTURES_DIR / "dengue_sample.json"
     output = "s3a://bronze/smoke_test_dengue/"

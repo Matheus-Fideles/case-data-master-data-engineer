@@ -15,9 +15,9 @@ from __future__ import annotations
 from datetime import date
 from unittest.mock import MagicMock, patch
 
-import pipelines.gold.dim_paciente as dim_mod
+import apps.epidemiologico.jobs.gold_dim_paciente as dim_mod
 import pytest
-from pipelines.gold.dim_paciente import _read_silver, load_dim_paciente
+from apps.epidemiologico.jobs.gold_dim_paciente import _read_silver, load_dim_paciente
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -66,7 +66,7 @@ def _run(silver_rows: list[dict], cursor_side_effects: list) -> tuple[int, Magic
 
     with (
         patch.object(dim_mod, "_read_silver", return_value=silver_rows),
-        patch("pipelines.gold.dim_paciente.psycopg2") as mock_psycopg2,
+        patch("apps.epidemiologico.jobs.gold_dim_paciente.psycopg2") as mock_psycopg2,
     ):
         mock_psycopg2.connect.return_value = conn
         inserted = load_dim_paciente(_SNAPSHOT)
@@ -208,7 +208,7 @@ class TestRollbackOnError:
 
         with (
             patch.object(dim_mod, "_read_silver", return_value=[_ROW_A]),
-            patch("pipelines.gold.dim_paciente.psycopg2") as mock_psycopg2,
+            patch("apps.epidemiologico.jobs.gold_dim_paciente.psycopg2") as mock_psycopg2,
         ):
             mock_psycopg2.connect.return_value = conn
             with pytest.raises(RuntimeError, match="db error"):
@@ -223,7 +223,7 @@ class TestRollbackOnError:
 
         with (
             patch.object(dim_mod, "_read_silver", return_value=[_ROW_A]),
-            patch("pipelines.gold.dim_paciente.psycopg2") as mock_psycopg2,
+            patch("apps.epidemiologico.jobs.gold_dim_paciente.psycopg2") as mock_psycopg2,
         ):
             mock_psycopg2.connect.return_value = conn
             with pytest.raises(RuntimeError):
@@ -245,13 +245,13 @@ class TestEmptySilver:
     def test_empty_silver_does_not_open_db_connection(self):
         with (
             patch.object(dim_mod, "_read_silver", return_value=[]),
-            patch("pipelines.gold.dim_paciente.psycopg2") as mock_psycopg2,
+            patch("apps.epidemiologico.jobs.gold_dim_paciente.psycopg2") as mock_psycopg2,
         ):
             load_dim_paciente(_SNAPSHOT)
         mock_psycopg2.connect.assert_not_called()
 
 
-# ── default snapshot_date ─────────────────────────────────────────────────────
+# ── fallback path patch ───────────────────────────────────────────────────────
 
 
 class TestSnapshotDate:
@@ -295,7 +295,7 @@ class TestReadSilverFallback:
         )
 
         with (
-            patch("pipelines.gold.dim_paciente.Path") as mock_path,
+            patch("apps.epidemiologico.jobs.gold_dim_paciente.Path") as mock_path,
         ):
             mock_fixture = MagicMock()
             mock_fixture.exists.return_value = True
@@ -358,7 +358,7 @@ class TestReadSilverFallback:
     def test_returns_empty_list_when_spark_and_fixture_missing(self, tmp_path):
         import sys
 
-        with patch("pipelines.gold.dim_paciente.Path") as mock_path:
+        with patch("apps.epidemiologico.jobs.gold_dim_paciente.Path") as mock_path:
             mock_fixture = MagicMock()
             mock_fixture.exists.return_value = False
             mock_path.return_value.parents.__getitem__.return_value.__truediv__.return_value.__truediv__.return_value.__truediv__.return_value = mock_fixture

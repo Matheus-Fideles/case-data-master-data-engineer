@@ -8,7 +8,7 @@ spec:
   mode: cluster
   image: registry.rancher.com:5000/spark-custom:3.5-delta
   imagePullPolicy: IfNotPresent
-  mainApplicationFile: local:///opt/spark/work-dir/pipelines/batch/silver_vacinacao_pni.py
+  mainApplicationFile: local:///opt/spark/work-dir/apps/vacinal/jobs/silver_vacinacao_pni.py
   arguments:
     - --ano_mes={{ ANO_MES }}
     - --batch_id={{ BATCH_ID }}

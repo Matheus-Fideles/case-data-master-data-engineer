@@ -1,0 +1,45 @@
+apiVersion: data-mesh/v1
+kind: DataProduct
+metadata:
+  name: notificacao-epidemiologica
+  domain: epidemiologico
+  owner: team-epidemiologico
+  version: "1.0.0"
+  description: >
+    Produto de dados Silver para notificações epidemiológicas (dengue, zika, chikungunya).
+    PII mascarado conforme ADR-0004: CPF → SHA-256+salt, nome suprimido, CEP truncado.
+  tags: [silver, notificacao, pii-masking, arbovirose]
+
+slo:
+  freshness_hours: 24
+  availability_percent: 99.0
+  quality_score_min: 0.97
+
+schema:
+  silver:
+    path: s3a://silver/epidemiologico/notificacao/
+    format: delta
+    partition: [agravo, ano_mes]
+    pii_fields_removed: true
+  gold:
+    path: s3a://gold/epidemiologico/fatos_notificacao/
+    format: delta
+
+lineage:
+  upstream:
+    - product: epidemiologico/dengue
+      type: data_product
+    - product: epidemiologico/zika
+      type: data_product
+    - product: epidemiologico/chikungunya
+      type: data_product
+  downstream:
+    - consumer: gold_fato_notificacao
+      type: spark_job
+
+ports:
+  output:
+    - name: delta_silver
+      type: object_storage
+      path: s3a://silver/epidemiologico/notificacao/
+      format: delta

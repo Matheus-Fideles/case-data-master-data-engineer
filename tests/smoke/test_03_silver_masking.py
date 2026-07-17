@@ -28,7 +28,7 @@ SILVER_PATH = "s3a://silver/smoke_paciente/"
 @pytest.fixture(scope="module")
 def silver_df(spark_session, s3):
     """Stages OLTP fixture as Bronze Delta, runs PacienteSilverJob, returns Silver DF."""
-    from pipelines.batch.silver_paciente import PacienteSilverJob
+    from apps.epidemiologico.jobs.silver_paciente import PacienteSilverJob
     from pyspark.sql import functions as F
 
     fixture = FIXTURES_DIR / "oltp_sample.json"

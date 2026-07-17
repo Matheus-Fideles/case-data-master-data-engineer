@@ -7,7 +7,7 @@ Usa mocks dos ports LandingStoragePort e CachePort.
 from unittest.mock import MagicMock
 
 import pytest
-from pipelines.extraction.service import ExtractionService
+from apps.shared.extraction_service import ExtractionService
 
 
 def _make_landing(path="s3a://landing/fonte/data/part.json"):

@@ -23,7 +23,7 @@ with DAG(
 ) as dag:
 
     def _extract(**context):
-        from pipelines.extraction.sim_obitos import run
+        from apps.hospitalar.jobs.extract_sim_obitos import run
 
         year = context["data_interval_start"].year - 1  # prior year data
         result = run(ano=year)
@@ -44,7 +44,7 @@ with DAG(
     )
 
     def _emit_lineage(**context):
-        from pipelines.common.lineage import Dataset, emit_complete, emit_start
+        from apps.shared.lineage import Dataset, emit_complete, emit_start
 
         run_id = emit_start(
             job_name="dag_bronze_sim_obitos.extract",

@@ -8,7 +8,7 @@ spec:
   mode: cluster
   image: registry.rancher.com:5000/spark-custom:3.5-delta
   imagePullPolicy: IfNotPresent
-  mainApplicationFile: local:///opt/spark/work-dir/pipelines/batch/gold_fatos.py
+  mainApplicationFile: local:///opt/spark/work-dir/apps/shared/gold_fatos.py
   arguments:
     - --fato={{ FATO }}
     - --ano_mes={{ ANO_MES }}

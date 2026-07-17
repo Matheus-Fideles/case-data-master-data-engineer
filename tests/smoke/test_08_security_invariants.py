@@ -29,8 +29,8 @@ _PII_COLS = {"cpf", "rg", "nome_completo", "data_nascimento", "email_pessoal", "
 
 # Files where PII is allowed (by documented business necessity)
 _PII_ALLOWED_PATHS = {
-    "pipelines/extraction/oltp_snapshot.py",
-    "pipelines/common/masking.py",
+    "apps/oltp/jobs/extract_oltp_snapshot.py",
+    "apps/shared/masking.py",
 }
 
 
@@ -76,7 +76,7 @@ def test_pii_salt_not_hardcoded_in_source():
         r"secret.*=.*santander",  # case-specific secret
     ]
 
-    py_files = list((REPO_ROOT / "pipelines").rglob("*.py"))
+    py_files = list((REPO_ROOT / "apps").rglob("*.py"))
     py_files += list((REPO_ROOT / "airflow").rglob("*.py"))
 
     violations = []
@@ -95,7 +95,7 @@ def test_no_pii_column_names_outside_allowed_files():
     pii_pattern = re.compile(r'["\'](' + "|".join(_PII_COLS) + r')["\']')
 
     violations = []
-    for py_file in (REPO_ROOT / "pipelines").rglob("*.py"):
+    for py_file in (REPO_ROOT / "apps").rglob("*.py"):
         rel = str(py_file.relative_to(REPO_ROOT))
         if any(rel.endswith(allowed) for allowed in _PII_ALLOWED_PATHS):
             continue
@@ -118,7 +118,7 @@ def test_no_plaintext_passwords_in_python():
     allowed_test_values = {"postgres", "minioadmin", "localhost", "gold_engineer"}
 
     violations = []
-    for py_file in (REPO_ROOT / "pipelines").rglob("*.py"):
+    for py_file in (REPO_ROOT / "apps").rglob("*.py"):
         content = py_file.read_text(errors="ignore")
         for match in password_pattern.finditer(content):
             value_part = match.group(0).split("=", 1)[1].strip().strip("'\"")

@@ -8,7 +8,7 @@ spec:
   mode: cluster
   image: registry.rancher.com:5000/spark-custom:3.5-delta
   imagePullPolicy: IfNotPresent
-  mainApplicationFile: local:///opt/spark/work-dir/pipelines/streaming/atendimento_consumer.py
+  mainApplicationFile: local:///opt/spark/work-dir/apps/streaming/jobs/atendimento_consumer.py
   sparkVersion: "3.5.1"
   # Streaming é long-running — reinicia automaticamente se morrer
   restartPolicy:

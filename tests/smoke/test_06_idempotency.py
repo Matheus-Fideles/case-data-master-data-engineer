@@ -26,7 +26,7 @@ def _count(spark, path: str) -> int:
 
 def test_bronze_arboviroses_idempotent(spark_session, s3):
     """Three runs of the Bronze dengue job with the same partition_val -> same count."""
-    from pipelines.batch.bronze_arboviroses import ArbovirosesBronzeJob
+    from apps.epidemiologico.jobs.bronze_arboviroses import ArbovirosesBronzeJob
 
     fixture = FIXTURES_DIR / "dengue_sample.json"
     output = "s3a://bronze/idempotency_dengue/"
@@ -59,7 +59,7 @@ def test_bronze_arboviroses_idempotent(spark_session, s3):
 
 def test_bronze_cnes_idempotent(spark_session, s3):
     """Three runs of the Bronze CNES job -> same count."""
-    from pipelines.batch.bronze_cnes import CnesBronzeJob
+    from apps.hospitalar.jobs.bronze_cnes import CnesBronzeJob
 
     fixture = FIXTURES_DIR / "cnes_sample.json"
     output = "s3a://bronze/idempotency_cnes/"
@@ -87,7 +87,7 @@ def test_bronze_cnes_idempotent(spark_session, s3):
 
 def test_silver_paciente_idempotent(spark_session, s3):
     """Two runs of the Silver paciente job -> same count."""
-    from pipelines.batch.silver_paciente import PacienteSilverJob
+    from apps.epidemiologico.jobs.silver_paciente import PacienteSilverJob
     from pyspark.sql import functions as F
 
     fixture = FIXTURES_DIR / "oltp_sample.json"
@@ -125,7 +125,7 @@ def test_silver_paciente_idempotent(spark_session, s3):
 
 def test_different_partitions_accumulate(spark_session, s3):
     """Distinct partitions must accumulate (not overwrite) in Delta."""
-    from pipelines.batch.bronze_arboviroses import ArbovirosesBronzeJob
+    from apps.epidemiologico.jobs.bronze_arboviroses import ArbovirosesBronzeJob
 
     fixture = FIXTURES_DIR / "dengue_sample.json"
     output = "s3a://bronze/idempotency_multi_partition/"

@@ -1,0 +1,48 @@
+apiVersion: data-mesh/v1
+kind: DataProduct
+metadata:
+  name: sim-obitos
+  domain: hospitalar
+  owner: team-hospitalar
+  version: "1.0.0"
+  description: >
+    Dados do Sistema de Informação sobre Mortalidade (SIM) do Ministério da Saúde.
+    Cobre óbitos com causa básica, idade, sexo e município de ocorrência.
+  tags: [sim, mortalidade, saude-publica, datasus]
+
+slo:
+  freshness_hours: 48
+  availability_percent: 99.0
+  quality_score_min: 0.95
+
+schema:
+  bronze:
+    path: s3a://bronze/hospitalar/sim_obitos/
+    format: delta
+    partition: [ano_part]
+  silver:
+    path: s3a://silver/hospitalar/sim_obitos/
+    format: delta
+    partition: [ano_part]
+  gold:
+    path: s3a://gold/hospitalar/fatos_obito/
+    format: delta
+    key_fields: [dt_obito, co_municipio_ocor, id_agravo]
+
+lineage:
+  upstream:
+    - source: apidadosabertos.saude.gov.br
+      type: rest_api
+      endpoint: /vigilancia-e-meio-ambiente/sistema-de-informacao-sobre-mortalidade
+      frequency: daily
+  downstream:
+    - consumer: metabase
+      type: bi_dashboard
+
+ports:
+  output:
+    - name: trino_gold
+      type: sql
+      catalog: delta
+      schema: hospitalar
+      table: fatos_obito

@@ -31,7 +31,7 @@ with DAG(
 ) as dag:
 
     def _extract(**context):
-        from pipelines.extraction.oltp_snapshot import run
+        from apps.oltp.jobs.extract_oltp_snapshot import run
 
         snapshot_date = context["data_interval_start"].strftime("%Y%m%d")
         result = run(snapshot_date=snapshot_date, incremental=False)
@@ -53,7 +53,7 @@ with DAG(
     )
 
     def _emit_lineage(**context):
-        from pipelines.common.lineage import Dataset, emit_complete, emit_start
+        from apps.shared.lineage import Dataset, emit_complete, emit_start
 
         run_id = emit_start(
             job_name="dag_bronze_oltp_snapshot.extract",

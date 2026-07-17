@@ -8,7 +8,7 @@ spec:
   mode: cluster
   image: registry.rancher.com:5000/spark-custom:3.5-delta
   imagePullPolicy: IfNotPresent
-  mainApplicationFile: local:///opt/spark/work-dir/pipelines/batch/silver_notificacao.py
+  mainApplicationFile: local:///opt/spark/work-dir/apps/epidemiologico/jobs/silver_notificacao.py
   arguments:
     - --agravo={{ AGRAVO }}
     - --ano_mes={{ ANO_MES }}

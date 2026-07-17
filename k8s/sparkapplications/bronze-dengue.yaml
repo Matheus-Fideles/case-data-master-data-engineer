@@ -8,7 +8,7 @@ spec:
   mode: cluster
   image: registry.rancher.com:5000/spark-custom:3.5-delta
   imagePullPolicy: IfNotPresent
-  mainApplicationFile: local:///opt/spark/work-dir/pipelines/batch/bronze_arboviroses.py
+  mainApplicationFile: local:///opt/spark/work-dir/apps/epidemiologico/jobs/bronze_arboviroses.py
   arguments:
     - --agravo=dengue
     - --ano_mes={{ ANO_MES }}

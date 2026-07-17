@@ -1,0 +1,50 @@
+apiVersion: data-mesh/v1
+kind: DataProduct
+metadata:
+  name: dim-municipio
+  domain: geografico
+  owner: team-geografico
+  version: "1.0.0"
+  description: >
+    Dimensão geográfica de municípios brasileiros. Referência para joins em todos
+    os fatos epidemiológicos, hospitalares e vacinais. Fonte: IBGE via API DataSUS.
+  tags: [municipio, ibge, dimensao, geografia]
+
+slo:
+  freshness_hours: 720
+  availability_percent: 99.9
+  quality_score_min: 0.999
+
+schema:
+  bronze:
+    path: s3a://bronze/geografico/municipios/
+    format: delta
+  silver:
+    path: s3a://silver/geografico/municipio/
+    format: delta
+  gold:
+    path: s3a://gold/geografico/dim_municipio/
+    format: delta
+    key_fields: [co_municipio]
+
+lineage:
+  upstream:
+    - source: apidadosabertos.saude.gov.br
+      type: rest_api
+      endpoint: /macrorregiao-e-regiao-de-saude/municipio
+      frequency: monthly
+  downstream:
+    - consumer: gold_fato_notificacao
+      type: spark_job
+    - consumer: gold_fato_obito
+      type: spark_job
+    - consumer: gold_fato_vacinacao
+      type: spark_job
+
+ports:
+  output:
+    - name: trino_gold
+      type: sql
+      catalog: delta
+      schema: geografico
+      table: dim_municipio

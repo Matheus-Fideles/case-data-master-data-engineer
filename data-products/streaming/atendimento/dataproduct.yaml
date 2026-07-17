@@ -1,0 +1,57 @@
+apiVersion: data-mesh/v1
+kind: DataProduct
+metadata:
+  name: atendimento-stream
+  domain: streaming
+  owner: team-streaming
+  version: "1.0.0"
+  description: >
+    Eventos de atendimentos epidemiológicos em tempo real via Kafka KRaft.
+    Gerados por stream-producer (Faker) e processados por Spark Structured
+    Streaming com watermark de 1 hora (ADR-0005).
+  tags: [streaming, kafka, spark-structured-streaming, real-time]
+
+slo:
+  freshness_hours: 0.016
+  availability_percent: 99.5
+  quality_score_min: 0.90
+
+schema:
+  kafka:
+    topic: notificacoes.raw
+    format: json
+    schema_fields: [evento_ts, id_paciente_hash, agravo, co_municipio, tipo_atendimento]
+  bronze:
+    path: s3a://bronze/streaming/atendimento/
+    format: delta
+    checkpoint: s3a://bronze/streaming/_checkpoints/atendimento/
+  gold:
+    path: s3a://gold/streaming/fatos_atendimento_stream/
+    format: delta
+
+lineage:
+  upstream:
+    - source: kafka
+      type: message_queue
+      topic: notificacoes.raw
+      producer: stream-producer
+  downstream:
+    - consumer: metabase
+      type: bi_dashboard
+
+ports:
+  input:
+    - name: kafka_consumer
+      type: message_queue
+      bootstrap_servers: kafka:9092
+      topic: notificacoes.raw
+      group_id: spark-streaming-atendimento
+  output:
+    - name: trino_gold
+      type: sql
+      catalog: delta
+      schema: streaming
+      table: fatos_atendimento_stream
+    - name: dlq
+      type: message_queue
+      topic: notificacoes.dlq

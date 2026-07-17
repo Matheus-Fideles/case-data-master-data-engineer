@@ -1,0 +1,48 @@
+apiVersion: data-mesh/v1
+kind: DataProduct
+metadata:
+  name: dim-paciente-scd2
+  domain: epidemiologico
+  owner: team-epidemiologico
+  version: "1.0.0"
+  description: >
+    Dimensão paciente com SCD Tipo 2. Nunca contém PII — apenas hash SHA-256+salt
+    do CPF e atributos anonimizados (sexo, ano nascimento, região CEP). Histórico
+    completo de mudanças via dt_inicio / dt_fim / is_current (ADR-0006).
+  tags: [scd2, dimensao, pii-safe, gold]
+
+slo:
+  freshness_hours: 24
+  availability_percent: 99.5
+  quality_score_min: 0.99
+
+schema:
+  gold:
+    path: s3a://gold/epidemiologico/dim_paciente/
+    format: delta
+    key_fields: [id_paciente_hash]
+    scd_type: 2
+    scd_fields: [dt_inicio, dt_fim, is_current]
+  postgres_mirror:
+    connection: postgres:5432/app
+    schema: gold_dw
+    table: dim_paciente
+
+lineage:
+  upstream:
+    - source: oltp.paciente
+      type: postgres_oltp
+      job: extract_oltp_snapshot
+  downstream:
+    - consumer: gold_fato_notificacao
+      type: spark_job
+    - consumer: metabase
+      type: bi_dashboard
+
+ports:
+  output:
+    - name: trino_gold
+      type: sql
+      catalog: delta
+      schema: epidemiologico
+      table: dim_paciente

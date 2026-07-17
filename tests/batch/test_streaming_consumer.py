@@ -56,7 +56,7 @@ def _mock_F():
 
 class TestParseKafka:
     def test_parse_returns_two_dfs(self):
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         raw = _make_df([{"offset": 1, "partition": 0, "value": "{}"}])
         with patch.object(c, "F", _mock_F()):
@@ -65,7 +65,7 @@ class TestParseKafka:
         assert len(result) == 2
 
     def test_valid_and_invalid_dfs_come_from_filter(self):
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         raw = _make_df([{"offset": 1}])
         with patch.object(c, "F", _mock_F()):
@@ -80,7 +80,7 @@ class TestParseKafka:
 
 class TestWriteBronze:
     def test_uses_merge_when_delta_table_exists(self):
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         microbatch = _make_df([{"id_atendimento": "abc"}])
         mock_dt = MagicMock()
@@ -100,7 +100,7 @@ class TestWriteBronze:
         mock_dt.execute.assert_called_once()
 
     def test_uses_append_when_no_delta_table(self):
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         microbatch = _make_df([{"id_atendimento": "abc"}])
 
@@ -119,7 +119,7 @@ class TestWriteBronze:
 
 class TestWriteGoldPostgres:
     def test_writes_via_jdbc_with_correct_table(self):
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         microbatch = _make_df([{"ts_evento": "2024-01-01"}])
         mock_url = "jdbc:postgresql://host:5432/postgres"
@@ -133,7 +133,7 @@ class TestWriteGoldPostgres:
         with (
             patch.object(c, "F", _mock_F()),
             patch(
-                "pipelines.streaming.atendimento_consumer.make_pg_connection",
+                "apps.streaming.jobs.atendimento_consumer.make_pg_connection",
                 return_value=(mock_url, mock_props),
             ),
         ):
@@ -146,7 +146,7 @@ class TestWriteGoldPostgres:
         assert jdbc_kwargs["table"] == "fato_atendimento_stream"
 
     def test_passes_pg_props_to_jdbc(self):
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         microbatch = _make_df([{}])
         props = {
@@ -159,7 +159,7 @@ class TestWriteGoldPostgres:
         with (
             patch.object(c, "F", _mock_F()),
             patch(
-                "pipelines.streaming.atendimento_consumer.make_pg_connection",
+                "apps.streaming.jobs.atendimento_consumer.make_pg_connection",
                 return_value=("jdbc://x", props),
             ),
         ):
@@ -173,7 +173,7 @@ class TestWriteGoldPostgres:
 
 class TestSendToDlq:
     def test_skips_when_df_is_empty(self):
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         empty_df = _make_df(empty=True)
         c._send_to_dlq(MagicMock(), empty_df, "LATE_EVENT")
@@ -181,7 +181,7 @@ class TestSendToDlq:
         empty_df.write.format.assert_not_called()
 
     def test_writes_to_kafka_topic(self):
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         df = _make_df([{"id_atendimento": "x"}], empty=False)
 
@@ -192,7 +192,7 @@ class TestSendToDlq:
         df.write.save.assert_called_once()
 
     def test_dlq_topic_is_configured(self):
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         df = _make_df([{"id_atendimento": "x"}], empty=False)
 
@@ -209,7 +209,7 @@ class TestSendToDlq:
 
 class TestForEachBatch:
     def test_skips_empty_microbatch(self):
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         process_fn = c._make_foreachbatch(MagicMock())
         empty = _make_df(empty=True)
@@ -224,7 +224,7 @@ class TestForEachBatch:
         m_bronze.assert_not_called()
 
     def test_calls_bronze_and_postgres_on_valid_batch(self):
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         spark = MagicMock()
         process_fn = c._make_foreachbatch(spark)
@@ -244,7 +244,7 @@ class TestForEachBatch:
         m_pg.assert_called_once()
 
     def test_sends_invalid_records_to_dlq(self):
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         spark = MagicMock()
         process_fn = c._make_foreachbatch(spark)
@@ -265,7 +265,7 @@ class TestForEachBatch:
 
     def test_postgres_failure_does_not_abort_batch(self):
         """A Postgres failure must not abort the entire micro-batch."""
-        from pipelines.streaming import atendimento_consumer as c
+        from apps.streaming.jobs import atendimento_consumer as c
 
         spark = MagicMock()
         process_fn = c._make_foreachbatch(spark)

@@ -23,7 +23,7 @@ with DAG(
 ) as dag:
 
     def _extract(**context):
-        from pipelines.extraction.cnes import run
+        from apps.hospitalar.jobs.extract_cnes import run
 
         snapshot_date = context["data_interval_start"].strftime("%Y%m%d")
         result = run(snapshot_date=snapshot_date)
@@ -44,7 +44,7 @@ with DAG(
     )
 
     def _emit_lineage(**context):
-        from pipelines.common.lineage import Dataset, emit_complete, emit_start
+        from apps.shared.lineage import Dataset, emit_complete, emit_start
 
         run_id = emit_start(
             job_name="dag_bronze_cnes.extract",

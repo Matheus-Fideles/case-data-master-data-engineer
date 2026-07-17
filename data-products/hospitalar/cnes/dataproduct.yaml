@@ -1,0 +1,49 @@
+apiVersion: data-mesh/v1
+kind: DataProduct
+metadata:
+  name: cnes-estabelecimentos
+  domain: hospitalar
+  owner: team-hospitalar
+  version: "1.0.0"
+  description: >
+    Cadastro Nacional de Estabelecimentos de Saúde (CNES). Dimensão SCD Tipo 2
+    para rastrear mudanças de tipo de gestão e classificação dos estabelecimentos.
+  tags: [cnes, estabelecimento, scd2, dimensao]
+
+slo:
+  freshness_hours: 168
+  availability_percent: 99.0
+  quality_score_min: 0.98
+
+schema:
+  bronze:
+    path: s3a://bronze/hospitalar/cnes_estabelecimentos/
+    format: delta
+  silver:
+    path: s3a://silver/hospitalar/estabelecimento/
+    format: delta
+    scd_type: 2
+  gold:
+    path: s3a://gold/hospitalar/dim_estabelecimento/
+    format: delta
+    key_fields: [co_cnes]
+    scd_type: 2
+    scd_fields: [dt_inicio, dt_fim, is_current]
+
+lineage:
+  upstream:
+    - source: apidadosabertos.saude.gov.br
+      type: rest_api
+      endpoint: /cnes/estabelecimentos
+      frequency: weekly
+  downstream:
+    - consumer: gold_fato_vacinacao
+      type: spark_job
+
+ports:
+  output:
+    - name: trino_gold
+      type: sql
+      catalog: delta
+      schema: hospitalar
+      table: dim_estabelecimento

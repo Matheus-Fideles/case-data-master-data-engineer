@@ -35,7 +35,7 @@ with DAG(
         )
 
         def _emit_lineage(disease=disease, **context):
-            from pipelines.common.lineage import Dataset, emit_complete, emit_start
+            from apps.shared.lineage import Dataset, emit_complete, emit_start
 
             run_id = emit_start(
                 job_name=f"dag_silver_notificacao.{disease}",

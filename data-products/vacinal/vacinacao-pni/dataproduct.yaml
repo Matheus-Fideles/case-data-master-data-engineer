@@ -1,0 +1,58 @@
+apiVersion: data-mesh/v1
+kind: DataProduct
+metadata:
+  name: vacinacao-pni
+  domain: vacinal
+  owner: team-vacinal
+  version: "1.0.0"
+  description: >
+    Doses aplicadas pelo Programa Nacional de Imunizações (PNI) em 2024.
+    Cobre todas as vacinas do calendário nacional com granularidade municipal.
+  tags: [pni, vacinacao, imunizacao, saude-publica]
+
+slo:
+  freshness_hours: 48
+  availability_percent: 99.0
+  quality_score_min: 0.95
+
+schema:
+  bronze:
+    path: s3a://bronze/vacinal/vacinacao_pni/
+    format: delta
+    partition: [ano_mes]
+  silver:
+    path: s3a://silver/vacinal/vacinacao_pni/
+    format: delta
+    partition: [ano_mes]
+  gold:
+    fato:
+      path: s3a://gold/vacinal/fatos_vacinacao/
+      format: delta
+      key_fields: [data_vacina, co_municipio_paciente, co_vacina]
+    dim_vacina:
+      path: s3a://gold/vacinal/dim_vacina/
+      format: delta
+      key_fields: [co_vacina]
+
+lineage:
+  upstream:
+    - source: apidadosabertos.saude.gov.br
+      type: rest_api
+      endpoint: /vacinacao/doses-aplicadas-pni-2024
+      frequency: daily
+  downstream:
+    - consumer: metabase
+      type: bi_dashboard
+
+ports:
+  output:
+    - name: trino_gold_fato
+      type: sql
+      catalog: delta
+      schema: vacinal
+      table: fatos_vacinacao
+    - name: trino_gold_dim
+      type: sql
+      catalog: delta
+      schema: vacinal
+      table: dim_vacina

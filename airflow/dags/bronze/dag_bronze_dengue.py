@@ -34,7 +34,7 @@ with DAG(
 ) as dag:
 
     def _extract(**context):
-        from pipelines.extraction.arboviroses import run
+        from apps.epidemiologico.jobs.extract_arboviroses import run
 
         year = context["data_interval_start"].year
         result = run(agravo="dengue", ano=year)
@@ -56,7 +56,7 @@ with DAG(
     )
 
     def _emit_lineage(**context):
-        from pipelines.common.lineage import Dataset, emit_complete, emit_start
+        from apps.shared.lineage import Dataset, emit_complete, emit_start
 
         run_id = emit_start(
             job_name="dag_bronze_dengue.extract",

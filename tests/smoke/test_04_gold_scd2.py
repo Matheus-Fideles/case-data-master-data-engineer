@@ -158,7 +158,7 @@ def test_scd2_second_load_creates_versions(pg_gold, pg):
     - 5 old records must be closed (dt_fim = yesterday)
     - 5 new records must be opened (is_current = true)
     """
-    from pipelines.gold.dim_paciente import load_dim_paciente
+    from apps.epidemiologico.jobs.gold_dim_paciente import load_dim_paciente
 
     count_before = _count_dim(pg_gold)
     current_before = _count_current(pg_gold)

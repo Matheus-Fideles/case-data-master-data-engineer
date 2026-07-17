@@ -8,7 +8,7 @@ spec:
   mode: cluster
   image: registry.rancher.com:5000/spark-custom:3.5-delta
   imagePullPolicy: IfNotPresent
-  mainApplicationFile: local:///opt/spark/work-dir/pipelines/batch/bronze_sim_obitos.py
+  mainApplicationFile: local:///opt/spark/work-dir/apps/hospitalar/jobs/bronze_sim_obitos.py
   arguments:
     - --ano={{ ANO }}
     - --batch_id={{ BATCH_ID }}
