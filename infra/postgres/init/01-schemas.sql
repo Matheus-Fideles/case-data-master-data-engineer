@@ -10,9 +10,7 @@ CREATE SCHEMA IF NOT EXISTS airflow;
 -- Marquez: lineage OpenLineage (tabelas criadas pelo próprio Marquez)
 CREATE SCHEMA IF NOT EXISTS marquez;
 
--- Gold DW: tabelas dimensionais e fatos para Metabase/Trino
+-- Gold DW: tabelas dimensionais e fatos (dim_paciente SCD2, backup das dims)
 CREATE SCHEMA IF NOT EXISTS gold_dw;
 
--- Metabase usa o schema padrão public para seus metadados
--- Precisa da extensão citext (CREATE EXTENSION requer superuser — pré-cria aqui)
 CREATE EXTENSION IF NOT EXISTS citext;

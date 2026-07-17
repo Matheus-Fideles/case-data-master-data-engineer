@@ -38,8 +38,6 @@ lineage:
   downstream:
     - product: epidemiologico/notificacao
       type: data_product
-    - consumer: metabase
-      type: bi_dashboard
 
 ports:
   input:

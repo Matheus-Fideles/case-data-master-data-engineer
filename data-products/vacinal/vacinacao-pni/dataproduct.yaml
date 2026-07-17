@@ -41,8 +41,6 @@ lineage:
       endpoint: /vacinacao/doses-aplicadas-pni-2024
       frequency: daily
   downstream:
-    - consumer: metabase
-      type: bi_dashboard
 
 ports:
   output:

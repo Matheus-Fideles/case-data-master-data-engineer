@@ -18,14 +18,8 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
--- Role para Metabase (somente leitura em views específicas)
-DO $$ BEGIN
-  CREATE ROLE metabase LOGIN PASSWORD 'metabase';
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
-
 -- ── Permissões gold_dw ────────────────────────────────────────────────────
-GRANT USAGE ON SCHEMA gold_dw TO gold_engineer, gold_analyst, metabase;
+GRANT USAGE ON SCHEMA gold_dw TO gold_engineer, gold_analyst;
 GRANT CREATE ON SCHEMA gold_dw TO gold_engineer;
 GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA gold_dw TO gold_engineer;
 GRANT SELECT ON ALL TABLES IN SCHEMA gold_dw TO gold_analyst;
@@ -41,12 +35,3 @@ GRANT USAGE ON SCHEMA oltp TO gold_engineer;
 GRANT SELECT ON ALL TABLES IN SCHEMA oltp TO gold_engineer;
 ALTER DEFAULT PRIVILEGES IN SCHEMA oltp
   GRANT SELECT ON TABLES TO gold_engineer;
-
--- ── Permissões Metabase ───────────────────────────────────────────────────
--- Metabase precisa de CREATE no schema public para rodar suas migrações Liquibase
--- (PostgreSQL 15+ não concede CREATE em public por padrão)
-GRANT CREATE ON SCHEMA public TO metabase;
-GRANT USAGE ON SCHEMA gold_dw TO metabase;
-GRANT SELECT ON ALL TABLES IN SCHEMA gold_dw TO metabase;
-ALTER DEFAULT PRIVILEGES IN SCHEMA gold_dw
-  GRANT SELECT ON TABLES TO metabase;

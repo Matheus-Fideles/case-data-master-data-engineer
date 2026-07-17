@@ -36,8 +36,6 @@ lineage:
       endpoint: /vigilancia-e-meio-ambiente/sistema-de-informacao-sobre-mortalidade
       frequency: daily
   downstream:
-    - consumer: metabase
-      type: bi_dashboard
 
 ports:
   output:

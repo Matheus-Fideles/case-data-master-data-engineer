@@ -23,8 +23,6 @@ REST API (apidadosabertos.saude.gov.br)
                                                                           Hive Metastore (thrift:9083)
                                                                                        │
                                                                              Trino 448 (catalog: delta)
-                                                                                       │
-                                                                                  Metabase
 
 Faker container ──→ Kafka ──→ [Spark Structured Streaming · k3s] ──→ bronze/streaming/ ──→ gold/streaming/
 ```
@@ -60,7 +58,7 @@ apps/{domínio}/
 | **Extração de dados** | 7 endpoints REST + OLTP Faker + Kafka stream |
 | **Ingestão** | Airflow DAGs (PythonOperator + SparkKubernetesOperator) |
 | **Armazenamento** | MinIO (Delta Lake) — todo o Gold no lake, não em Postgres |
-| **Serving layer** | Trino 448 + Hive Metastore (thrift) + Metabase |
+| **Serving layer** | Trino 448 + Hive Metastore (thrift) |
 | **Organização** | Data Mesh (domínios) + Arquitetura Hexagonal (Ports & Adapters) |
 | **Observabilidade** | Prometheus + Grafana + Marquez (OpenLineage) |
 | **Segurança de dados** | RBAC (Postgres roles + Trino ACL) + TLS (evolução) |
@@ -110,11 +108,9 @@ make run-demo-pipeline      # triggers bronze → silver → gold DAGs via Airfl
 Add serving / observability layers:
 
 ```bash
-make up-serving             # Trino + Metabase (bloqueia ~30 min no 1º boot para migrações Liquibase)
+make up-serving             # Hive Metastore + Trino (serving layer via Delta Lake)
 make up-observability       # Prometheus + Grafana + Marquez
 ```
-
-> **Nota Metabase:** `make up-serving` aguarda o Metabase ficar pronto e cria o admin automaticamente com as credenciais de `.env` (`MB_ADMIN_EMAIL` / `MB_ADMIN_PASSWORD`). No primeiro boot, leva ~30 minutos para completar 367 migrações de banco. Em boots subsequentes, fica pronto em ~2 min.
 
 Stop and reset:
 
@@ -152,7 +148,6 @@ make smoke                  # full suite (requires compose up)
 | MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
 | Hive Metastore | thrift://localhost:9083 | — (interno) |
 | Trino UI | http://localhost:8085/ui | trino / (sem senha) |
-| Metabase | http://localhost:3001 | admin@local.dev / Admin1234! (via `make metabase-setup`) |
 | Grafana | http://localhost:3000 | admin / admin |
 | Marquez UI | http://localhost:5000 | — |
 | Prometheus | http://localhost:9090 | — |
@@ -172,7 +167,7 @@ make warmup   # pre-pull Docker + k8s images
 | `make demo-reset` | Wipe volumes and restart a fresh demo |
 | `make up-core` | Start postgres + minio + airflow (core profile only) |
 | `make up-streaming` | Add Kafka + stream-producer |
-| `make up-serving` | Add Trino + Metabase |
+| `make up-serving` | Add Hive Metastore + Trino |
 | `make up-observability` | Add Prometheus + Grafana + Marquez |
 | `make up-all` | Start all Compose profiles |
 | `make down` | Stop and remove all containers |

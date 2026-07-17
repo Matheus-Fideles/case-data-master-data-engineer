@@ -36,8 +36,6 @@ lineage:
       topic: notificacoes.raw
       producer: stream-producer
   downstream:
-    - consumer: metabase
-      type: bi_dashboard
 
 ports:
   input:

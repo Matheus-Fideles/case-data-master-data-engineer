@@ -6,7 +6,7 @@ Runs after each Gold load and validates Star Schema integrity:
   fato_check:  No null SK, no orphan FKs, minimum fact count
   ge_check:    Great Expectations checkpoint (optional)
 
-Failure blocks Metabase dashboards and downstream alerts.
+Failure blocks downstream consumers and alerts.
 
 Spec: docs/specs/airflow-dags.md — section "dag_quality_gates_gold"
 ADR:  docs/architecture/decisions/0006-scd2.md

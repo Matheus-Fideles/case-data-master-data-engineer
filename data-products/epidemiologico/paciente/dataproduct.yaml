@@ -36,8 +36,6 @@ lineage:
   downstream:
     - consumer: gold_fato_notificacao
       type: spark_job
-    - consumer: metabase
-      type: bi_dashboard
 
 ports:
   output:
