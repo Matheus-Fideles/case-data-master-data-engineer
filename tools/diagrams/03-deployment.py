@@ -4,9 +4,12 @@ Executa: python3 tools/diagrams/03-deployment.py
 Saída:   docs/assets/03-deployment.png
 """
 import os
-os.chdir(os.path.join(os.path.dirname(__file__), "../.."))
+BASE = os.path.join(os.path.dirname(__file__), "../..")
+os.chdir(BASE)
+ICONS = os.path.abspath("tools/diagrams/icons")
 
 from diagrams import Diagram, Cluster, Edge
+from diagrams.custom import Custom
 from diagrams.onprem.workflow import Airflow
 from diagrams.onprem.queue import Kafka
 from diagrams.onprem.analytics import Spark, Hive, Trino
@@ -15,25 +18,27 @@ from diagrams.onprem.monitoring import Grafana, Prometheus
 from diagrams.onprem.container import Docker, K3S
 from diagrams.onprem.tracing import Jaeger
 from diagrams.generic.storage import Storage
-from diagrams.generic.database import SQL
 
 GRAPH_ATTR = {
-    "fontsize": "22",
+    "fontsize": "18",
     "fontname": "Helvetica Bold",
     "bgcolor": "white",
-    "pad": "1.0",
-    "nodesep": "0.8",
-    "ranksep": "1.4",
+    "pad": "0.8",
+    "nodesep": "0.7",
+    "ranksep": "1.3",
     "splines": "ortho",
-    "rankdir": "TB",
-    "newrank": "true",
+    "rankdir": "LR",
 }
 NODE_ATTR = {
-    "fontsize": "12",
+    "fontsize": "10",
     "fontname": "Helvetica",
-    "width": "1.6",
-    "height": "1.6",
+    "width": "1.1",
+    "height": "1.1",
+    "fixedsize": "true",
+    "imagescale": "true",
 }
+
+MINIO = f"{ICONS}/minio.png"
 
 with Diagram(
     "Deployment Local — Docker Compose Profiles + Rancher Desktop k3s",
@@ -43,65 +48,68 @@ with Diagram(
     node_attr=NODE_ATTR,
     show=False,
 ):
-    # ─── LINHA 1: PERFIS DOCKER COMPOSE ──────────────────────────────
-    with Cluster("Perfil CORE  (make demo  /  make up-core)"):
-        airflow = Airflow("Apache Airflow 2.9\n:8080\nWebserver + Scheduler\n+ Celery Worker")
-        postgres = PostgreSQL("PostgreSQL 15\n:5432\noltp · gold · airflow\nRBAC configurado")
-        minio = SQL("MinIO\n:9000 S3 API · :9001 Console\nbronze · silver · gold\nDelta Lake OSS")
-        redis = Docker("Redis\n:6379\nCelery broker\ntask queue Airflow")
+    # ─── CORE ────────────────────────────────────────────────────────
+    with Cluster("Perfil CORE  (make demo)"):
+        redis    = Docker("Redis\n:6379\nCelery broker")
+        airflow  = Airflow("Airflow 2.9\n:8080\nScheduler+Worker")
+        postgres = PostgreSQL("PostgreSQL 15\n:5432\noltp·gold·airflow")
+        minio    = Custom("MinIO\n:9000 S3 API\n:9001 Console", MINIO)
 
+    # ─── STREAMING ───────────────────────────────────────────────────
     with Cluster("Perfil STREAMING  (make up-streaming)"):
-        kafka = Kafka("Apache Kafka KRaft\n:9092 broker\nnotificacoes.raw (3 part.)\nnotificacoes.dlq (1 part.)")
-        producer = Docker("Stream Producer\napps/streaming/producer\nFaker → Kafka\n10 eventos/seg")
+        producer = Docker("Stream Producer\nFaker→Kafka\n10 evt/seg")
+        kafka    = Kafka("Kafka KRaft\n:9092\nnotif.raw(3p)\nnotif.dlq(1p)")
 
+    # ─── SERVING ─────────────────────────────────────────────────────
     with Cluster("Perfil SERVING  (make up-serving)"):
-        hms = Hive("Hive Metastore\nthrift:9083\nCatálogo Delta Lake\nhive-site.xml → MinIO")
-        trino = Trino("Trino 448\n:8085 UI / :8086 JDBC\ncatalog: delta\nSQL sobre Delta Lake")
+        hms   = Hive("Hive Metastore\nthrift:9083\nCatálogo Delta")
+        trino = Trino("Trino 448\n:8085 UI\n:8086 JDBC")
 
+    # ─── OBSERVABILIDADE ─────────────────────────────────────────────
     with Cluster("Perfil OBSERVABILIDADE  (make up-observability)"):
-        prometheus = Prometheus("Prometheus\n:9090\nscrape: Airflow · Spark\nretention: 15 dias")
-        grafana = Grafana("Grafana\n:3000  admin/admin\nDashboards pipeline\nSLOs · alertas")
-        marquez = Jaeger("Marquez  OpenLineage\n:5000 UI · :5001 API\nLineage DAG → Delta\nrastreabilidade E2E")
+        prom    = Prometheus("Prometheus\n:9090\nretention:15d")
+        grafana = Grafana("Grafana\n:3000\nDashboards·SLOs")
+        marquez = Jaeger("Marquez\nOpenLineage\n:5000·:5001")
 
-    # ─── RANCHER DESKTOP / K3S ───────────────────────────────────────
+    # ─── K3S ─────────────────────────────────────────────────────────
     with Cluster("Rancher Desktop — k3s  (make k8s-setup)"):
-        k3s = K3S("k3s Control Plane\nnamespace: spark\nServiceAccount: spark\nSecret: pii-secret")
-        spark_op = Spark("Spark Operator\nHelm 1.1.27\nreconcilia SparkApplication\nCRDs no cluster")
+        k3s      = K3S("k3s\nns:spark\nSA+RBAC\npii-secret")
+        spark_op = Spark("Spark Operator\nHelm 1.1.27\nSparkApp CRDs")
 
-        with Cluster("SparkApplication YAMLs  (k8s/)"):
-            spark_batch = Spark("Spark Batch\nDriver 2 GB\nExecutors 4 GB × 2\nGreat Expectations + DQ")
-            spark_stream = Spark("Spark Streaming\ncheckpoint s3a://bronze/\nwatermark 1h\nforeachBatch → Delta")
+        with Cluster("SparkApplication  (k8s/)"):
+            sp_batch  = Spark("Spark Batch\nDriver 2GB\nExec 4GB×2\n+GreatExpect.")
+            sp_stream = Spark("Spark Stream\ncheckpoint s3a\nwatermark 1h\nDelta append")
 
     # ─── MAPEAMENTO AWS ──────────────────────────────────────────────
-    with Cluster("Mapeamento 1:1 AWS  (sem rewrite — só config)"):
-        aws_note = Storage(
-            "MinIO  →  S3 + Delta OSS\n"
-            "HMS  →  Glue Data Catalog\n"
-            "Kafka  →  MSK Serverless\n"
-            "Spark k3s  →  EMR Serverless\n"
-            "Airflow  →  MWAA\n"
-            "Postgres  →  RDS Aurora PG\n"
-            "Trino  →  Athena / Trino EKS\n"
-            "Grafana  →  Managed Grafana\n"
-            "Marquez  →  DataZone"
+    with Cluster("Mapeamento 1:1 AWS"):
+        aws = Storage(
+            "MinIO → S3+Delta\n"
+            "HMS → Glue Catalog\n"
+            "Kafka → MSK Serverless\n"
+            "Spark → EMR Serverless\n"
+            "Airflow → MWAA\n"
+            "Postgres → RDS Aurora\n"
+            "Trino → Athena/EKS\n"
+            "Grafana → Managed\n"
+            "Marquez → DataZone"
         )
 
-    # ─── CONEXÕES ─────────────────────────────────────────────────────
-    redis >> Edge(label="task queue", style="dashed") >> airflow
-    airflow >> Edge(label="SparkKubernetes\nOperator") >> k3s
-    k3s >> spark_op >> [spark_batch, spark_stream]
+    # ─── CONEXÕES ────────────────────────────────────────────────────
+    redis    >> Edge(label="task queue", style="dashed") >> airflow
+    airflow  >> Edge(label="SparkK8sOp") >> k3s
+    k3s      >> spark_op >> [sp_batch, sp_stream]
 
-    producer >> Edge(label="JSON eventos") >> kafka
-    kafka >> Edge(label="consume\ntópico") >> spark_stream
+    producer >> Edge(label="JSON") >> kafka
+    kafka    >> Edge(label="consume") >> sp_stream
 
-    spark_batch >> Edge(label="s3a://\nread/write", style="dashed") >> minio
-    spark_stream >> Edge(label="s3a://\nDelta append", style="dashed") >> minio
-    airflow >> Edge(label="S3 + Spark\nconnections", style="dashed") >> minio
-    airflow >> Edge(label="metadata\nschemas", style="dashed") >> postgres
+    sp_batch  >> Edge(label="s3a://", style="dashed") >> minio
+    sp_stream >> Edge(label="append", style="dashed") >> minio
+    airflow   >> Edge(label="conn", style="dashed") >> minio
+    airflow   >> Edge(label="meta", style="dashed") >> postgres
 
     minio >> Edge(label="Delta files") >> hms
-    hms >> Edge(label="catálogo\nTabelas Delta") >> trino
+    hms   >> Edge(label="catálogo") >> trino
 
-    [airflow, spark_batch] >> Edge(style="dashed", color="#888888", label="métricas") >> prometheus
-    prometheus >> grafana
-    airflow >> Edge(style="dashed", color="#888888", label="OpenLineage\nevents") >> marquez
+    [airflow, sp_batch] >> Edge(style="dashed", color="#888888") >> prom
+    prom    >> grafana
+    airflow >> Edge(style="dashed", color="#888888") >> marquez

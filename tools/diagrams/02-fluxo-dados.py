@@ -2,104 +2,105 @@
 Diagrama 2: Fluxo de Dados Medallion — Bronze → Silver → Gold.
 Executa: python3 tools/diagrams/02-fluxo-dados.py
 Saída:   docs/assets/02-fluxo-dados.png
-
-Abordagem: fluxo linear LR com um representante por domínio em cada camada.
 """
 import os
-os.chdir(os.path.join(os.path.dirname(__file__), "../.."))
+BASE = os.path.join(os.path.dirname(__file__), "../..")
+os.chdir(BASE)
+ICONS = os.path.abspath("tools/diagrams/icons")
 
 from diagrams import Diagram, Cluster, Edge
+from diagrams.custom import Custom
 from diagrams.onprem.analytics import Spark, Hive, Trino
 from diagrams.onprem.database import PostgreSQL
 from diagrams.onprem.queue import Kafka
 from diagrams.generic.storage import Storage
-from diagrams.generic.database import SQL
 
 GRAPH_ATTR = {
-    "fontsize": "22",
+    "fontsize": "18",
     "fontname": "Helvetica Bold",
     "bgcolor": "white",
-    "pad": "1.0",
-    "nodesep": "0.9",
-    "ranksep": "1.5",
+    "pad": "0.8",
+    "nodesep": "0.7",
+    "ranksep": "1.3",
     "splines": "ortho",
-    "concentrate": "false",
+    "rankdir": "LR",
 }
 NODE_ATTR = {
-    "fontsize": "12",
+    "fontsize": "10",
     "fontname": "Helvetica",
-    "width": "1.7",
-    "height": "1.7",
+    "width": "1.1",
+    "height": "1.1",
+    "fixedsize": "true",
+    "imagescale": "true",
 }
+
+DELTA = f"{ICONS}/delta-lake.png"
 
 with Diagram(
     "Fluxo de Dados — Arquitetura Medallion (Bronze → Silver → Gold)",
     filename="docs/assets/02-fluxo-dados",
     outformat="png",
-    direction="LR",
     graph_attr=GRAPH_ATTR,
     node_attr=NODE_ATTR,
     show=False,
 ):
     # ─── FONTES ──────────────────────────────────────────────────────
-    with Cluster("Fontes de Dados\n(Python extrai · ADR-008)"):
-        src_api = Storage("APIs Ministério Saúde\nSINAN · SIM · CNES\nPNI · IBGE\n7 endpoints REST mensal")
-        src_oltp = PostgreSQL("Postgres OLTP\nPacientes · PII\nFaker pt_BR seed\nsnapshot diário")
-        src_kafka = Kafka("Apache Kafka\nnotificacoes.raw\nStream Faker\n10 eventos/seg")
+    with Cluster("Fontes de Dados"):
+        src_api   = Storage("APIs MS\nSINAN·SIM·CNES\nPNI·IBGE REST")
+        src_oltp  = PostgreSQL("Postgres OLTP\nPacientes+PII\nsnapshot diário")
+        src_kafka = Kafka("Kafka\nnotif.raw\nFaker stream")
 
-    # ─── SPARK EXTRAÇÃO/INGESTÃO ─────────────────────────────────────
-    spark_ingest = Spark("Apache Spark\nIngestão Batch\nMERGE por NK\n+ Spark Streaming")
+    # ─── INGESTÃO ────────────────────────────────────────────────────
+    spark_in = Spark("Spark\nIngestão\nMERGE NK")
 
     # ─── BRONZE ──────────────────────────────────────────────────────
-    with Cluster("Bronze  ·  s3a://bronze/\nDelta Lake ACID · MERGE por chave natural"):
-        br_epi = SQL("epidemiologico\ndengue · zika · chik\nPart: nu_ano · sg_uf")
-        br_hosp = SQL("hospitalar\nsim_obitos · cnes\nPart: ano · uf")
-        br_vac = SQL("vacinal + geografico\nvacinacao_pni\nmunicipios (5.570)")
-        br_oltp = SQL("oltp / paciente\n⚠ PII presente\nPart: snapshot_date")
-        br_stream = SQL("streaming\natendimentos_stream\nwatermark 1h · append")
+    with Cluster("Bronze  ·  s3a://bronze/  ·  Delta Lake ACID"):
+        br_epi    = Custom("epidemiologico\ndengue·zika·chik\nPart:nu_ano·uf", DELTA)
+        br_hosp   = Custom("hospitalar\nsim_obitos·cnes\nPart:ano·uf", DELTA)
+        br_vac    = Custom("vacinal+geo\nvacinacao_pni\nmunicipios", DELTA)
+        br_oltp   = Custom("oltp/paciente\n⚠ PII presente\nPart:snapshot_dt", DELTA)
+        br_stream = Custom("streaming\natendimentos\nwatermark 1h", DELTA)
 
-    # ─── SPARK TRANSFORM ─────────────────────────────────────────────
-    spark_tf = Spark("Apache Spark\nTransformação + PII\nSHA-256 + salt\nGreat Expectations")
+    # ─── TRANSFORMAÇÃO ───────────────────────────────────────────────
+    spark_tf = Spark("Spark\nTransform\n+PII Masking")
 
     # ─── SILVER ──────────────────────────────────────────────────────
-    with Cluster("Silver  ·  s3a://silver/\nLimpeza + PII Masking (ADR-004)"):
-        sv_epi = SQL("arboviroses\ndecode nu_idade_n\npadroniza datas")
-        sv_hosp = SQL("sim · cnes norm.\nCID-10 decode\ngeocode fallback")
-        sv_vac = SQL("vacinacao_norm\nfaixa etária\nCNES enrich")
-        sv_pac = SQL("paciente_anonimizado\nCPF → SHA-256+salt\nid_hash · ano_nasc ✓")
-        sv_stream = SQL("atendimentos_norm\nvalidação schema\nDLQ → notif.dlq")
+    with Cluster("Silver  ·  s3a://silver/  ·  Limpeza + PII Masking (ADR-004)"):
+        sv_epi    = Custom("arboviroses\ndecode idade\npadroniza datas", DELTA)
+        sv_hosp   = Custom("sim·cnes norm\nCID-10 decode\ngeocode", DELTA)
+        sv_vac    = Custom("vacinacao_norm\nfaixa etária\nCNES enrich", DELTA)
+        sv_pac    = Custom("paciente_anon\nCPF→SHA256+salt\nid_hash ✓ sem PII", DELTA)
+        sv_stream = Custom("atend_norm\nvalid. schema\nDLQ→notif.dlq", DELTA)
 
-    # ─── SPARK GOLD ──────────────────────────────────────────────────
-    spark_gold = Spark("Apache Spark\nStar Schema\nSCD Tipo 2 Postgres\nDelta particionado")
+    # ─── STAR SCHEMA ─────────────────────────────────────────────────
+    spark_gd = Spark("Spark\nStar Schema\nSCD2 Postgres")
 
     # ─── GOLD ────────────────────────────────────────────────────────
-    with Cluster("Gold  ·  s3a://gold/  +  Postgres SCD2"):
-        gd_fatos = SQL("Fatos (Delta Lake)\nfato_notificacao\nfato_atendimento\nfato_vacinacao · Part: ano_mes")
-        gd_dims = SQL("Dimensões (Delta Lake)\ndim_municipio\ndim_vacina")
-        gd_scd2 = PostgreSQL("Dimensões SCD2 (Postgres)\ndim_paciente\ndim_estabelecimento\ndt_inicio · dt_fim · is_current")
+    with Cluster("Gold  ·  s3a://gold/ + Postgres SCD2"):
+        gd_fatos = Custom("Fatos (Delta)\nfato_notificacao\nfato_atendimento\nfato_vacinacao", DELTA)
+        gd_dims  = Custom("Dims (Delta)\ndim_municipio\ndim_vacina", DELTA)
+        gd_scd2  = PostgreSQL("Dims SCD2 (PG)\ndim_paciente\ndim_estabelecimento\ndt_inicio·is_current")
 
     # ─── SERVING ─────────────────────────────────────────────────────
     with Cluster("Serving Layer"):
-        hms = Hive("Hive Metastore\nthrift:9083\nCatálogo Delta")
-        trino = Trino("Trino 448\n:8085\nSELECT FROM\ndelta.gold.*")
+        hms   = Hive("Hive Metastore\nthrift:9083\nCatálogo Delta")
+        trino = Trino("Trino 448\n:8085\nSELECT gold.*")
 
     # ─── FLUXOS ──────────────────────────────────────────────────────
-    src_api >> Edge(label="REST mensal\nOffline: data/raw/") >> spark_ingest
-    src_oltp >> Edge(label="JDBC snapshot\ndiário") >> spark_ingest
-    src_kafka >> Edge(label="Spark Streaming\nconsume tópico") >> spark_ingest
+    src_api   >> Edge(label="REST mensal") >> spark_in
+    src_oltp  >> Edge(label="JDBC diário") >> spark_in
+    src_kafka >> Edge(label="Streaming") >> spark_in
 
-    spark_ingest >> [br_epi, br_hosp, br_vac]
-    src_oltp >> br_oltp
-    src_kafka >> br_stream
+    spark_in >> [br_epi, br_hosp, br_vac, br_oltp, br_stream]
 
-    [br_epi, br_hosp, br_vac, br_oltp, br_stream] >> Edge(label="Spark MERGE\nDelta ACID") >> spark_tf
+    [br_epi, br_hosp, br_vac, br_oltp, br_stream] >> spark_tf
 
     spark_tf >> [sv_epi, sv_hosp, sv_vac, sv_pac, sv_stream]
 
-    [sv_epi, sv_hosp, sv_vac, sv_pac, sv_stream] >> Edge(label="Spark\nstar schema") >> spark_gold
+    [sv_epi, sv_hosp, sv_vac, sv_pac, sv_stream] >> spark_gd
 
-    spark_gold >> [gd_fatos, gd_dims, gd_scd2]
+    spark_gd >> [gd_fatos, gd_dims, gd_scd2]
 
-    [gd_fatos, gd_dims] >> Edge(label="registra\ncatálogo") >> hms
-    gd_scd2 >> Edge(label="expõe via\nTrino") >> trino
-    hms >> trino
+    [gd_fatos, gd_dims] >> Edge(label="cataloga") >> hms
+    gd_scd2             >> Edge(label="expõe") >> trino
+    hms                 >> trino

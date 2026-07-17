@@ -4,9 +4,12 @@ Executa: python3 tools/diagrams/01-arquitetura-solucao.py
 Saída:   docs/assets/01-arquitetura-solucao.png
 """
 import os
-os.chdir(os.path.join(os.path.dirname(__file__), "../.."))
+BASE = os.path.join(os.path.dirname(__file__), "../..")
+os.chdir(BASE)
+ICONS = os.path.abspath("tools/diagrams/icons")
 
 from diagrams import Diagram, Cluster, Edge
+from diagrams.custom import Custom
 from diagrams.onprem.workflow import Airflow
 from diagrams.onprem.queue import Kafka
 from diagrams.onprem.analytics import Spark, Hive, Trino
@@ -15,26 +18,28 @@ from diagrams.onprem.monitoring import Grafana, Prometheus
 from diagrams.onprem.container import Docker, K3S
 from diagrams.onprem.tracing import Jaeger
 from diagrams.generic.storage import Storage
-from diagrams.generic.database import SQL
 
 GRAPH_ATTR = {
-    "fontsize": "22",
+    "fontsize": "18",
     "fontname": "Helvetica Bold",
     "bgcolor": "white",
-    "pad": "1.0",
-    "nodesep": "1.0",
-    "ranksep": "1.6",
+    "pad": "0.8",
+    "nodesep": "0.7",
+    "ranksep": "1.3",
     "splines": "ortho",
     "rankdir": "LR",
-    "newrank": "true",
 }
 NODE_ATTR = {
-    "fontsize": "13",
+    "fontsize": "10",
     "fontname": "Helvetica",
-    "width": "1.6",
-    "height": "1.6",
-    "fixedsize": "false",
+    "width": "1.1",
+    "height": "1.1",
+    "fixedsize": "true",
+    "imagescale": "true",
 }
+
+MINIO  = f"{ICONS}/minio.png"
+DELTA  = f"{ICONS}/delta-lake.png"
 
 with Diagram(
     "Plataforma de Vigilância Epidemiológica — Arquitetura de Solução",
@@ -44,64 +49,59 @@ with Diagram(
     node_attr=NODE_ATTR,
     show=False,
 ):
-    # ─── FONTES ───────────────────────────────────────────────────────
     with Cluster("1. Fontes de Dados"):
-        apis = Storage("APIs Ministério\nda Saúde\nSINAN · SIM · CNES\nPNI · IBGE · 7 REST")
-        oltp = PostgreSQL("Postgres OLTP\nPacientes (PII)\nFaker pt_BR seed")
-        stream_prod = Docker("Stream Producer\nFaker → JSON\n10 eventos/seg")
+        apis    = Storage("APIs MS\nSINAN·SIM·CNES\nPNI·IBGE")
+        oltp    = PostgreSQL("Postgres OLTP\nPacientes PII\nFaker pt_BR")
+        prod    = Docker("Stream Producer\nFaker → JSON\n10 evt/seg")
 
-    # ─── ORQUESTRAÇÃO E INGESTÃO ─────────────────────────────────────
-    with Cluster("2. Orquestração (Airflow)"):
-        airflow = Airflow("Apache Airflow\n:8080\nDAGs batch\nPythonOp + SparkK8sOp")
+    with Cluster("2. Orquestração"):
+        airflow = Airflow("Apache Airflow\n:8080\nPythonOp+SparkK8s")
 
-    # ─── SPEED (KAFKA) ───────────────────────────────────────────────
-    with Cluster("3. Speed Layer (Kafka)"):
-        kafka = Kafka("Apache Kafka\nKRaft\nnotificacoes.raw\nnotificacoes.dlq")
+    with Cluster("3. Speed Layer"):
+        kafka   = Kafka("Apache Kafka\nKRaft\nnotif.raw")
 
-    # ─── PROCESSAMENTO SPARK ─────────────────────────────────────────
-    with Cluster("4. Processamento (Spark on k3s)"):
-        k3s = K3S("Rancher Desktop\nk3s\nnamespace: spark")
-        spark = Spark("Apache Spark\nBatch + Streaming\nGreat Expectations")
+    with Cluster("4. Processamento (k3s)"):
+        k3s     = K3S("Rancher k3s\nspark ns")
+        spark   = Spark("Apache Spark\nBatch+Stream\nGreat Expect.")
 
-    # ─── DATA LAKE ───────────────────────────────────────────────────
-    with Cluster("5. Data Lake Medallion — MinIO (Delta Lake)"):
-        bronze = SQL("Bronze\ns3a://bronze/\nIngestão ACID\nMERGE por NK")
-        silver = SQL("Silver\ns3a://silver/\nLimpo + PII masking\nSHA-256 + salt")
-        gold = SQL("Gold\ns3a://gold/\nStar Schema\nFatos + Dimensões")
-        gold_pg = PostgreSQL("Gold SCD2\nPostgres\ndim_paciente\ndim_estab")
+    with Cluster("5. Data Lake — MinIO (Delta Lake)"):
+        minio   = Custom("MinIO\n:9000 S3 API\nbronze·silver·gold", MINIO)
+        bronze  = Custom("Bronze\ns3a://bronze/\nMERGE NK · ACID", DELTA)
+        silver  = Custom("Silver\ns3a://silver/\nSHA-256+salt", DELTA)
+        gold    = Custom("Gold\ns3a://gold/\nStar Schema", DELTA)
+        gold_pg = PostgreSQL("Gold SCD2\nPostgres\ndim_paciente")
 
-    # ─── SERVING ─────────────────────────────────────────────────────
     with Cluster("6. Serving Layer"):
-        hms = Hive("Hive Metastore\nthrift:9083\nCatálogo Delta")
-        trino = Trino("Trino 448\n:8085\nSQL Federado\ncatalog: delta")
-        pg_rbac = PostgreSQL("Postgres RBAC\nroles: reader\nanalyst · admin")
+        hms     = Hive("Hive Metastore\nthrift:9083")
+        trino   = Trino("Trino 448\n:8085\ncatalog:delta")
+        pg_ac   = PostgreSQL("Postgres RBAC\nreader·analyst\nadmin")
 
-    # ─── OBSERVABILIDADE ─────────────────────────────────────────────
-    with Cluster("7. Observabilidade & Governança"):
-        prometheus = Prometheus("Prometheus\n:9090\nMétricas pipeline")
-        grafana = Grafana("Grafana\n:3000\nDashboards · SLOs")
-        marquez = Jaeger("Marquez\nOpenLineage\n:5000 · Lineage")
+    with Cluster("7. Observabilidade"):
+        prom    = Prometheus("Prometheus\n:9090")
+        grafana = Grafana("Grafana\n:3000")
+        marquez = Jaeger("Marquez\nOpenLineage\n:5000")
 
-    # ─── FLUXO PRINCIPAL ─────────────────────────────────────────────
-    apis >> Edge(label="REST mensal\nOffline: data/raw/") >> airflow
-    oltp >> Edge(label="snapshot diário\nJDBC Postgres") >> airflow
-    stream_prod >> Edge(label="JSON\nevento") >> kafka
+    # Fluxo batch
+    apis    >> Edge(label="REST mensal") >> airflow
+    oltp    >> Edge(label="snapshot diário") >> airflow
+    airflow >> k3s >> spark
 
-    airflow >> Edge(label="extrai\n→ data/raw/") >> k3s
-    kafka >> Edge(label="Spark Streaming\nconsume tópico") >> spark
-    k3s >> spark
+    # Fluxo streaming
+    prod    >> kafka >> spark
 
-    spark >> Edge(label="MERGE\nDelta ACID") >> bronze
-    bronze >> Edge(label="Spark transform\n+ PII masking") >> silver
-    silver >> Edge(label="Spark\nstar schema") >> gold
-    silver >> Edge(label="SCD2\nMERGE") >> gold_pg
+    # Medallion
+    spark  >> Edge(label="MERGE Delta") >> minio
+    minio  >> bronze
+    bronze >> Edge(label="transform\n+masking") >> silver
+    silver >> Edge(label="star schema") >> gold
+    silver >> Edge(label="SCD2") >> gold_pg
 
-    gold >> Edge(label="registra\ncatálogo") >> hms
+    # Serving
+    gold    >> hms
     gold_pg >> hms
-    hms >> Edge(label="cataloga\ntabelas Delta") >> trino
-    trino >> pg_rbac
+    hms     >> trino >> pg_ac
 
-    # ─── OBSERVABILIDADE (dashed) ────────────────────────────────────
-    airflow >> Edge(style="dashed", color="#999999", label="OpenLineage") >> marquez
-    spark >> Edge(style="dashed", color="#999999", label="métricas") >> prometheus
-    prometheus >> grafana
+    # Observabilidade (dashed)
+    airflow >> Edge(style="dashed", color="#888888") >> marquez
+    spark   >> Edge(style="dashed", color="#888888") >> prom
+    prom    >> grafana
