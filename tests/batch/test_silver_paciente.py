@@ -28,7 +28,7 @@ def _patched_run(job, *, row_count=3, **kwargs):
     ):
         defaults = dict(
             spark=MagicMock(),
-            input_path="s3a://bronze/oltp_paciente/",
+            input_path="s3a://bronze/oltp/paciente/",
             output_path="s3a://silver/paciente/",
             filter_col="snapshot_date",
             filter_val="20240101",

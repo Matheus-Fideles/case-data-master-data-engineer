@@ -25,7 +25,7 @@ from tests.smoke.conftest import (
 
 pytestmark = pytest.mark.smoke
 
-BRONZE_STREAM_PATH = "s3a://bronze/atendimentos/"
+BRONZE_STREAM_PATH = "s3a://bronze/streaming/atendimentos_stream/"
 N_VALID = 20
 N_INVALID = 5
 

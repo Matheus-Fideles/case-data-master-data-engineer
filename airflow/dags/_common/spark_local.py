@@ -32,13 +32,13 @@ def make_local_spark(app_name: str = "airflow_maint"):
 
 
 BRONZE_TABLES = [
-    "s3a://bronze/arboviroses/dengue/",
-    "s3a://bronze/arboviroses/zika/",
-    "s3a://bronze/arboviroses/chikungunya/",
-    "s3a://bronze/sim_obitos/",
-    "s3a://bronze/vacinacao_pni/",
-    "s3a://bronze/cnes/",
-    "s3a://bronze/municipios/",
-    "s3a://bronze/oltp_paciente/",
-    "s3a://bronze/atendimentos/",
+    "s3a://bronze/epidemiologico/dengue/",
+    "s3a://bronze/epidemiologico/zika/",
+    "s3a://bronze/epidemiologico/chikungunya/",
+    "s3a://bronze/hospitalar/sim_obitos/",
+    "s3a://bronze/vacinal/vacinacao_pni/",
+    "s3a://bronze/hospitalar/cnes_estabelecimentos/",
+    "s3a://bronze/geografico/municipios/",
+    "s3a://bronze/oltp/paciente/",
+    "s3a://bronze/streaming/atendimentos_stream/",
 ]
