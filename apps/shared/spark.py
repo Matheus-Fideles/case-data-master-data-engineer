@@ -7,7 +7,7 @@ OpenLineage (data lineage):
   When OPENLINEAGE_URL is set, activates the automatic listener
   `io.openlineage.spark.agent.OpenLineageSparkListener` which captures
   all Delta and S3 inputs/outputs without changes in the job code.
-  See: docs/observability.md — section "Lineage"
+  See: docs/05-observabilidade-sre.md — section "Lineage"
 """
 
 from __future__ import annotations

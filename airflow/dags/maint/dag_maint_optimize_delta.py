@@ -10,8 +10,8 @@ Retention by layer (ADR-0004 / LGPD Art. 16):
   - Silver: 30 days (720h) — masked data, operational retention
   - Gold:   30 days (720h) — aggregates, same policy as Silver
 
-Spec: docs/specs/airflow-dags.md — section "dag_maint_optimize_delta"
-ADR:  docs/architecture/decisions/0004-pii-masking.md
+Spec: docs/05-observabilidade-sre.md — section "dag_maint_optimize_delta"
+ADR:  docs/ADRS.md
 """
 
 from __future__ import annotations

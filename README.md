@@ -185,21 +185,14 @@ make warmup   # pre-pull Docker + k8s images
 
 ```
 .
-├── docs/                        # Arquitetura e especificações
-│   ├── architecture/
-│   │   ├── decisions/           # ADRs (0001–0011)
-│   │   ├── diagrams/            # Diagramas de solução, fluxo e deployment
-│   │   ├── data-model.md        # Star schema dimensional (fatos + dims + SCD2)
-│   │   ├── comparative-matrix.md # Por que X e não Y (Delta vs Iceberg, Spark vs Flink, etc.)
-│   │   └── scope.md             # Componentes obrigatórios vs. evolução futura
-│   ├── specs/
-│   │   ├── airflow-dags.md      # Especificação de todos os DAGs (30 DAGs)
-│   │   └── bronze-schemas.md    # Schemas das 9 tabelas Bronze (StructType)
-│   ├── standards/
-│   │   └── pre-commit.md        # Padrão de qualidade de código (ruff, detect-secrets, anti-PII)
-│   ├── integrations/            # Documentação de cada fonte de dados
-│   ├── security.md              # LGPD + mascaramento PII + RBAC
-│   └── observability.md         # Prometheus + Grafana + Marquez (OpenLineage)
+├── docs/                        # Documentação consolidada (5 docs + ADRS.md)
+│   ├── 01-contexto-negocio.md   # Problema, domínios, fontes e escopo técnico
+│   ├── 02-arquitetura.md        # Stack, diagramas, padrões e modelo dimensional
+│   ├── 03-integrações.md        # Guias de extração por fonte (CNES, SINAN, PNI, OLTP, Kafka)
+│   ├── 04-governanca-lgpd.md    # LGPD, mascaramento PII, RBAC, dicionário de dados
+│   ├── 05-observabilidade-sre.md # Prometheus, Grafana, Marquez, runbook e testes
+│   ├── ADRS.md                  # Todas as 11 decisões arquiteturais (ADR-001 a ADR-011)
+│   └── assets/                  # Diagramas Draw.io (arquitetura, fluxo, deployment)
 ├── apps/                        # Código por domínio de negócio (Data Mesh + Hexagonal)
 │   ├── shared/                  # Kernel compartilhado: spark, masking, lineage, base classes
 │   ├── epidemiologico/          # Dengue, Zika, Chikungunya, SINAN
@@ -252,7 +245,7 @@ Com `OFFLINE_MODE=1`, todos os extratores leem de `data/raw/` em vez de chamar a
 
 ## Segurança e LGPD
 
-Ver `docs/security.md` para detalhes completos. Resumo:
+Ver `docs/04-governanca-lgpd.md` para detalhes completos. Resumo:
 
 - **CPF**: SHA-256 + salt (salt em variável de ambiente, nunca no código)
 - **Nome**: substituído por valor Faker (pseudonimização)
@@ -266,17 +259,17 @@ Mascaramento ocorre na transição **Bronze → Silver**. Gold nunca vê PII.
 
 | ADR | Decisão |
 |---|---|
-| [0001](docs/architecture/decisions/0001-lambda-vs-kappa.md) | Lambda vs Kappa → **Lambda** |
-| [0002](docs/architecture/decisions/0002-idempotency-merge.md) | Idempotência → **MERGE por NK** |
-| [0003](docs/architecture/decisions/0003-schema-evolution.md) | Schema evolution → **mergeSchema=true** |
-| [0004](docs/architecture/decisions/0004-pii-masking.md) | Mascaramento PII → **SHA-256+salt no Silver** |
-| [0005](docs/architecture/decisions/0005-streaming-watermark.md) | Watermark → **1 hora** |
-| [0006](docs/architecture/decisions/0006-scd2.md) | SCD Tipo 2 → **dt_inicio/dt_fim + is_current** |
-| [0007](docs/architecture/decisions/0007-spark-on-kubernetes.md) | Spark → **k3s via Rancher Desktop** |
-| [0008](docs/architecture/decisions/0008-ingestion-layers.md) | Ingestão → **Python extrai, Spark transforma** |
-| [0009](docs/architecture/decisions/0009-data-mesh-domains.md) | Organização → **Data Mesh por domínio de negócio** |
-| [0010](docs/architecture/decisions/0010-hexagonal-architecture.md) | Design → **Hexagonal (Ports & Adapters)** |
-| [0011](docs/architecture/decisions/0011-trino-hms-delta.md) | Serving → **Trino + Hive Metastore + Delta Lake** |
+| [0001](docs/ADRS.md#adr-001--arquitetura-lambda-vs-kappa) | Lambda vs Kappa → **Lambda** |
+| [0002](docs/ADRS.md#adr-002--estratégia-de-idempotência-e-merge) | Idempotência → **MERGE por NK** |
+| [0003](docs/ADRS.md#adr-003--política-de-schema-evolution) | Schema evolution → **mergeSchema=true** |
+| [0004](docs/ADRS.md#adr-004--estratégia-de-mascaramento-de-pii) | Mascaramento PII → **SHA-256+salt no Silver** |
+| [0005](docs/ADRS.md#adr-005--watermark-e-tratamento-de-eventos-atrasados) | Watermark → **1 hora** |
+| [0006](docs/ADRS.md#adr-006--implementação-de-scd-tipo-2) | SCD Tipo 2 → **dt_inicio/dt_fim + is_current** |
+| [0007](docs/ADRS.md#adr-007--spark-on-kubernetes-rancher-desktop) | Spark → **k3s via Rancher Desktop** |
+| [0008](docs/ADRS.md#adr-008--separação-de-camadas-de-ingestão) | Ingestão → **Python extrai, Spark transforma** |
+| [0009](docs/ADRS.md#adr-009--data-mesh-organização-por-domínios) | Organização → **Data Mesh por domínio de negócio** |
+| [0010](docs/ADRS.md#adr-010--arquitetura-hexagonal-ports--adapters) | Design → **Hexagonal (Ports & Adapters)** |
+| [0011](docs/ADRS.md#adr-011--serving-layer-trino--hms--delta-lake) | Serving → **Trino + Hive Metastore + Delta Lake** |
 
 ## Escalabilidade para cloud
 
@@ -294,4 +287,4 @@ A arquitetura é desenhada com mapeamento 1:1 para AWS — migração é configu
 | Marquez (OpenLineage) | AWS Glue Data Catalog + DataZone |
 | Prometheus + Grafana | CloudWatch + Managed Grafana |
 
-Ver `docs/architecture/comparative-matrix.md` §7 para a análise completa de cloud vs. on-premises.
+Ver `docs/02-arquitetura.md` §7 para a análise completa de cloud vs. on-premises.

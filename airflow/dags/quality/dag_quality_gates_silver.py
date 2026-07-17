@@ -11,7 +11,7 @@ Implementation:
   - Uses Great Expectations if available (via configured checkpoints)
   - Fallback: native Spark validations without GE (works without GE installed)
 
-Spec: docs/specs/airflow-dags.md — section "dag_quality_gates_silver"
+Spec: docs/05-observabilidade-sre.md — section "dag_quality_gates_silver"
 """
 
 from __future__ import annotations

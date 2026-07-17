@@ -17,8 +17,8 @@ IMPORTANT:
     after first read — never persists in XCom or structured logs.
   - `cpf_hash` parameter is the SHA-256 that identifies the subject in the lake.
 
-Spec: docs/specs/airflow-dags.md — section "dag_maint_lgpd_erasure"
-ADR:  docs/architecture/decisions/0004-pii-masking.md
+Spec: docs/05-observabilidade-sre.md — section "dag_maint_lgpd_erasure"
+ADR:  docs/ADRS.md
 """
 
 from __future__ import annotations

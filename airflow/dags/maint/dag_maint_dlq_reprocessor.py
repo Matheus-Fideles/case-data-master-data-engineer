@@ -12,7 +12,7 @@ Failure in a batch does not advance the offset — next run reprocesses.
 
 Metrics: `dlq_reprocessed_total{reason}` → Prometheus Pushgateway.
 
-Spec: docs/specs/airflow-dags.md — section "dag_maint_dlq_reprocessor"
+Spec: docs/05-observabilidade-sre.md — section "dag_maint_dlq_reprocessor"
 """
 
 from __future__ import annotations

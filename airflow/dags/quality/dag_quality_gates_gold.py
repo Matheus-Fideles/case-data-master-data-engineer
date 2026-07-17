@@ -8,8 +8,8 @@ Runs after each Gold load and validates Star Schema integrity:
 
 Failure blocks downstream consumers and alerts.
 
-Spec: docs/specs/airflow-dags.md — section "dag_quality_gates_gold"
-ADR:  docs/architecture/decisions/0006-scd2.md
+Spec: docs/05-observabilidade-sre.md — section "dag_quality_gates_gold"
+ADR:  docs/ADRS.md
 """
 
 from __future__ import annotations

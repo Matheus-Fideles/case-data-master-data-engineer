@@ -4,8 +4,8 @@ Runs every 5 minutes and checks if the SparkApplication
 'streaming-atendimento-consumer' is in RUNNING state on k3s.
 If not (FAILED, COMPLETED, absent), submits a new CRD.
 
-Spec: docs/specs/airflow-dags.md — section "Streaming"
-ADR: docs/architecture/decisions/0007-spark-on-kubernetes.md
+Spec: docs/05-observabilidade-sre.md — section "Streaming"
+ADR: docs/ADRS.md
 """
 
 from __future__ import annotations

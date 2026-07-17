@@ -14,7 +14,7 @@ SCD2 algorithm:
 After the SCD2 Postgres load, exports a current snapshot to Delta Lake
 for Trino serving at s3a://gold/epidemiologico/dim_paciente/.
 
-ADR: docs/architecture/decisions/0006-scd2.md
+ADR: docs/ADRS.md
 """
 
 from __future__ import annotations
