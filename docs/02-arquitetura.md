@@ -42,7 +42,9 @@ Este case implementa uma **Modern Data Platform** baseada em três pilares:
 
 ## 2. Diagrama de Solução
 
-> **Abrir:** `docs/assets/01-arquitetura-solucao.drawio` no [Draw.io](https://app.diagrams.net) ou VS Code com extensão Draw.io.
+![Arquitetura de Solução](./assets/01-arquitetura-solucao.png)
+
+> Fonte editável: `docs/assets/01-arquitetura-solucao.drawio`
 
 ```
 ┌────────────────────── FONTES DE DADOS ─────────────────────────┐
@@ -80,8 +82,10 @@ Este case implementa uma **Modern Data Platform** baseada em três pilares:
 
 ## 3. Diagrama de Fluxo de Dados
 
-> **Abrir:** `docs/assets/02-fluxo-dados.drawio` — mostra Bronze→Silver→Gold com paths, mascaramento e metadados.
-> **Deployment:** `docs/assets/03-deployment.drawio` — Docker Compose profiles + Rancher Desktop k3s.
+![Fluxo de Dados](./assets/02-fluxo-dados.png)
+
+> Deployment (Docker Compose + k3s): `docs/assets/03-deployment.drawio` / `03-deployment.png`
+> Fontes editáveis em `docs/assets/`
 
 ```mermaid
 flowchart TB
