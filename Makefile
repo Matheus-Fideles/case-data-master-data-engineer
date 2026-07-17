@@ -57,14 +57,14 @@ logs: ## Tails de logs de todos os serviços
 .PHONY: health-check
 health-check: ## Verifica saúde de todos os serviços via curl
 	@echo "=== Health check dos serviços ==="
-	@curl -sf http://localhost:8080/health > /dev/null && echo "  ✓ Airflow" || echo "  ✗ Airflow"
+	@curl -sf http://localhost:8080/health 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('metadatabase',{}).get('status')=='healthy' else 1)" 2>/dev/null && echo "  ✓ Airflow" || echo "  ✗ Airflow"
 	@curl -sf http://localhost:9000/minio/health/live > /dev/null && echo "  ✓ MinIO" || echo "  ✗ MinIO"
 	@docker exec $$($(COMPOSE) ps -q postgres) pg_isready -U postgres > /dev/null 2>&1 && echo "  ✓ Postgres" || echo "  ✗ Postgres"
 	@curl -sf http://localhost:8085/v1/info > /dev/null && echo "  ✓ Trino" || echo "  ✗ Trino"
 	@curl -sf http://localhost:3001/api/health > /dev/null && echo "  ✓ Metabase" || echo "  ✗ Metabase"
 	@curl -sf http://localhost:9090/-/healthy > /dev/null && echo "  ✓ Prometheus" || echo "  ✗ Prometheus"
 	@curl -sf http://localhost:3000/api/health > /dev/null && echo "  ✓ Grafana" || echo "  ✗ Grafana"
-	@curl -sf http://localhost:5000/api/v1/namespaces > /dev/null && echo "  ✓ Marquez" || echo "  ✗ Marquez"
+	@curl -sf http://localhost:5010/api/v1/namespaces > /dev/null && echo "  ✓ Marquez" || echo "  ✗ Marquez"
 
 # ── Demo (single command) ────────────────────────────────────────────────────
 .PHONY: demo demo-stop demo-reset

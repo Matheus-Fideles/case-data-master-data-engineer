@@ -4,7 +4,12 @@
 -- ── Roles ──────────────────────────────────────────────────────────────────
 
 -- Airflow usa o superuser postgres para gerenciar seu próprio schema
--- Marquez idem
+
+-- Marquez usa usuário próprio (configuração dev padrão: marquez/marquez)
+DO $$ BEGIN
+  CREATE ROLE marquez LOGIN PASSWORD 'marquez' CREATEDB;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Role para jobs Spark (escrita no Gold DW)
 DO $$ BEGIN

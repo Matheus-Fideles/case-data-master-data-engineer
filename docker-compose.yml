@@ -26,6 +26,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__SCHEDULER__STATSD_ON: "true"
     AIRFLOW__SCHEDULER__STATSD_HOST: prometheus
     AIRFLOW__SCHEDULER__STATSD_PORT: "9125"
+    AIRFLOW__WEBSERVER__WORKERS: "1"
     KUBECONFIG: /opt/airflow/.kube/config
     OFFLINE_MODE: ${OFFLINE_MODE:-0}
     PII_SALT: ${PII_SALT}
@@ -37,6 +38,7 @@ x-airflow-common: &airflow-common
     - ./airflow/plugins:/opt/airflow/plugins
     - ./apps:/opt/airflow/apps
     - ./data:/opt/airflow/data
+    - ./k8s:/opt/k8s:ro
     - ~/.kube:/opt/airflow/.kube:ro
     - airflow-logs:/opt/airflow/logs
   depends_on:
@@ -376,8 +378,8 @@ services:
       MARQUEZ_DB_USER: ${POSTGRES_USER}
       MARQUEZ_DB_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5000:5000"
-      - "5001:5001"
+      - "5010:5000"
+      - "5011:5001"
     depends_on:
       postgres:
         condition: service_healthy
