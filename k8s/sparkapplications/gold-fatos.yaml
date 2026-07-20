@@ -34,6 +34,7 @@ spec:
     coreLimit: "1200m"
     memory: "2g"
     serviceAccount: spark
+    labels: {}
     envFrom:
       - secretRef:
           name: minio-credentials
@@ -49,6 +50,7 @@ spec:
     coreLimit: "2000m"
     instances: 2
     memory: "2g"
+    labels: {}
     envFrom:
       - secretRef:
           name: minio-credentials

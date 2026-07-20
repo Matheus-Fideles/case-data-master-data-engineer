@@ -25,7 +25,8 @@ with DAG(
     def _extract(**context):
         from apps.geografico.jobs.extract_municipios import run
 
-        result = run()
+        snap = context["data_interval_start"].strftime("%Y%m%d")
+        result = run(snapshot_date=snap)
         context["ti"].xcom_push(key="extraction_result", value=result)
 
     extract = PythonOperator(

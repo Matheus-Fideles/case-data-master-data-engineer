@@ -20,7 +20,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
 
-from apps.shared.bronze_base import BronzeJob
+from apps.shared.bronze_base import BronzeJob, log
 from apps.shared.spark import build_spark
 
 _SCHEMA = StructType(
@@ -70,6 +70,24 @@ class VacinacaoPniBronzeJob(BronzeJob):
                 F.col("data_vacina").rlike(r"^\d{4}-\d{2}"),
                 F.regexp_replace(F.col("data_vacina").substr(1, 7), "-", ""),
             ).otherwise(F.lit(partition_val)),
+        )
+
+    def _write(self, df: DataFrame, output_path: str, partition_val: str) -> None:
+        """Uses dynamic replaceWhere because ano_mes is derived from data_vacina."""
+        parts = sorted(
+            r[0] for r in df.select(self.partition_col).distinct().collect() if r[0]
+        )
+        if not parts:
+            raise ValueError(f"No valid {self.partition_col} values in data")
+        replace_where = " OR ".join(f"{self.partition_col} = '{p}'" for p in parts)
+        log.info("[%s] replaceWhere: %s", self.source_name, replace_where)
+        (
+            df.write.format("delta")
+            .mode("overwrite")
+            .option("replaceWhere", replace_where)
+            .option("mergeSchema", "true")
+            .partitionBy(self.partition_col)
+            .save(output_path)
         )
 
 
