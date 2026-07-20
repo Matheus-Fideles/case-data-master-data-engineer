@@ -28,7 +28,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__SCHEDULER__STATSD_PORT: "9125"
     AIRFLOW__WEBSERVER__WORKERS: "1"
     PYTHONPATH: /opt/airflow
-    KUBECONFIG: /opt/airflow/.kube/config
+    KUBECONFIG: /opt/k8s/kubeconfig-airflow.yaml
     OFFLINE_MODE: ${OFFLINE_MODE:-0}
     PII_SALT: ${PII_SALT}
     API_BASE_URL: ${API_BASE_URL}
@@ -40,7 +40,6 @@ x-airflow-common: &airflow-common
     - ./apps:/opt/airflow/apps
     - ./data:/opt/airflow/data
     - ./k8s:/opt/k8s:ro
-    - ~/.kube:/opt/airflow/.kube:ro
     - airflow-logs:/opt/airflow/logs
   depends_on:
     postgres:

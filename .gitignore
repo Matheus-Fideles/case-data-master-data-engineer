@@ -36,6 +36,7 @@ airflow/plugins/__pycache__/
 spark-warehouse/
 metastore_db/
 derby.log
+infra/spark/jars/
 
 # ── IDE ───────────────────────────────────────────────────────
 .idea/

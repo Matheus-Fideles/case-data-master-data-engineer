@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import os
 
-from delta import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession
 
 _OL_URL = os.environ.get("OPENLINEAGE_URL", "")
@@ -54,7 +53,7 @@ def build_spark(app_name: str) -> SparkSession:
     if _OL_URL:
         builder = _configure_openlineage(builder, app_name)
 
-    return configure_spark_with_delta_pip(builder).getOrCreate()
+    return builder.getOrCreate()
 
 
 def _configure_openlineage(builder, app_name: str):
@@ -68,6 +67,4 @@ def _configure_openlineage(builder, app_name: str):
         .config("spark.openlineage.transport.url", _OL_URL)
         .config("spark.openlineage.namespace", _OL_NAMESPACE)
         .config("spark.openlineage.appName", app_name)
-        .config("spark.openlineage.facets.spark_unknown.disabled", "false")
-        .config("spark.openlineage.facets.spark.logicalPlan.disabled", "false")
     )

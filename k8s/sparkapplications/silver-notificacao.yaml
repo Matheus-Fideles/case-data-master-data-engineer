@@ -19,16 +19,15 @@ spec:
   sparkConf:
     spark.extraListeners: io.openlineage.spark.agent.OpenLineageSparkListener
     spark.openlineage.transport.type: http
-    spark.openlineage.transport.url: "http://marquez:5000"
+    spark.openlineage.transport.url: "http://host.docker.internal:5010"
     spark.openlineage.namespace: "batch"
-    spark.openlineage.facets.spark_unknown.disabled: "false"
-    spark.openlineage.facets.spark.logicalPlan.disabled: "false"
     spark.sql.extensions: io.delta.sql.DeltaSparkSessionExtension
     spark.sql.catalog.spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
     spark.hadoop.fs.s3a.endpoint: http://host.docker.internal:9000
     spark.hadoop.fs.s3a.path.style.access: "true"
     spark.hadoop.fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
     spark.hadoop.fs.s3a.connection.ssl.enabled: "false"
+    spark.sql.shuffle.partitions: "4"
   driver:
     cores: 1
     coreLimit: "1200m"
@@ -39,7 +38,7 @@ spec:
           name: minio-credentials
     env:
       - name: OPENLINEAGE_URL
-        value: "http://marquez:5000"
+        value: "http://host.docker.internal:5010"
       - name: OPENLINEAGE_NAMESPACE
         value: "batch"
   executor:
