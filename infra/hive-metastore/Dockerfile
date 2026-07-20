@@ -6,6 +6,10 @@ ARG POSTGRES_JDBC_VERSION=42.7.3
 ARG HADOOP_AWS_VERSION=3.3.4
 ARG AWS_SDK_VERSION=1.12.367
 
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN curl -fsSL \
     "https://jdbc.postgresql.org/download/postgresql-${POSTGRES_JDBC_VERSION}.jar" \
     -o /opt/hive/lib/postgresql-${POSTGRES_JDBC_VERSION}.jar && \

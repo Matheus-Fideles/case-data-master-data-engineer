@@ -37,3 +37,23 @@ CREATE TABLE IF NOT EXISTS gold_dw.dim_estabelecimento (
 );
 
 CREATE INDEX IF NOT EXISTS idx_estab_cnes ON gold_dw.dim_estabelecimento (co_cnes, is_current);
+
+-- Fato Atendimento (streaming — agregado por batch job ou Spark foreachBatch)
+-- Dados primários vivem em Delta Lake (ADR-0011); esta tabela serve de view materializada
+-- para queries relacionais e referential integrity checks no smoke test suite.
+CREATE TABLE IF NOT EXISTS gold_dw.fato_atendimento (
+    sk_atendimento     BIGSERIAL    PRIMARY KEY,
+    sk_paciente        INT          REFERENCES gold_dw.dim_paciente(sk_paciente),
+    sk_estabelecimento INT          REFERENCES gold_dw.dim_estabelecimento(sk_estabelecimento),
+    sk_tempo           INT          NOT NULL,
+    tipo_atendimento   VARCHAR(50),
+    triagem            VARCHAR(30),
+    evento_ts          TIMESTAMPTZ  NOT NULL,
+    kafka_offset       BIGINT,
+    kafka_partition    SMALLINT,
+    _batch_id          VARCHAR(64),
+    _load_ts           TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fato_atend_paciente ON gold_dw.fato_atendimento (sk_paciente);
+CREATE INDEX IF NOT EXISTS idx_fato_atend_tempo    ON gold_dw.fato_atendimento (sk_tempo);
