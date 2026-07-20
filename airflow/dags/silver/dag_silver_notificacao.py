@@ -1,7 +1,8 @@
 """DAG Silver — Notification (arboviruses).
 
-Processes dengue, zika and chikungunya from Bronze to Silver in parallel.
-Each disease type is an independent SparkApplication in k8s.
+Processes dengue, zika and chikungunya from Bronze to Silver sequentially.
+Sequential to avoid k8s resource starvation on local dev cluster (10 GB).
+Each disease: 1 driver + 1 executor = ~5 GB of k8s requests.
 Upstream dependency: dag_bronze_dengue, dag_bronze_zika, dag_bronze_chikungunya.
 """
 
@@ -26,6 +27,7 @@ with DAG(
 
     disease_types = ("dengue", "zika", "chikungunya")
 
+    prev_emit: PythonOperator | None = None
     for disease in disease_types:
         submit, sensor = make_spark_operator(
             task_id=f"silver_notificacao_{disease}",
@@ -51,4 +53,8 @@ with DAG(
             trigger_rule="all_success",
         )
 
+        if prev_emit is not None:
+            prev_emit >> submit
+
         submit >> sensor >> emit_lineage
+        prev_emit = emit_lineage

@@ -42,9 +42,9 @@ spec:
       - name: OPENLINEAGE_NAMESPACE
         value: "batch"
   executor:
-    cores: 2
-    coreLimit: "2000m"
-    instances: 2
+    cores: 1
+    coreLimit: "1200m"
+    instances: 1
     memory: "2g"
     labels: {}
     envFrom:
