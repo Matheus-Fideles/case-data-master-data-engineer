@@ -44,8 +44,6 @@ Este case implementa uma **Modern Data Platform** baseada em três pilares:
 
 ![Arquitetura de Solução](./assets/01-arquitetura-solucao.png)
 
-> Fonte editável: `docs/assets/01-arquitetura-solucao.drawio`
-
 ```
 ┌────────────────────── FONTES DE DADOS ─────────────────────────┐
 │  REST API MS    CSV DataSUS    Postgres OLTP    Kafka Stream    │
@@ -75,7 +73,7 @@ Este case implementa uma **Modern Data Platform** baseada em três pilares:
               ┌────────────────────┼──────────────────┐
               ▼                    ▼                  ▼
           Notebooks            Trino CLI         BI Tools
-          (análise)            (SQL)             (Superset)
+          (análise)            (SQL)             (Metabase)
 ```
 
 ---
@@ -84,8 +82,7 @@ Este case implementa uma **Modern Data Platform** baseada em três pilares:
 
 ![Fluxo de Dados](./assets/02-fluxo-dados.png)
 
-> Deployment (Docker Compose + k3s): `docs/assets/03-deployment.drawio` / `03-deployment.png`
-> Fontes editáveis em `docs/assets/`
+> Deployment (Docker Compose + k3s): `docs/assets/03-deployment.png`
 
 ```mermaid
 flowchart TB
@@ -199,7 +196,9 @@ Trino 448
                           └── tabelas registradas → s3a://gold/...
 ```
 
-**Startup order:** `postgres` + `minio` → `hive-metastore (thrift:9083 healthy)` → `trino`
+**Startup order:** `postgres` + `minio` → `hive-metastore (thrift:9083 healthy)` → `trino` → `metabase`
+
+**Dashboard (Metabase):** disponível em `http://localhost:3001` (`admin@local.dev / Admin1234!`). Conectado ao Trino via driver `presto-jdbc` (compatibilidade com `protocol.v1.alternate-header-name=Presto`). Dashboard "Mortalidade — Case Santander" inclui: total de óbitos, distribuição por ano/sexo/faixa etária, top municípios e causas CID-10.
 
 **Catalog (`infra/trino/catalog/delta.properties`):**
 ```properties
@@ -207,10 +206,13 @@ connector.name=delta_lake
 hive.metastore=thrift
 hive.metastore.uri=thrift://hive-metastore:9083
 delta.enable-non-concurrent-writes=true
+delta.register-table-procedure.enabled=true
 fs.native-s3.enabled=true
 s3.endpoint=http://minio:9000
 s3.path-style-access=true
 ```
+
+`delta.register-table-procedure.enabled=true` habilita o `CALL delta.system.register_table(...)` para registrar tabelas Delta existentes no Hive Metastore sem recriação.
 
 ---
 
@@ -247,20 +249,22 @@ erDiagram
 
 ### Tabelas Gold
 
-| Tipo | Tabela | Storage | SCD | Chave idempotência |
+| Tipo | Tabela | Storage | Status | Chave idempotência |
 |---|---|---|---|---|
-| Fato | `fato_notificacao` | Delta (`s3a://gold/epidemiologico/`) | — | `(nu_ano, sg_uf_not, sem_not, nu_idade_n, cs_sexo, id_municip)` |
-| Fato | `fato_obito` | Delta (`s3a://gold/hospitalar/`) | — | `nk_dec_obito` |
-| Fato | `fato_vacinacao` | Delta (`s3a://gold/vacinal/`) | — | `nk_codigo_documento` |
-| Fato | `fato_atendimento_stream` | Delta (`s3a://gold/streaming/`) | — | `(sk_paciente, ts_evento)` |
+| Fato | `fato_obito` | Delta (`s3a://gold/hospitalar/fatos_obito/`) | ✅ 100 registros | `_batch_id + co_municipio_ocor + id_causa_basica` |
+| Fato | `fato_notificacao` | Delta (`s3a://gold/epidemiologico/`) | ⏳ aguarda silver epidemiológico | `(nu_ano, sg_uf_not, sem_not, nu_idade_n, cs_sexo, id_municip)` |
+| Fato | `fato_vacinacao` | Delta (`s3a://gold/vacinal/`) | ⏳ aguarda dados PNI | `nk_codigo_documento` |
+| Fato | `fato_atendimento_stream` | Delta (`s3a://gold/streaming/`) | ⏳ streaming contínuo | `(sk_paciente, ts_evento)` |
+| Dim | `dim_municipio` | Delta (`s3a://gold/geografico/dim_municipio/`) | ✅ 5.570 municípios | `codigo_municipio` |
+| Dim | `dim_agravo` | Delta (`s3a://gold/epidemiologico/dim_agravo/`) | ✅ dengue/zika/chikungunya | `id_agravo` |
+| Dim | `dim_vacina` | Delta (`s3a://gold/vacinal/dim_vacina/`) | ⏳ aguarda dados PNI | `nk_codigo_vacina` |
+| Dim | `dim_tempo` | Delta (`s3a://gold/epidemiologico/dim_tempo/`) | ⏳ aguarda execução | `data` |
 | Dim | `dim_paciente` | **Postgres** `gold_dw` | SCD2 | `nk_cpf_hash` |
 | Dim | `dim_estabelecimento` | **Postgres** `gold_dw` | SCD2 | `nk_cnes` |
-| Dim | `dim_municipio` | Delta (`s3a://gold/geografico/`) | SCD1 | `nk_codigo_ibge_6` |
-| Dim | `dim_agravo` | Delta | SCD0 | `nk_codigo_agravo` |
-| Dim | `dim_vacina` | Delta | SCD0 | `nk_codigo_vacina` |
-| Dim | `dim_tempo` | Delta | SCD0 | `data` |
 
 > `dim_paciente` e `dim_estabelecimento` permanecem em Postgres via psycopg2 porque o job SCD2 precisa de locks transacionais para `UPDATE is_current=FALSE` + `INSERT`. O restante da Gold fica no Delta Lake.
+>
+> Todas as tabelas com status ✅ estão registradas no Hive Metastore e acessíveis via Trino (`delta.*`) e Metabase.
 
 ### Política de Particionamento
 

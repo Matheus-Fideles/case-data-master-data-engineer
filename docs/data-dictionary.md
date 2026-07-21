@@ -17,17 +17,19 @@
 
 ## Mapa de tabelas Gold
 
-| Tipo | Tabela | Tipo SCD | Cardinalidade S2 esperada |
-|---|---|---|---|
-| Dimensão | `dim_paciente` | **2** | 50.000 base + ~5%/ano de novas versões |
-| Dimensão | `dim_estabelecimento` | **2** | 500 base + ~10%/ano de novas versões |
-| Dimensão | `dim_municipio` | 1 | 5.570 |
-| Dimensão | `dim_cid` | 0 | ~14.000 |
-| Dimensão | `dim_procedimento` | 0 | ~5.000 |
-| Dimensão | `dim_tempo` | 0 | ~36.500 (100 anos) |
-| Fato | `fato_internacao` | — | 250.000/UF/mês |
-| Fato | `fato_obito` | — | 70.000/UF/ano |
-| Fato | `fato_atendimento_stream` | — | depende do throughput |
+| Tipo | Tabela | Status | Tipo SCD | Cardinalidade |
+|---|---|---|---|---|
+| Dimensão | `dim_municipio` | ✅ Delta Lake | 1 | 5.570 (todos os municípios BR) |
+| Dimensão | `dim_agravo` | ✅ Delta Lake | 0 | 3 (dengue, zika, chikungunya) |
+| Dimensão | `dim_paciente` | ✅ Postgres `gold_dw` | **2** | 50.000 base + ~5%/ano de novas versões |
+| Dimensão | `dim_estabelecimento` | ✅ Postgres `gold_dw` | **2** | 500 base + ~10%/ano de novas versões |
+| Dimensão | `dim_vacina` | ⏳ aguarda PNI silver | 0 | ~50 tipos de vacina |
+| Dimensão | `dim_tempo` | ⏳ aguarda execução | 0 | ~36.500 (100 anos) |
+| Fato | `fato_obito` | ✅ Delta Lake | — | 100 registros (amostra SIM 2024) |
+| Fato | `fato_notificacao` | ⏳ aguarda silver | — | depende do volume SINAN |
+| Fato | `fato_atendimento_stream` | ⏳ streaming contínuo | — | depende do throughput Kafka |
+
+> **Os dados são reais**, processados pelo pipeline Spark a partir das APIs públicas do Ministério da Saúde (SIM/DATASUS, IBGE, SINAN, PNI). Em ambiente offline, a fonte é `data/raw/` (amostras baixadas por `make seed`). Nenhum dado é gerado sinteticamente — exceto OLTP Faker (Postgres) e Streaming Faker (Kafka), que simulam fluxos transacionais para demonstração de PII masking e streaming.
 
 ---
 
@@ -80,20 +82,34 @@ Representa pacientes com versionamento histórico. Cada mudança de atributo ger
 ### `gold.dim_municipio` (SCD Tipo 1)
 
 Atributos descritivos sobrescritos. Sem histórico (mudanças de nome são raras e o caso analítico não exige histórico).
+Path: `s3a://gold/geografico/dim_municipio/` · Trino: `delta.geografico.dim_municipio`
 
 | Coluna | Tipo | Origem | Regra | Significado |
 |---|---|---|---|---|
-| `sk_municipio` | BIGINT | gerado | sequencial | SK |
-| `nk_codigo_ibge_7` | STRING(7) | `silver.municipio.codigo_ibge_7` | preservado | Código IBGE 7 dígitos (com dígito verificador) |
-| `codigo_ibge_6` | STRING(6) | derivado | substring(codigo_ibge_7, 0, 6) | **Para join com DataSUS** (que usa 6 dígitos) |
-| `nome` | STRING | `silver.municipio.nome` | TRIM | Nome oficial |
-| `sigla_uf` | STRING(2) | `silver.municipio.sigla_uf` | preservado | UF |
-| `nome_uf` | STRING | `silver.municipio.nome_uf` | preservado | Nome da UF |
-| `regiao` | STRING | `silver.municipio.regiao` | preservado | Norte/Nordeste/Centro-Oeste/Sudeste/Sul |
-| `mesorregiao` | STRING | `silver.municipio.mesorregiao` | preservado | Agrupamento intermediário |
-| `microrregiao` | STRING | `silver.municipio.microrregiao` | preservado | Agrupamento mais fino |
-| `populacao` | LONG | `silver.populacao_ibge.populacao_2024` | mais recente disponível | Habitantes (denominador para taxas) |
-| `_loaded_at` | TIMESTAMP | metadata | now() | Auditoria |
+| `codigo_municipio` | INTEGER | `silver.geografico.municipio.codigo_municipio` | preservado | Código IBGE 6 dígitos — chave de join com DataSUS |
+| `nome_municipio` | STRING | `silver.geografico.municipio.nome_municipio` | TRIM | Nome oficial com prefixo UF (ex.: `"SP - SAO PAULO"`) |
+| `sigla_uf` | STRING | `silver.geografico.municipio.sigla_uf` | preservado | Nome por extenso da UF (ex.: `"São Paulo"`) |
+| `nome_regiao_saude` | STRING | `silver.geografico.municipio.nome_regiao_saude` | preservado | Região de saúde (CIR/CIB) |
+| `nome_macro_saude` | STRING | `silver.geografico.municipio.nome_macro_saude` | preservado | Macrorregião de saúde estadual |
+| `codigo_uf` | INTEGER | derivado | primeiros 2 dígitos de `codigo_municipio` | Código IBGE da UF |
+| `populacao_2022` | INTEGER | `silver.geografico.municipio.populacao_2022` | censo IBGE 2022 | Habitantes — denominador para taxas por 100k |
+| `_batch_id` | STRING | metadata | ID do snapshot que gerou o registro | Rastreabilidade da carga |
+
+---
+
+---
+
+### `gold.dim_agravo` (SCD Tipo 0 — imutável)
+
+Catálogo de agravos notificáveis (SINAN). Cobre dengue, Zika e Chikungunya neste caso.
+Path: `s3a://gold/epidemiologico/dim_agravo/` · Trino: `delta.epidemiologico.dim_agravo`
+
+| Coluna | Tipo | Origem | Significado |
+|---|---|---|---|
+| `id_agravo` | STRING | código SINAN | Código do agravo (ex.: `A90` = Dengue, `A92.0` = Zika, `A92.3` = Chikungunya) |
+| `nome_agravo` | STRING | SINAN | Nome descritivo do agravo |
+| `categoria` | STRING | derivado | Classificação epidemiológica (ex.: `"Arbovirose"`) |
+| `sistema` | STRING | constante | Sistema de origem (`"SINAN"`) |
 
 ---
 
@@ -189,27 +205,39 @@ Cada linha = uma AIH (Autorização de Internação Hospitalar).
 
 ### `gold.fato_obito` — fato SIM
 
-Cada linha = uma Declaração de Óbito.
+Cada linha = um registro de óbito (SIM/DATASUS). 100 registros carregados (amostra 2024).
+Path: `s3a://gold/hospitalar/fatos_obito/` · Trino: `delta.hospitalar.fato_obito`
 
 | Coluna | Tipo | Origem | Regra | Significado |
 |---|---|---|---|---|
-| `sk_obito` | BIGINT | gerado | | SK |
-| `nk_dec_obito` | STRING(8) | `silver.obito.numero_do` | preservado | Número da DO |
-| `sk_paciente` | BIGINT | lookup SCD2 | (cuidado: SIM nem sempre identifica via CPF, pode ficar NULL) | Paciente vinculado se identificável |
-| `sk_municipio_ocorrencia` | BIGINT | lookup | `dim_municipio` via `codmun_ocor` | Onde ocorreu o óbito |
-| `sk_municipio_residencia` | BIGINT | lookup | `dim_municipio` via `codmun_res` | Onde residia |
-| `sk_cid_causa_basica` | BIGINT | lookup | `dim_cid` via `causa_bas` | Causa básica |
-| `sk_tempo_obito` | BIGINT | lookup | `dim_tempo` via `dt_obito` | Quando |
-| `idade_obito_anos` | INTEGER | derivado | Decodificação SIM | Idade em anos |
-| `tipo_local_obito` | STRING | derivado | de `local_ocor` (1→hospital, 2→outro estab. saúde, 3→domicílio, 4→via pública, ...) | Local categórico |
-| `recebeu_assistencia` | BOOLEAN | derivado | de `assist_med` | Recebeu assistência médica? |
-| `ano_part` | INTEGER | partição | year(dt_obito) | Particionamento |
-| `_loaded_at` | TIMESTAMP | metadata | | |
+| `dt_obito` | DATE | `silver.hospitalar.sim_obitos.dt_obito` | preservado | Data do óbito |
+| `co_municipio_ocor` | INTEGER | `silver.hospitalar.sim_obitos.codmunocor` | código IBGE 6 dígitos | Join com `dim_municipio.codigo_municipio` |
+| `id_causa_basica` | STRING | `silver.hospitalar.sim_obitos.causabas` | preservado | Causa básica do óbito (código CID-10) |
+| `idade` | INTEGER | `silver.hospitalar.sim_obitos.idade` | decodificação SIM | Idade em anos (ou em dias/meses conforme tipo) |
+| `sexo` | STRING | `silver.hospitalar.sim_obitos.sexo` | preservado | `"1"` = Masculino, `"2"` = Feminino |
+| `ano_part` | STRING | derivado | `year(dt_obito)` | Partição — filtro principal |
+| `sk_tempo` | INTEGER | lookup | `dim_tempo` via `dt_obito` (NULL se dim_tempo ainda não populada) | Join temporal |
+| `qtd_obitos` | INTEGER | constante | `1` por linha | Métrica aditiva |
+| `_batch_id` | STRING | metadata | ID do batch Spark que gerou o registro | Rastreabilidade de carga |
+| `_load_ts` | TIMESTAMP WITH TIME ZONE | metadata | Timestamp UTC da escrita no Gold | Auditoria |
+
+**Join de referência:**
+```sql
+SELECT m.nome_municipio, m.sigla_uf,
+       f.id_causa_basica,
+       SUM(f.qtd_obitos) AS total_obitos
+FROM delta.hospitalar.fato_obito f
+JOIN delta.geografico.dim_municipio m
+  ON f.co_municipio_ocor = m.codigo_municipio
+WHERE f.ano_part = '2024'
+GROUP BY 1, 2, 3
+ORDER BY total_obitos DESC
+```
 
 **Métricas derivadas:**
-- `taxa_mortalidade_por_100k_hab`
-- `mortalidade_por_capitulo_cid` (capítulo via dim_cid)
-- `idade_mediana_obito_por_municipio`
+- `taxa_mortalidade_por_100k_hab` = `SUM(qtd_obitos) / populacao_2022 * 100000`
+- Top causas: `GROUP BY id_causa_basica ORDER BY SUM(qtd_obitos) DESC`
+- Pirâmide etária: `GROUP BY sexo, faixa_etaria`
 
 ---
 
@@ -238,75 +266,85 @@ Cada linha = um evento de atendimento (PS, ambulatorial, etc.).
 
 ## Views/queries de referência
 
-A seguir, queries que viram **dashboards Metabase** ou **demos ao vivo**:
+Queries validadas no Trino 448 (`http://localhost:8085`) e disponíveis como cards no Metabase (`http://localhost:3001/dashboard/2`).
 
-### Top municípios por taxa de internação por 100k
+### Total de óbitos
 
 ```sql
-SELECT
-  m.nome AS municipio,
-  m.sigla_uf AS uf,
-  COUNT(*) AS internacoes,
-  m.populacao AS habitantes,
-  CAST(COUNT(*) AS DOUBLE) / m.populacao * 100000 AS taxa_por_100k
-FROM gold.fato_internacao f
-JOIN gold.dim_municipio m ON f.sk_municipio_paciente = m.sk_municipio
-JOIN gold.dim_tempo t ON f.sk_tempo_admissao = t.sk_tempo
-WHERE t.ano_mes = '2024-01'
-GROUP BY m.nome, m.sigla_uf, m.populacao
-HAVING m.populacao > 50000
+SELECT COUNT(*) AS total_obitos
+FROM delta.hospitalar.fato_obito
+```
+
+### Top municípios por óbitos
+
+```sql
+SELECT m.nome_municipio, m.sigla_uf,
+       SUM(f.qtd_obitos) AS total_obitos
+FROM delta.hospitalar.fato_obito f
+JOIN delta.geografico.dim_municipio m
+  ON f.co_municipio_ocor = m.codigo_municipio
+GROUP BY m.nome_municipio, m.sigla_uf
+ORDER BY total_obitos DESC
+LIMIT 10
+```
+
+### Taxa de mortalidade por 100k habitantes
+
+```sql
+SELECT m.nome_municipio, m.sigla_uf,
+       SUM(f.qtd_obitos) AS total_obitos,
+       m.populacao_2022,
+       CAST(SUM(f.qtd_obitos) AS DOUBLE) / m.populacao_2022 * 100000 AS taxa_por_100k
+FROM delta.hospitalar.fato_obito f
+JOIN delta.geografico.dim_municipio m
+  ON f.co_municipio_ocor = m.codigo_municipio
+WHERE m.populacao_2022 > 10000
+GROUP BY m.nome_municipio, m.sigla_uf, m.populacao_2022
 ORDER BY taxa_por_100k DESC
 LIMIT 20
 ```
 
-### Permanência média por capítulo CID e tipo de internação
+### Distribuição por sexo
 
 ```sql
 SELECT
-  c.nome_capitulo,
-  f.carater_internacao,
-  AVG(f.dias_permanencia) AS permanencia_media,
-  COUNT(*) AS qtd_internacoes
-FROM gold.fato_internacao f
-JOIN gold.dim_cid c ON f.sk_cid_principal = c.sk_cid
-WHERE f.dias_permanencia IS NOT NULL
-GROUP BY c.nome_capitulo, f.carater_internacao
-ORDER BY permanencia_media DESC
+  CASE sexo WHEN '1' THEN 'Masculino' WHEN '2' THEN 'Feminino' ELSE 'Ignorado' END AS sexo_desc,
+  SUM(qtd_obitos) AS total_obitos
+FROM delta.hospitalar.fato_obito
+GROUP BY sexo
 ```
 
-### Atendimentos em tempo real por estabelecimento (streaming)
+### Top 10 causas CID-10
 
 ```sql
-SELECT
-  e.nome AS hospital,
-  COUNT(*) AS atendimentos_ultima_hora
-FROM gold.fato_atendimento_stream a
-JOIN gold.dim_estabelecimento e ON a.sk_estabelecimento = e.sk_estabelecimento AND e.is_current = true
-WHERE a.ts_evento >= now() - INTERVAL '1' HOUR
-GROUP BY e.nome
-ORDER BY atendimentos_ultima_hora DESC
+SELECT id_causa_basica AS cid10,
+       SUM(qtd_obitos) AS total_obitos
+FROM delta.hospitalar.fato_obito
+GROUP BY id_causa_basica
+ORDER BY total_obitos DESC
+LIMIT 10
 ```
 
-### Cohort de pacientes por faixa etária
+### Distribuição por faixa etária
 
 ```sql
 SELECT
   CASE
-    WHEN f.idade_anos < 18 THEN '0-17'
-    WHEN f.idade_anos < 60 THEN '18-59'
-    ELSE '60+'
+    WHEN idade < 1  THEN '< 1 ano'
+    WHEN idade < 5  THEN '1-4 anos'
+    WHEN idade < 15 THEN '5-14 anos'
+    WHEN idade < 30 THEN '15-29 anos'
+    WHEN idade < 60 THEN '30-59 anos'
+    WHEN idade < 80 THEN '60-79 anos'
+    ELSE '80+ anos'
   END AS faixa_etaria,
-  COUNT(*) AS internacoes,
-  AVG(f.dias_permanencia) AS permanencia_media,
-  SUM(f.valor_total) AS gasto_total
-FROM gold.fato_internacao f
-JOIN gold.dim_tempo t ON f.sk_tempo_admissao = t.sk_tempo
-WHERE t.ano = 2024
+  SUM(qtd_obitos) AS total_obitos
+FROM delta.hospitalar.fato_obito
 GROUP BY 1
-ORDER BY 1
+ORDER BY MIN(idade)
 ```
 
-### Pacientes que mudaram de cidade (validação SCD2)
+### Pacientes que mudaram de cidade (validação SCD2 — Postgres)
 
 ```sql
 SELECT
@@ -314,7 +352,7 @@ SELECT
   COUNT(*) AS qtd_versoes,
   MIN(valid_from) AS primeira_versao,
   MAX(valid_to) AS ultima_validade
-FROM gold.dim_paciente
+FROM dim_paciente
 GROUP BY nk_cpf_hash
 HAVING COUNT(*) > 1
 ORDER BY qtd_versoes DESC

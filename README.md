@@ -148,11 +148,12 @@ make smoke                  # full suite (requires compose up)
 | MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
 | Hive Metastore | thrift://localhost:9083 | — (interno) |
 | Trino UI | http://localhost:8085/ui | trino / (sem senha) |
+| Metabase | http://localhost:3001 | admin@local.dev / Admin1234! |
 | Grafana | http://localhost:3000 | admin / admin |
 | Marquez UI | http://localhost:5000 | — |
 | Prometheus | http://localhost:9090 | — |
 
-### Pre-demo warmup (10 min before presentation)
+### Pré-aquecimento do ambiente
 
 ```bash
 make warmup   # pre-pull Docker + k8s images
@@ -178,7 +179,7 @@ make warmup   # pre-pull Docker + k8s images
 | `make k8s-setup` | Install spark-operator + create spark namespace + secrets |
 | `make k8s-spark-image` | Build + push custom Spark image to local registry |
 | `make run-demo-pipeline` | Manually trigger E2E pipeline via Airflow CLI |
-| `make warmup` | Pre-pull Docker + k8s images |
+| `make warmup` | Pré-pull de imagens Docker + k8s |
 | `make logs` | Tail logs from all services |
 
 ## Estrutura do repositório
@@ -193,7 +194,7 @@ make warmup   # pre-pull Docker + k8s images
 │   ├── 05-observabilidade-sre.md # Prometheus, Grafana, Marquez, runbook e smoke tests
 │   ├── ADRS.md                  # Todas as 11 decisões arquiteturais (ADR-001 a ADR-011)
 │   ├── data-dictionary.md       # Dicionário coluna-a-coluna das tabelas Gold
-│   ├── assets/                  # Diagramas Draw.io (arquitetura, fluxo, deployment)
+│   ├── assets/                  # Diagramas PNG (arquitetura, fluxo, stack tecnológica)
 │   ├── integrations/            # Guias detalhados por fonte (CNES, SINAN, PNI, OLTP, Kafka)
 │   └── specs/                   # Specs técnicas: DAGs Airflow, schemas Bronze, smoke tests
 ├── apps/                        # Código por domínio de negócio (Data Mesh + Hexagonal)
