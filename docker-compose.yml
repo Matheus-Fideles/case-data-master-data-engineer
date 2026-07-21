@@ -106,6 +106,10 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_SVC_PIPELINE_USER: ${MINIO_SVC_PIPELINE_USER}
+      MINIO_SVC_PIPELINE_PASSWORD: ${MINIO_SVC_PIPELINE_PASSWORD}
+      MINIO_SVC_SERVING_USER: ${MINIO_SVC_SERVING_USER}
+      MINIO_SVC_SERVING_PASSWORD: ${MINIO_SVC_SERVING_PASSWORD}
     depends_on:
       minio:
         condition: service_healthy
@@ -291,11 +295,13 @@ services:
     env_file: .env
     environment:
       # Lidos pelo delta.properties via ${ENV:VAR} (substituição nativa do Trino 348+)
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # svc-serving: somente leitura em gold — least-privilege para query engine
+      MINIO_SVC_SERVING_USER: ${MINIO_SVC_SERVING_USER}
+      MINIO_SVC_SERVING_PASSWORD: ${MINIO_SVC_SERVING_PASSWORD}
     volumes:
       - ./infra/trino/catalog:/etc/trino/catalog:ro
-      - ./infra/trino/etc:/etc/trino/etc:ro
+      - ./infra/trino/etc/config.properties:/etc/trino/config.properties:ro
+      - ./infra/trino/etc/jvm.config:/etc/trino/jvm.config:ro
     ports:
       - "8085:8080"
     restart: unless-stopped
