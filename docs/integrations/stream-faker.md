@@ -104,7 +104,7 @@ O container `stream-producer` deve:
 3. Carregar lista de estabelecimentos (~500 CNES)
 4. Loop principal:
    - Gerar evento sintético com Faker
-   - Validar com Pydantic (defesa contra schema drift no próprio gerador)
+   - Validar com Pydantic (proteção contra schema drift no próprio gerador)
    - Publicar em `atendimentos.raw` com chave = `id_paciente` (preserva ordem por paciente)
    - Sleep configurável (default 200ms = 5 eventos/seg)
 5. Em modo **demo**, aceitar `EVENTS_PER_SECOND` via env (1 a 100)
@@ -135,7 +135,7 @@ Para demonstrar resiliência:
 - **5% dos eventos**: producer emite payload **propositalmente quebrado** (campo faltando, tipo errado, CID inválido)
 - Configurável via `DIRTY_RATE=0.05`
 - Spark Streaming consumer detecta e desvia para `atendimentos.dlq`
-- Dashboard Grafana mostra contagem DLQ → defesa de "monitoramento de gargalos" (req. 4)
+- Dashboard Grafana mostra contagem DLQ → demonstração de monitoramento de gargalos (req. 4)
 
 ## 6. Como o Spark consome
 
@@ -152,7 +152,7 @@ Stream não é "cacheável" no mesmo sentido que CSV/API — é tempo real por n
 
 - **Em CI** (smoke test): rodar producer por **5 segundos**, capturar saída, validar consumer recebeu
 - **Em demo offline** (laptop sem rede): producer gera tudo localmente — não depende de internet
-- **Replay de eventos antigos** (defesa de Kappa-like): producer pode ler `data/raw/atendimentos/replay_<dia>.jsonl` em vez de gerar novos — é como fazer "playback" de uma demo passada. Útil para gravação de vídeo de fallback.
+- **Replay de eventos antigos** (reprodução ao estilo Kappa): producer pode ler `data/raw/atendimentos/replay_<dia>.jsonl` em vez de gerar novos — é como fazer "playback" de uma demo passada. Útil para gravação de vídeo de fallback.
 
 ## 8. Volume e dimensionamento
 

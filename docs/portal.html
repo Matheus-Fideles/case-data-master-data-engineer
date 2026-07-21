@@ -5,63 +5,106 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Case Santander — Data Master Portal</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#fef2f2', 100:'#fee2e2', 500:'#ef4444', 600:'#dc2626', 700:'#b91c1c' },
+          },
+          fontFamily: { sans: ['Inter','system-ui','sans-serif'] },
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    * { font-family: 'Inter', sans-serif; }
-    .glow { box-shadow: 0 0 20px rgba(56,189,248,0.15); }
-    .glow-green { box-shadow: 0 0 20px rgba(74,222,128,0.1); }
-    .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-    .card-hover:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
-    .badge-pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
-    .gradient-text {
-      background: linear-gradient(135deg, #38bdf8, #818cf8, #a78bfa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .section-divider {
-      background: linear-gradient(90deg, transparent, #334155, transparent);
-      height: 1px;
-    }
-    details summary { cursor: pointer; list-style: none; }
-    details summary::-webkit-details-marker { display: none; }
-    details[open] .chevron { transform: rotate(180deg); }
-    .chevron { transition: transform 0.2s; }
-    .tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+    body { font-family: 'Inter', system-ui, sans-serif; }
+
+    /* card lift */
+    .card { transition: box-shadow .18s ease, transform .18s ease; }
+    .card:hover { box-shadow: 0 8px 30px rgba(0,0,0,.10); transform: translateY(-2px); }
+
+    /* status dot */
+    .dot-online { background:#22c55e; box-shadow: 0 0 0 3px #dcfce7; }
+    .dot-infra  { background:#94a3b8; box-shadow: 0 0 0 3px #f1f5f9; }
+    .dot-serving{ background:#3b82f6; box-shadow: 0 0 0 3px #dbeafe; }
+
+    /* accordion */
+    details summary { cursor:pointer; list-style:none; }
+    details summary::-webkit-details-marker { display:none; }
+    details[open] .caret { transform:rotate(180deg); }
+    .caret { transition:transform .2s; }
+
+    /* code inline */
+    code { background:#f1f5f9; border:1px solid #e2e8f0; border-radius:4px; padding:1px 5px; font-size:.8em; font-family:ui-monospace,monospace; color:#334155; }
+
+    /* terminal block */
+    .terminal { background:#0f172a; border-radius:10px; padding:16px 20px; font-family:ui-monospace,monospace; font-size:13px; line-height:1.7; }
+    .terminal .prompt { color:#64748b; }
+    .terminal .cmd    { color:#86efac; }
+    .terminal .arg    { color:#7dd3fc; }
+    .terminal .cmt    { color:#475569; }
+
+    /* pill tag */
+    .pill { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:500; }
+
+    /* gradient header strip */
+    .header-strip { background: linear-gradient(135deg,#dc2626 0%,#991b1b 50%,#1e3a5f 100%); }
+
+    /* section title line */
+    .section-label { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+    .section-label::after { content:''; flex:1; height:1px; background:#e2e8f0; }
+
+    /* layer badge left border */
+    .layer-bronze { border-left: 4px solid #f59e0b; }
+    .layer-silver { border-left: 4px solid #94a3b8; }
+    .layer-gold   { border-left: 4px solid #eab308; }
+    .layer-other  { border-left: 4px solid #8b5cf6; }
+
+    /* metrics card gradient */
+    .metric-card { background: linear-gradient(135deg,var(--from),var(--to)); }
+
+    /* link underline */
+    a.ext-link:hover { text-decoration: underline; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body class="bg-gray-50 text-slate-800 min-h-screen">
 
-<!-- ── HERO ─────────────────────────────────────────────────────────────────── -->
-<header class="relative overflow-hidden border-b border-slate-800">
-  <div class="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-950/30 to-slate-950"></div>
-  <div class="relative max-w-6xl mx-auto px-6 py-12">
-    <div class="flex items-start justify-between flex-wrap gap-6">
+<!-- ── HEADER ────────────────────────────────────────────────────────────────── -->
+<header class="header-strip text-white">
+  <div class="max-w-7xl mx-auto px-6 py-10">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+
+      <!-- left: title -->
       <div>
-        <div class="flex items-center gap-3 mb-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white font-bold text-lg shadow-lg">S</div>
-          <span class="text-slate-400 text-sm font-medium tracking-widest uppercase">Academia Santander</span>
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center font-bold text-lg tracking-tight">S</div>
+          <span class="text-red-200 text-xs font-semibold tracking-widest uppercase">Academia Santander · Data Master</span>
         </div>
-        <h1 class="text-4xl font-bold tracking-tight gradient-text mb-2">Data Master Portal</h1>
-        <p class="text-slate-400 text-lg">Plataforma de Vigilância Epidemiológica — DataSUS · Batch + Streaming</p>
+        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">Portal do Case</h1>
+        <p class="text-red-100 mt-1 text-sm sm:text-base">Plataforma de Vigilância Epidemiológica — DataSUS · Batch + Streaming · Delta Lake</p>
+
+        <!-- pills -->
         <div class="flex flex-wrap gap-2 mt-4">
-          <span class="tag bg-blue-950 text-blue-300 border border-blue-800">Medallion Architecture</span>
-          <span class="tag bg-green-950 text-green-300 border border-green-800">Lambda Pipeline</span>
-          <span class="tag bg-purple-950 text-purple-300 border border-purple-800">LGPD Compliant</span>
-          <span class="tag bg-amber-950 text-amber-300 border border-amber-800">Delta Lake</span>
-          <span class="tag bg-slate-800 text-slate-300 border border-slate-700">Spark on k3s</span>
+          <span class="pill bg-white/15 text-white">🏅 Medallion Architecture</span>
+          <span class="pill bg-white/15 text-white">⚡ Lambda Pipeline</span>
+          <span class="pill bg-white/15 text-white">🔐 LGPD Compliant</span>
+          <span class="pill bg-white/15 text-white">🪣 Delta Lake 3.1</span>
+          <span class="pill bg-white/15 text-white">☸️ Spark on k3s</span>
         </div>
       </div>
-      <div class="flex flex-col gap-2 text-right">
-        <div class="flex items-center gap-2 justify-end">
-          <span class="w-2 h-2 rounded-full bg-green-400 badge-pulse"></span>
-          <span class="text-slate-300 text-sm font-medium">Pipeline E2E Operacional</span>
+
+      <!-- right: live status + github -->
+      <div class="flex flex-col items-start sm:items-end gap-3">
+        <div class="bg-white/10 backdrop-blur rounded-xl px-5 py-3 text-sm space-y-1">
+          <div class="flex items-center gap-2 font-semibold"><span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Pipeline E2E Operacional</div>
+          <div class="text-red-200 text-xs">Bronze → Silver → Gold ✓ · CI verde ✓</div>
+          <div class="text-red-200 text-xs">17 DAGs · 106 unit tests · 36 smoke tests</div>
         </div>
-        <p class="text-slate-500 text-xs">Bronze → Silver → Gold ✓</p>
-        <p class="text-slate-500 text-xs">17 DAGs · 106 unit tests · CI verde</p>
         <a href="https://github.com/Matheus-Fideles/case-data-master-data-engineer" target="_blank"
-           class="mt-2 inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-4 py-2 text-sm transition-colors">
+           class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg px-4 py-2 text-sm transition-colors">
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
           GitHub
         </a>
@@ -70,427 +113,562 @@
   </div>
 </header>
 
-<main class="max-w-6xl mx-auto px-6 py-10 space-y-12">
-
-<!-- ── MÉTRICAS RÁPIDAS ──────────────────────────────────────────────────────── -->
-<section>
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center">
-      <p class="text-3xl font-bold text-blue-400">17</p>
-      <p class="text-slate-400 text-sm mt-1">DAGs Airflow</p>
+<!-- ── MÉTRICAS ─────────────────────────────────────────────────────────────── -->
+<div class="max-w-7xl mx-auto px-6 -mt-5">
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 text-center">
+      <p class="text-3xl font-bold text-red-600">17</p>
+      <p class="text-slate-500 text-sm mt-1">DAGs Airflow</p>
     </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center">
-      <p class="text-3xl font-bold text-green-400">7</p>
-      <p class="text-slate-400 text-sm mt-1">Tabelas Delta Gold</p>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 text-center">
+      <p class="text-3xl font-bold text-amber-500">7</p>
+      <p class="text-slate-500 text-sm mt-1">Tabelas Gold</p>
     </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center">
-      <p class="text-3xl font-bold text-purple-400">106</p>
-      <p class="text-slate-400 text-sm mt-1">Testes Unitários</p>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 text-center">
+      <p class="text-3xl font-bold text-blue-600">106</p>
+      <p class="text-slate-500 text-sm mt-1">Testes Unitários</p>
     </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center">
-      <p class="text-3xl font-bold text-amber-400">36</p>
-      <p class="text-slate-400 text-sm mt-1">Smoke Tests CI</p>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 text-center">
+      <p class="text-3xl font-bold text-green-600">36</p>
+      <p class="text-slate-500 text-sm mt-1">Smoke Tests CI</p>
     </div>
   </div>
-</section>
+</div>
 
-<!-- ── SERVIÇOS ──────────────────────────────────────────────────────────────── -->
+<!-- ── MAIN ──────────────────────────────────────────────────────────────────── -->
+<main class="max-w-7xl mx-auto px-6 py-10 space-y-14">
 
-<!-- Orquestração & Processamento -->
-<section>
-  <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Orquestração & Processamento</h2>
-  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  <!-- SERVIÇOS ─────────────────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-label">
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Serviços &amp; Interfaces</h2>
+    </div>
 
-    <a href="http://localhost:8080" target="_blank" class="block bg-slate-900 border border-slate-800 rounded-xl p-5 card-hover glow group">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-[#017CEE]/20 flex items-center justify-center text-xl">🌀</div>
-        <div>
-          <p class="font-semibold text-slate-100 group-hover:text-blue-300 transition-colors">Apache Airflow</p>
-          <p class="text-xs text-slate-500">v2.9.3 · :8080</p>
+    <!-- Orquestração -->
+    <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Orquestração &amp; Processamento</p>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+
+      <!-- Airflow -->
+      <a href="http://localhost:8080" target="_blank"
+         class="card bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 group">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-[#017CEE]/10 flex items-center justify-center text-2xl">🌀</div>
+            <div>
+              <p class="font-semibold text-slate-800 group-hover:text-[#017CEE] transition-colors">Apache Airflow</p>
+              <p class="text-xs text-slate-400">v2.9.3 · localhost:8080</p>
+            </div>
+          </div>
+          <span class="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full dot-online inline-block"></span>online
+          </span>
         </div>
-        <span class="ml-auto text-xs bg-green-950 text-green-400 border border-green-900 rounded-full px-2 py-0.5">online</span>
-      </div>
-      <p class="text-sm text-slate-400 mb-3">Orquestração de pipelines batch. 17 DAGs cobrindo Bronze → Silver → Gold + LGPD erasure + quality gates.</p>
-      <div class="flex flex-wrap gap-1">
-        <span class="tag bg-slate-800 text-slate-400">SparkKubernetesOperator</span>
-        <span class="tag bg-slate-800 text-slate-400">DAG-as-code</span>
-        <span class="tag bg-slate-800 text-slate-400">k3s</span>
-      </div>
-    </a>
-
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 card-hover">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-orange-900/30 flex items-center justify-center text-xl">⚡</div>
-        <div>
-          <p class="font-semibold text-slate-100">Apache Spark</p>
-          <p class="text-xs text-slate-500">v3.5.1 · on k3s</p>
+        <p class="text-sm text-slate-500 leading-relaxed">Orquestração de 17 DAGs batch. SparkKubernetesOperator submete jobs Spark no cluster k3s local.</p>
+        <div class="flex flex-wrap gap-1 mt-auto">
+          <span class="pill bg-sky-50 text-sky-700 border border-sky-100">SparkKubernetesOperator</span>
+          <span class="pill bg-gray-100 text-slate-600">k3s</span>
         </div>
-        <span class="ml-auto text-xs bg-blue-950 text-blue-400 border border-blue-900 rounded-full px-2 py-0.5">k8s</span>
+      </a>
+
+      <!-- Spark -->
+      <div class="card bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center text-2xl">⚡</div>
+            <div>
+              <p class="font-semibold text-slate-800">Apache Spark</p>
+              <p class="text-xs text-slate-400">v3.5.1 · SparkApplication CRDs</p>
+            </div>
+          </div>
+          <span class="flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full dot-serving inline-block"></span>k8s
+          </span>
+        </div>
+        <p class="text-sm text-slate-500 leading-relaxed">Processamento distribuído com Delta Lake 3.1 — ACID transactions, time travel e <code>replaceWhere</code> idempotente.</p>
+        <div class="flex flex-wrap gap-1 mt-auto">
+          <span class="pill bg-orange-50 text-orange-700 border border-orange-100">Delta Lake 3.1</span>
+          <span class="pill bg-gray-100 text-slate-600">PySpark</span>
+          <span class="pill bg-gray-100 text-slate-600">Parquet</span>
+        </div>
       </div>
-      <p class="text-sm text-slate-400 mb-3">Processamento distribuído via SparkApplication CRDs. Delta Lake 3.1 para ACID transactions e time travel.</p>
-      <div class="flex flex-wrap gap-1">
-        <span class="tag bg-slate-800 text-slate-400">Delta Lake 3.1</span>
-        <span class="tag bg-slate-800 text-slate-400">PySpark</span>
-        <span class="tag bg-slate-800 text-slate-400">replaceWhere</span>
+
+      <!-- Kafka -->
+      <a href="http://localhost:19092" target="_blank"
+         class="card bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 group">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center text-2xl">📨</div>
+            <div>
+              <p class="font-semibold text-slate-800 group-hover:text-slate-600 transition-colors">Apache Kafka</p>
+              <p class="text-xs text-slate-400">v7.6.1 KRaft · localhost:19092</p>
+            </div>
+          </div>
+          <span class="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full dot-online inline-block"></span>online
+          </span>
+        </div>
+        <p class="text-sm text-slate-500 leading-relaxed">Streaming de eventos de atendimentos hospitalares. Spark Structured Streaming consome e grava em Gold Delta Lake em tempo real.</p>
+        <div class="flex flex-wrap gap-1 mt-auto">
+          <span class="pill bg-gray-100 text-slate-600">KRaft (sem ZooKeeper)</span>
+          <span class="pill bg-gray-100 text-slate-600">tópico: atendimentos.raw</span>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- Storage & Catálogo -->
+    <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Armazenamento &amp; Catálogo</p>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+
+      <!-- MinIO -->
+      <a href="http://localhost:9001" target="_blank"
+         class="card bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 group">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center text-2xl">🪣</div>
+            <div>
+              <p class="font-semibold text-slate-800 group-hover:text-red-600 transition-colors">MinIO Console</p>
+              <p class="text-xs text-slate-400">S3-compat · localhost:9001</p>
+            </div>
+          </div>
+          <span class="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full dot-online inline-block"></span>online
+          </span>
+        </div>
+        <p class="text-sm text-slate-500 leading-relaxed">Data lake S3-compatível com 4 buckets: <code>landing</code> · <code>bronze</code> · <code>silver</code> · <code>gold</code>. Toda escrita em formato Delta.</p>
+        <div class="flex flex-wrap gap-1 mt-auto">
+          <span class="pill bg-red-50 text-red-700 border border-red-100">s3a://</span>
+          <span class="pill bg-gray-100 text-slate-600">Delta Lake</span>
+        </div>
+      </a>
+
+      <!-- PostgreSQL -->
+      <div class="card bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center text-2xl">🐘</div>
+            <div>
+              <p class="font-semibold text-slate-800">PostgreSQL 16</p>
+              <p class="text-xs text-slate-400">localhost:5432</p>
+            </div>
+          </div>
+          <span class="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full dot-online inline-block"></span>online
+          </span>
+        </div>
+        <p class="text-sm text-slate-500 leading-relaxed">Uso dual: schema <code>oltp</code> (fonte de dados simulada) + backend do Hive Metastore + metadados do Airflow.</p>
+        <div class="flex flex-wrap gap-1 mt-auto">
+          <span class="pill bg-blue-50 text-blue-700 border border-blue-100">oltp schema</span>
+          <span class="pill bg-blue-50 text-blue-700 border border-blue-100">hive schema</span>
+        </div>
+      </div>
+
+      <!-- Hive Metastore -->
+      <div class="card bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-yellow-50 flex items-center justify-center text-2xl">🐝</div>
+            <div>
+              <p class="font-semibold text-slate-800">Hive Metastore</p>
+              <p class="text-xs text-slate-400">HMS 4.0 · :9083 (thrift)</p>
+            </div>
+          </div>
+          <span class="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full dot-infra inline-block"></span>serving
+          </span>
+        </div>
+        <p class="text-sm text-slate-500 leading-relaxed">Catálogo de tabelas Delta para o Trino. Registra automaticamente as tabelas Gold após carga via DAG.</p>
+        <div class="flex flex-wrap gap-1 mt-auto">
+          <span class="pill bg-yellow-50 text-yellow-700 border border-yellow-100">thrift :9083</span>
+          <span class="pill bg-gray-100 text-slate-600">delta connector</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Serving & BI -->
+    <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Serving &amp; Business Intelligence</p>
+    <div class="grid sm:grid-cols-2 gap-4 mb-8">
+
+      <!-- Trino -->
+      <a href="http://localhost:8085/ui" target="_blank"
+         class="card bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 group">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-2xl">🔷</div>
+            <div>
+              <p class="font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors">Trino 448</p>
+              <p class="text-xs text-slate-400">Distributed SQL · localhost:8085</p>
+            </div>
+          </div>
+          <span class="flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full dot-serving inline-block"></span>serving
+          </span>
+        </div>
+        <p class="text-sm text-slate-500 leading-relaxed">Query engine federado sobre Delta Lake via Hive Metastore. SQL ANSI sobre todos os dados Gold sem ETL adicional.</p>
+        <div class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 font-mono text-xs text-indigo-700 mt-1">
+          SELECT * FROM delta.gold_epidemiologico.fatos_notificacao LIMIT 10;
+        </div>
+      </a>
+
+      <!-- Metabase -->
+      <a href="http://localhost:3001" target="_blank"
+         class="card bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 group">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center text-2xl">📊</div>
+            <div>
+              <p class="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">Metabase v0.51</p>
+              <p class="text-xs text-slate-400">BI &amp; Dashboards · localhost:3001</p>
+            </div>
+          </div>
+          <span class="flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full dot-serving inline-block"></span>serving
+          </span>
+        </div>
+        <p class="text-sm text-slate-500 leading-relaxed">Dashboards de vigilância epidemiológica conectados ao Trino. Dados Gold em tempo real, sem ETL adicional.</p>
+        <div class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs text-slate-500 mt-1">
+          Configurar: host=<code>trino</code> · port=<code>8080</code> · catalog=<code>delta</code>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- Observabilidade -->
+    <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Observabilidade &amp; Lineage</p>
+    <div class="grid sm:grid-cols-3 gap-4">
+
+      <!-- Grafana -->
+      <a href="http://localhost:3000" target="_blank"
+         class="card bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 group">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center text-2xl">📈</div>
+            <div>
+              <p class="font-semibold text-slate-800 group-hover:text-orange-600 transition-colors">Grafana 10.4</p>
+              <p class="text-xs text-slate-400">localhost:3000</p>
+            </div>
+          </div>
+          <span class="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full dot-online inline-block"></span>online
+          </span>
+        </div>
+        <p class="text-sm text-slate-500 leading-relaxed">Dashboards de latência, throughput e erros dos jobs Spark. Fonte: Prometheus.</p>
+      </a>
+
+      <!-- Prometheus -->
+      <a href="http://localhost:9090" target="_blank"
+         class="card bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 group">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center text-2xl">🔥</div>
+            <div>
+              <p class="font-semibold text-slate-800 group-hover:text-red-600 transition-colors">Prometheus 2.52</p>
+              <p class="text-xs text-slate-400">localhost:9090</p>
+            </div>
+          </div>
+          <span class="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full dot-online inline-block"></span>online
+          </span>
+        </div>
+        <p class="text-sm text-slate-500 leading-relaxed">Coleta métricas de Spark (JVM, executors), Airflow (task duration, SLA misses) e MinIO.</p>
+      </a>
+
+      <!-- Marquez -->
+      <a href="http://localhost:5010" target="_blank"
+         class="card bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 group">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center text-2xl">🗺️</div>
+            <div>
+              <p class="font-semibold text-slate-800 group-hover:text-teal-600 transition-colors">Marquez 0.47</p>
+              <p class="text-xs text-slate-400">OpenLineage · localhost:5010</p>
+            </div>
+          </div>
+          <span class="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full dot-online inline-block"></span>online
+          </span>
+        </div>
+        <p class="text-sm text-slate-500 leading-relaxed">Linhagem de dados via OpenLineage. Cada job Spark emite automaticamente eventos de input/output.</p>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- DAGs ──────────────────────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-label">
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Pipeline de DAGs <span class="font-normal text-slate-500 normal-case tracking-normal">(17 ativos)</span></h2>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-4">
+
+      <!-- Bronze -->
+      <details open class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <summary class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors layer-bronze">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🥉</span>
+            <span class="font-semibold text-slate-700">Bronze — Raw Ingestion</span>
+            <span class="pill bg-amber-50 text-amber-700 border border-amber-200">6 DAGs</span>
+          </div>
+          <svg class="caret w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="px-5 py-4 border-t border-gray-100">
+          <p class="text-xs text-slate-500 mb-3">Extrai fontes DataSUS via API REST (OFFLINE_MODE=1 no dev) → Delta Lake particionado em <code>s3a://bronze/</code></p>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5">
+              <p class="text-sm font-medium text-amber-800">dag_bronze_dengue</p>
+              <p class="text-xs text-amber-600">@monthly · SINAN</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5">
+              <p class="text-sm font-medium text-amber-800">dag_bronze_zika</p>
+              <p class="text-xs text-amber-600">@monthly · SINAN</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5">
+              <p class="text-sm font-medium text-amber-800">dag_bronze_chikungunya</p>
+              <p class="text-xs text-amber-600">@monthly · SINAN</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5">
+              <p class="text-sm font-medium text-amber-800">dag_bronze_municipios</p>
+              <p class="text-xs text-amber-600">@monthly · IBGE</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5">
+              <p class="text-sm font-medium text-amber-800">dag_bronze_vacinacao_pni</p>
+              <p class="text-xs text-amber-600">@monthly · DataSUS PNI</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5">
+              <p class="text-sm font-medium text-amber-800">dag_bronze_sim_obitos</p>
+              <p class="text-xs text-amber-600">@annually · SIM</p>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <!-- Silver -->
+      <details open class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <summary class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors layer-silver">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🥈</span>
+            <span class="font-semibold text-slate-700">Silver — PII Masking</span>
+            <span class="pill bg-slate-100 text-slate-600 border border-slate-200">4 DAGs</span>
+          </div>
+          <svg class="caret w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="px-5 py-4 border-t border-gray-100">
+          <p class="text-xs text-slate-500 mb-3">Normaliza tipos + SHA-256+salt em campos PII (LGPD) → <code>s3a://silver/</code></p>
+          <div class="space-y-2">
+            <div class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
+              <p class="text-sm font-medium text-slate-700">dag_silver_notificacao</p>
+              <p class="text-xs text-slate-400">dengue → zika → chikungunya (sequencial, evita starvation k8s)</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
+                <p class="text-sm font-medium text-slate-700">dag_silver_municipio</p>
+              </div>
+              <div class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
+                <p class="text-sm font-medium text-slate-700">dag_silver_vacinacao_pni</p>
+              </div>
+            </div>
+            <div class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
+              <p class="text-sm font-medium text-slate-700">dag_silver_sim_obitos</p>
+              <p class="text-xs text-slate-400">timeParserPolicy=CORRECTED (datas DATASUS sem zero inicial)</p>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <!-- Gold -->
+      <details open class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <summary class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors layer-gold">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🥇</span>
+            <span class="font-semibold text-slate-700">Gold — Star Schema</span>
+            <span class="pill bg-yellow-50 text-yellow-700 border border-yellow-200">4 DAGs</span>
+          </div>
+          <svg class="caret w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="px-5 py-4 border-t border-gray-100">
+          <p class="text-xs text-slate-500 mb-3">Dimensões e fatos em <code>s3a://gold/</code> (Delta Lake). Consumido pelo Trino via Hive Metastore.</p>
+          <div class="space-y-2">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2.5">
+              <p class="text-sm font-medium text-yellow-800">dag_gold_dims</p>
+              <p class="text-xs text-yellow-600">dim_municipio → dim_agravo → dim_vacina → dim_tempo (sequencial)</p>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <div class="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2.5">
+                <p class="text-xs font-medium text-yellow-800">dag_gold_fato_notificacao</p>
+              </div>
+              <div class="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2.5">
+                <p class="text-xs font-medium text-yellow-800">dag_gold_fato_obito</p>
+              </div>
+              <div class="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2.5">
+                <p class="text-xs font-medium text-yellow-800">dag_gold_fato_vacinacao</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <!-- Quality & Maint -->
+      <details open class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <summary class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors layer-other">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🔬</span>
+            <span class="font-semibold text-slate-700">Quality &amp; Manutenção</span>
+            <span class="pill bg-purple-50 text-purple-700 border border-purple-200">3 DAGs</span>
+          </div>
+          <svg class="caret w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="px-5 py-4 border-t border-gray-100">
+          <div class="space-y-2">
+            <div class="bg-purple-50 border border-purple-200 rounded-lg px-3 py-2.5">
+              <p class="text-sm font-medium text-purple-800">dag_quality_gates_silver</p>
+              <p class="text-xs text-purple-600">Great Expectations — completude, formato hash PII, sem nulos críticos</p>
+            </div>
+            <div class="bg-purple-50 border border-purple-200 rounded-lg px-3 py-2.5">
+              <p class="text-sm font-medium text-purple-800">dag_quality_gates_gold</p>
+              <p class="text-xs text-purple-600">Validação de chaves FK, cardinalidade e freshness das tabelas Gold</p>
+            </div>
+            <div class="bg-purple-50 border border-purple-200 rounded-lg px-3 py-2.5">
+              <p class="text-sm font-medium text-purple-800">dag_maint_lgpd_erasure</p>
+              <p class="text-xs text-purple-600">Apagamento de dados sob solicitação — conformidade LGPD Art. 18</p>
+            </div>
+          </div>
+        </div>
+      </details>
+
+    </div>
+  </section>
+
+  <!-- DIAGRAMAS ──────────────────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-label">
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Diagramas de Arquitetura</h2>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-4">
+      <a href="assets/04-arquitetura-medallion.png" target="_blank"
+         class="card bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden group">
+        <div class="h-2 bg-gradient-to-r from-amber-400 via-slate-400 to-yellow-400"></div>
+        <div class="p-5">
+          <p class="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors mb-1">Arquitetura Medallion</p>
+          <p class="text-sm text-slate-500">Bronze → Silver → Gold com mascaramento PII e lineage OpenLineage.</p>
+          <p class="text-xs text-blue-500 mt-3 font-medium">Abrir diagrama →</p>
+        </div>
+      </a>
+      <a href="assets/05-fluxo-dags.png" target="_blank"
+         class="card bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden group">
+        <div class="h-2 bg-gradient-to-r from-blue-400 to-indigo-400"></div>
+        <div class="p-5">
+          <p class="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors mb-1">Fluxo de DAGs</p>
+          <p class="text-sm text-slate-500">Grafo de dependências entre os 17 DAGs Airflow por camada.</p>
+          <p class="text-xs text-blue-500 mt-3 font-medium">Abrir diagrama →</p>
+        </div>
+      </a>
+      <a href="assets/06-stack-tecnologica.png" target="_blank"
+         class="card bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden group">
+        <div class="h-2 bg-gradient-to-r from-purple-400 to-pink-400"></div>
+        <div class="p-5">
+          <p class="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors mb-1">Stack Tecnológica</p>
+          <p class="text-sm text-slate-500">Todas as tecnologias com versões e ícones oficiais.</p>
+          <p class="text-xs text-blue-500 mt-3 font-medium">Abrir diagrama →</p>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- DECISÕES + QUICK START ────────────────────────────────────────────────── -->
+  <section class="grid lg:grid-cols-2 gap-8">
+
+    <!-- ADRs resumidos -->
+    <div>
+      <div class="section-label">
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Decisões de Arquitetura</h2>
+      </div>
+      <div class="space-y-3">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex gap-3">
+          <span class="text-xl mt-0.5">🏗️</span>
+          <div>
+            <p class="font-semibold text-slate-700 text-sm">Data Mesh — ADR-0009</p>
+            <p class="text-xs text-slate-500 mt-0.5">Código organizado em <code>apps/{domínio}/</code>. Cada domínio é dono de suas fontes, jobs e schemas.</p>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex gap-3">
+          <span class="text-xl mt-0.5">🔐</span>
+          <div>
+            <p class="font-semibold text-slate-700 text-sm">LGPD — ADR-0006</p>
+            <p class="text-xs text-slate-500 mt-0.5">PII mascarado com SHA-256+salt na transição Bronze→Silver. Salt em k8s Secret, nunca em código.</p>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex gap-3">
+          <span class="text-xl mt-0.5">🪣</span>
+          <div>
+            <p class="font-semibold text-slate-700 text-sm">Gold em Delta Lake — ADR-0011</p>
+            <p class="text-xs text-slate-500 mt-0.5">Gold grava em MinIO (Delta Lake) via Trino+HMS. Elimina dependência de Postgres JDBC no serving.</p>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex gap-3">
+          <span class="text-xl mt-0.5">🔄</span>
+          <div>
+            <p class="font-semibold text-slate-700 text-sm">Idempotência por replaceWhere</p>
+            <p class="text-xs text-slate-500 mt-0.5">Toda escrita usa <code>replaceWhere</code> do Delta — re-execuções são seguras, sem duplicatas.</p>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex gap-3">
+          <span class="text-xl mt-0.5">⚡</span>
+          <div>
+            <p class="font-semibold text-slate-700 text-sm">Arquitetura Lambda</p>
+            <p class="text-xs text-slate-500 mt-0.5">Batch via Airflow/Spark + Streaming via Kafka/Spark Structured Streaming → mesma camada Gold Delta.</p>
+          </div>
+        </div>
       </div>
     </div>
 
-    <a href="http://localhost:19092" target="_blank" class="block bg-slate-900 border border-slate-800 rounded-xl p-5 card-hover group">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center text-xl">📨</div>
-        <div>
-          <p class="font-semibold text-slate-100 group-hover:text-blue-300 transition-colors">Apache Kafka</p>
-          <p class="text-xs text-slate-500">v7.6.1 KRaft · :19092</p>
+    <!-- Quick Start -->
+    <div>
+      <div class="section-label">
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Quick Start</h2>
+      </div>
+      <div class="space-y-4">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <p class="text-sm font-semibold text-slate-700 mb-3">🚀 Demo completa</p>
+          <div class="terminal">
+            <div><span class="prompt">$</span> <span class="cmd">git clone</span> <span class="arg">git@github.com:Matheus-Fideles/case-data-master-data-engineer.git</span></div>
+            <div><span class="prompt">$</span> <span class="cmd">make demo</span>          <span class="cmt"># core: Postgres + MinIO + Airflow + smoke</span></div>
+            <div><span class="prompt">$</span> <span class="cmd">make up-serving</span>     <span class="cmt"># HMS + Trino + Metabase</span></div>
+            <div><span class="prompt">$</span> <span class="cmd">make up-observability</span> <span class="cmt"># Prometheus + Grafana + Marquez</span></div>
+          </div>
         </div>
-        <span class="ml-auto text-xs bg-green-950 text-green-400 border border-green-900 rounded-full px-2 py-0.5">online</span>
-      </div>
-      <p class="text-sm text-slate-400 mb-3">Streaming de eventos de atendimento hospitalar. Spark Structured Streaming consome e grava em Gold Delta Lake.</p>
-      <div class="flex flex-wrap gap-1">
-        <span class="tag bg-slate-800 text-slate-400">KRaft (sem ZK)</span>
-        <span class="tag bg-slate-800 text-slate-400">structured streaming</span>
-      </div>
-    </a>
-
-  </div>
-</section>
-
-<div class="section-divider"></div>
-
-<!-- Storage & Catálogo -->
-<section>
-  <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Armazenamento & Catálogo</h2>
-  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-    <a href="http://localhost:9001" target="_blank" class="block bg-slate-900 border border-slate-800 rounded-xl p-5 card-hover glow-green group">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-red-900/20 flex items-center justify-center text-xl">🪣</div>
-        <div>
-          <p class="font-semibold text-slate-100 group-hover:text-green-300 transition-colors">MinIO Console</p>
-          <p class="text-xs text-slate-500">Object Store S3-compat · :9001</p>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <p class="text-sm font-semibold text-slate-700 mb-3">🧪 Testes</p>
+          <div class="terminal">
+            <div><span class="prompt">$</span> <span class="cmd">make test-unit</span>   <span class="cmt"># 106 testes unitários (sem infra)</span></div>
+            <div><span class="prompt">$</span> <span class="cmd">make test-smoke</span>  <span class="cmt"># 36 smoke tests (requer compose up)</span></div>
+            <div><span class="prompt">$</span> <span class="cmd">make lint</span>        <span class="cmt"># ruff format + check + bandit</span></div>
+          </div>
         </div>
-        <span class="ml-auto text-xs bg-green-950 text-green-400 border border-green-900 rounded-full px-2 py-0.5">online</span>
-      </div>
-      <p class="text-sm text-slate-400 mb-3">Data lake S3-compatível. Buckets: <code class="text-xs bg-slate-800 px-1 rounded">landing</code> · <code class="text-xs bg-slate-800 px-1 rounded">bronze</code> · <code class="text-xs bg-slate-800 px-1 rounded">silver</code> · <code class="text-xs bg-slate-800 px-1 rounded">gold</code></p>
-      <div class="flex flex-wrap gap-1">
-        <span class="tag bg-slate-800 text-slate-400">s3a://</span>
-        <span class="tag bg-slate-800 text-slate-400">Delta Lake</span>
-        <span class="tag bg-slate-800 text-slate-400">Parquet</span>
-      </div>
-    </a>
-
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 card-hover">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-blue-900/30 flex items-center justify-center text-xl">🐘</div>
-        <div>
-          <p class="font-semibold text-slate-100">PostgreSQL 16</p>
-          <p class="text-xs text-slate-500">OLTP + Hive backend · :5432</p>
-        </div>
-        <span class="ml-auto text-xs bg-green-950 text-green-400 border border-green-900 rounded-full px-2 py-0.5">online</span>
-      </div>
-      <p class="text-sm text-slate-400 mb-3">Dual-purpose: schema <code class="text-xs bg-slate-800 px-1 rounded">oltp</code> (fonte de dados) + backend do Hive Metastore + metadados do Airflow.</p>
-      <div class="flex flex-wrap gap-1">
-        <span class="tag bg-slate-800 text-slate-400">oltp schema</span>
-        <span class="tag bg-slate-800 text-slate-400">hive schema</span>
-        <span class="tag bg-slate-800 text-slate-400">airflow metadata</span>
-      </div>
-    </div>
-
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 card-hover">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-yellow-900/20 flex items-center justify-center text-xl">🐝</div>
-        <div>
-          <p class="font-semibold text-slate-100">Hive Metastore</p>
-          <p class="text-xs text-slate-500">HMS 4.0 · :9083 (thrift)</p>
-        </div>
-        <span class="ml-auto text-xs bg-slate-800 text-slate-400 border border-slate-700 rounded-full px-2 py-0.5">serving</span>
-      </div>
-      <p class="text-sm text-slate-400 mb-3">Catálogo de tabelas Delta para o Trino. Registra automaticamente as tabelas Gold após carga.</p>
-      <div class="flex flex-wrap gap-1">
-        <span class="tag bg-slate-800 text-slate-400">thrift :9083</span>
-        <span class="tag bg-slate-800 text-slate-400">delta connector</span>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-<div class="section-divider"></div>
-
-<!-- Serving & BI -->
-<section>
-  <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Serving & Business Intelligence</h2>
-  <div class="grid sm:grid-cols-2 gap-4">
-
-    <a href="http://localhost:8085/ui" target="_blank" class="block bg-slate-900 border border-slate-800 rounded-xl p-5 card-hover group">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-indigo-900/30 flex items-center justify-center text-xl">🔷</div>
-        <div>
-          <p class="font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors">Trino 448</p>
-          <p class="text-xs text-slate-500">Distributed SQL · :8085</p>
-        </div>
-        <span class="ml-auto text-xs bg-slate-700 text-slate-300 border border-slate-600 rounded-full px-2 py-0.5">serving</span>
-      </div>
-      <p class="text-sm text-slate-400 mb-3">Query engine federado sobre Delta Lake. Catálogo <code class="text-xs bg-slate-800 px-1 rounded">delta</code> via HMS. Suporta SQL ANSI sobre todos os dados Gold.</p>
-      <div class="bg-slate-800 rounded-lg p-3 font-mono text-xs text-green-300 mt-2">
-        SELECT * FROM delta.gold_epidemiologico.fatos_notificacao LIMIT 10;
-      </div>
-    </a>
-
-    <a href="http://localhost:3001" target="_blank" class="block bg-slate-900 border border-slate-800 rounded-xl p-5 card-hover group">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-blue-900/30 flex items-center justify-center text-xl">📊</div>
-        <div>
-          <p class="font-semibold text-slate-100 group-hover:text-blue-300 transition-colors">Metabase v0.51</p>
-          <p class="text-xs text-slate-500">BI & Dashboards · :3001</p>
-        </div>
-        <span class="ml-auto text-xs bg-slate-700 text-slate-300 border border-slate-600 rounded-full px-2 py-0.5">serving</span>
-      </div>
-      <p class="text-sm text-slate-400 mb-3">Dashboards de vigilância epidemiológica. Conecta em Trino → dados Gold em tempo real. Sem ETL adicional.</p>
-      <p class="text-xs text-slate-500 mt-2">Configurar: host=<code class="bg-slate-800 px-1 rounded">trino</code> port=<code class="bg-slate-800 px-1 rounded">8080</code> catalog=<code class="bg-slate-800 px-1 rounded">delta</code></p>
-    </a>
-
-  </div>
-</section>
-
-<div class="section-divider"></div>
-
-<!-- Observabilidade -->
-<section>
-  <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Observabilidade & Lineage</h2>
-  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-    <a href="http://localhost:3000" target="_blank" class="block bg-slate-900 border border-slate-800 rounded-xl p-5 card-hover group">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-orange-900/20 flex items-center justify-center text-xl">📈</div>
-        <div>
-          <p class="font-semibold text-slate-100 group-hover:text-orange-300 transition-colors">Grafana 10.4</p>
-          <p class="text-xs text-slate-500">Dashboards · :3000</p>
-        </div>
-        <span class="ml-auto text-xs bg-slate-700 text-slate-300 border border-slate-600 rounded-full px-2 py-0.5">observability</span>
-      </div>
-      <p class="text-sm text-slate-400">Dashboards de métricas de pipeline: latência de jobs Spark, throughput, erros por DAG, uso de recursos k8s.</p>
-    </a>
-
-    <a href="http://localhost:9090" target="_blank" class="block bg-slate-900 border border-slate-800 rounded-xl p-5 card-hover group">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-red-900/20 flex items-center justify-center text-xl">🔥</div>
-        <div>
-          <p class="font-semibold text-slate-100 group-hover:text-red-300 transition-colors">Prometheus 2.52</p>
-          <p class="text-xs text-slate-500">Métricas · :9090</p>
-        </div>
-        <span class="ml-auto text-xs bg-slate-700 text-slate-300 border border-slate-600 rounded-full px-2 py-0.5">observability</span>
-      </div>
-      <p class="text-sm text-slate-400">Coleta métricas do Spark (JVM, executor usage), Airflow (task duration, SLA misses) e MinIO (request latency).</p>
-    </a>
-
-    <a href="http://localhost:5010" target="_blank" class="block bg-slate-900 border border-slate-800 rounded-xl p-5 card-hover group">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-teal-900/20 flex items-center justify-center text-xl">🗺️</div>
-        <div>
-          <p class="font-semibold text-slate-100 group-hover:text-teal-300 transition-colors">Marquez 0.47</p>
-          <p class="text-xs text-slate-500">Data Lineage · :5010</p>
-        </div>
-        <span class="ml-auto text-xs bg-slate-700 text-slate-300 border border-slate-600 rounded-full px-2 py-0.5">observability</span>
-      </div>
-      <p class="text-sm text-slate-400">Rastreamento de linhagem de dados via OpenLineage. Cada job Spark emite eventos de input/output automaticamente.</p>
-    </a>
-
-  </div>
-</section>
-
-<div class="section-divider"></div>
-
-<!-- DAGs -->
-<section>
-  <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Pipeline de DAGs (17 ativos)</h2>
-  <div class="grid lg:grid-cols-2 gap-4">
-
-    <!-- Bronze -->
-    <details class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden" open>
-      <summary class="flex items-center justify-between p-5 hover:bg-slate-800/50 transition-colors">
-        <div class="flex items-center gap-3">
-          <span class="w-3 h-3 rounded-full bg-amber-400"></span>
-          <span class="font-semibold text-slate-100">Bronze — Raw Ingestion</span>
-          <span class="tag bg-amber-950 text-amber-400 border border-amber-900">6 DAGs</span>
-        </div>
-        <svg class="chevron w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-      </summary>
-      <div class="px-5 pb-5 space-y-2">
-        <p class="text-xs text-slate-500 mb-3">Extrai fontes DataSUS via API REST → grava Delta Lake particionado em <code class="bg-slate-800 px-1 rounded">s3a://bronze/</code></p>
-        <div class="grid grid-cols-2 gap-2 text-sm">
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-amber-300">dag_bronze_dengue</span><span class="text-slate-500 text-xs ml-1">@monthly</span></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-amber-300">dag_bronze_zika</span><span class="text-slate-500 text-xs ml-1">@monthly</span></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-amber-300">dag_bronze_chikungunya</span><span class="text-slate-500 text-xs ml-1">@monthly</span></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-amber-300">dag_bronze_municipios</span><span class="text-slate-500 text-xs ml-1">@monthly</span></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-amber-300">dag_bronze_vacinacao_pni</span><span class="text-slate-500 text-xs ml-1">@monthly</span></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-amber-300">dag_bronze_sim_obitos</span><span class="text-slate-500 text-xs ml-1">@annually</span></div>
-        </div>
-      </div>
-    </details>
-
-    <!-- Silver -->
-    <details class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden" open>
-      <summary class="flex items-center justify-between p-5 hover:bg-slate-800/50 transition-colors">
-        <div class="flex items-center gap-3">
-          <span class="w-3 h-3 rounded-full bg-slate-300"></span>
-          <span class="font-semibold text-slate-100">Silver — PII Masking</span>
-          <span class="tag bg-slate-700 text-slate-300 border border-slate-600">4 DAGs</span>
-        </div>
-        <svg class="chevron w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-      </summary>
-      <div class="px-5 pb-5 space-y-2">
-        <p class="text-xs text-slate-500 mb-3">Normaliza tipos e aplica SHA-256+salt (LGPD) em campos PII → <code class="bg-slate-800 px-1 rounded">s3a://silver/</code></p>
-        <div class="grid grid-cols-2 gap-2 text-sm">
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-slate-200">dag_silver_notificacao</span><div class="text-xs text-slate-500">dengue→zika→chikungunya (sequencial)</div></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-slate-200">dag_silver_municipio</span></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-slate-200">dag_silver_vacinacao_pni</span></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-slate-200">dag_silver_sim_obitos</span><div class="text-xs text-slate-500">timeParserPolicy=CORRECTED</div></div>
-        </div>
-      </div>
-    </details>
-
-    <!-- Gold -->
-    <details class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden" open>
-      <summary class="flex items-center justify-between p-5 hover:bg-slate-800/50 transition-colors">
-        <div class="flex items-center gap-3">
-          <span class="w-3 h-3 rounded-full bg-yellow-400"></span>
-          <span class="font-semibold text-slate-100">Gold — Star Schema</span>
-          <span class="tag bg-yellow-950 text-yellow-400 border border-yellow-900">4 DAGs</span>
-        </div>
-        <svg class="chevron w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-      </summary>
-      <div class="px-5 pb-5 space-y-2">
-        <p class="text-xs text-slate-500 mb-3">Carrega dimensões e fatos em <code class="bg-slate-800 px-1 rounded">s3a://gold/</code> (Delta Lake, não Postgres)</p>
-        <div class="grid grid-cols-2 gap-2 text-sm">
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-yellow-300">dag_gold_dims</span><div class="text-xs text-slate-500">mun→agr→vac→tempo (sequencial)</div></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-yellow-300">dag_gold_fato_notificacao</span></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-yellow-300">dag_gold_fato_obito</span></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-yellow-300">dag_gold_fato_vacinacao</span></div>
-        </div>
-      </div>
-    </details>
-
-    <!-- Quality & Maint -->
-    <details class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden" open>
-      <summary class="flex items-center justify-between p-5 hover:bg-slate-800/50 transition-colors">
-        <div class="flex items-center gap-3">
-          <span class="w-3 h-3 rounded-full bg-purple-400"></span>
-          <span class="font-semibold text-slate-100">Quality & Manutenção</span>
-          <span class="tag bg-purple-950 text-purple-400 border border-purple-900">3 DAGs</span>
-        </div>
-        <svg class="chevron w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-      </summary>
-      <div class="px-5 pb-5 space-y-2">
-        <div class="grid grid-cols-1 gap-2 text-sm">
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-purple-300">dag_quality_gates_silver</span><div class="text-xs text-slate-500">Great Expectations — completeness, PII hash format, no nulls</div></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-purple-300">dag_quality_gates_gold</span><div class="text-xs text-slate-500">Validação de chaves FK, cardinalidade, freshness</div></div>
-          <div class="bg-slate-800 rounded-lg px-3 py-2"><span class="text-purple-300">dag_maint_lgpd_erasure</span><div class="text-xs text-slate-500">Apagamento de dados sob solicitação — conformidade LGPD Art. 18</div></div>
-        </div>
-      </div>
-    </details>
-
-  </div>
-</section>
-
-<div class="section-divider"></div>
-
-<!-- Diagramas -->
-<section>
-  <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Diagramas de Arquitetura</h2>
-  <div class="grid sm:grid-cols-3 gap-4">
-    <a href="assets/04-arquitetura-medallion.png" target="_blank" class="group block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden card-hover">
-      <div class="bg-slate-800 h-2 w-full"></div>
-      <div class="p-4">
-        <p class="font-medium text-slate-200 group-hover:text-blue-300 transition-colors mb-1">Arquitetura Medallion</p>
-        <p class="text-xs text-slate-500">Bronze → Silver → Gold com PII masking e lineage</p>
-        <p class="text-xs text-blue-400 mt-3 flex items-center gap-1">ver diagrama →</p>
-      </div>
-    </a>
-    <a href="assets/05-fluxo-dags.png" target="_blank" class="group block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden card-hover">
-      <div class="bg-slate-800 h-2 w-full"></div>
-      <div class="p-4">
-        <p class="font-medium text-slate-200 group-hover:text-blue-300 transition-colors mb-1">Fluxo de DAGs</p>
-        <p class="text-xs text-slate-500">Dependências entre os 17 DAGs Airflow</p>
-        <p class="text-xs text-blue-400 mt-3 flex items-center gap-1">ver diagrama →</p>
-      </div>
-    </a>
-    <a href="assets/06-stack-tecnologica.png" target="_blank" class="group block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden card-hover">
-      <div class="bg-slate-800 h-2 w-full"></div>
-      <div class="p-4">
-        <p class="font-medium text-slate-200 group-hover:text-blue-300 transition-colors mb-1">Stack Tecnológica</p>
-        <p class="text-xs text-slate-500">Todas as tecnologias com versões</p>
-        <p class="text-xs text-blue-400 mt-3 flex items-center gap-1">ver diagrama →</p>
-      </div>
-    </a>
-  </div>
-</section>
-
-<div class="section-divider"></div>
-
-<!-- Arquitetura resumida -->
-<section>
-  <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Decisões de Arquitetura</h2>
-  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <p class="text-sm font-semibold text-blue-300 mb-2">🏗️ Data Mesh (ADR-0009)</p>
-      <p class="text-xs text-slate-400">Código organizado em <code class="bg-slate-800 px-1 rounded">apps/{domínio}/</code> — cada domínio dono de suas fontes, jobs e schemas.</p>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <p class="text-sm font-semibold text-green-300 mb-2">🔐 LGPD (ADR-0006)</p>
-      <p class="text-xs text-slate-400">PII mascarado com SHA-256+salt na transição Bronze→Silver. Salt em k8s Secret, nunca em código.</p>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <p class="text-sm font-semibold text-yellow-300 mb-2">⚡ Gold em Delta (ADR-0011)</p>
-      <p class="text-xs text-slate-400">Gold grava em MinIO (Delta Lake) em vez de Postgres JDBC. Trino + HMS serve os dados via SQL.</p>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <p class="text-sm font-semibold text-purple-300 mb-2">🔄 Idempotência</p>
-      <p class="text-xs text-slate-400">Toda escrita usa <code class="bg-slate-800 px-1 rounded">replaceWhere</code> Delta Lake — re-execuções são seguras sem duplicatas.</p>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <p class="text-sm font-semibold text-red-300 mb-2">🏃 Lambda Architecture</p>
-      <p class="text-xs text-slate-400">Batch via Airflow/Spark + Streaming via Kafka/Spark Structured Streaming → mesma camada Gold.</p>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <p class="text-sm font-semibold text-cyan-300 mb-2">🧪 Template Method</p>
-      <p class="text-xs text-slate-400"><code class="bg-slate-800 px-1 rounded">SilverJob</code> e <code class="bg-slate-800 px-1 rounded">FatoLoader</code> definem fluxo fixo; subclasses implementam apenas o que varia.</p>
-    </div>
-  </div>
-</section>
-
-<!-- Quick Start -->
-<section>
-  <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Quick Start</h2>
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-    <div class="grid sm:grid-cols-2 gap-6">
-      <div>
-        <p class="text-sm font-semibold text-slate-300 mb-3">🚀 Demo completa (1 comando)</p>
-        <div class="bg-slate-950 border border-slate-700 rounded-lg p-4 font-mono text-sm space-y-1">
-          <p><span class="text-slate-500">$</span> <span class="text-green-300">git clone</span> <span class="text-blue-300">...repo...</span></p>
-          <p><span class="text-slate-500">$</span> <span class="text-green-300">make demo</span><span class="text-slate-500">  # core + smoke</span></p>
-          <p><span class="text-slate-500">$</span> <span class="text-green-300">make up-serving</span><span class="text-slate-500">  # HMS+Trino+Metabase</span></p>
-          <p><span class="text-slate-500">$</span> <span class="text-green-300">make up-observability</span></p>
-        </div>
-      </div>
-      <div>
-        <p class="text-sm font-semibold text-slate-300 mb-3">🧪 Testes</p>
-        <div class="bg-slate-950 border border-slate-700 rounded-lg p-4 font-mono text-sm space-y-1">
-          <p><span class="text-slate-500">$</span> <span class="text-green-300">make test-unit</span><span class="text-slate-500">  # 106 testes</span></p>
-          <p><span class="text-slate-500">$</span> <span class="text-green-300">make test-smoke</span><span class="text-slate-500">  # 36 smoke</span></p>
-          <p><span class="text-slate-500">$</span> <span class="text-green-300">make lint</span><span class="text-slate-500">  # ruff + bandit</span></p>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <p class="text-sm font-semibold text-slate-700 mb-2">📄 Documentação</p>
+          <div class="grid grid-cols-2 gap-2 text-sm">
+            <a href="01-contexto-negocio.md"  class="text-blue-600 hover:underline">01 · Contexto de Negócio</a>
+            <a href="02-arquitetura.md"        class="text-blue-600 hover:underline">02 · Arquitetura</a>
+            <a href="03-integrações.md"        class="text-blue-600 hover:underline">03 · Integrações</a>
+            <a href="04-governanca-lgpd.md"    class="text-blue-600 hover:underline">04 · Governança LGPD</a>
+            <a href="05-observabilidade-sre.md" class="text-blue-600 hover:underline">05 · Observabilidade</a>
+            <a href="ADRS.md"                  class="text-blue-600 hover:underline">ADRs (11 decisões)</a>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-</section>
+
+  </section>
 
 </main>
 
-<!-- ── FOOTER ─────────────────────────────────────────────────────────────────── -->
-<footer class="border-t border-slate-800 mt-12">
-  <div class="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between text-sm text-slate-600">
-    <p>Case Santander — Academia Data Master · Matheus Fideles Martins de Souza</p>
-    <p>Airflow 2.9 · Spark 3.5 · Delta Lake 3.1 · Trino 448 · MinIO · k3s</p>
+<!-- ── FOOTER ────────────────────────────────────────────────────────────────── -->
+<footer class="border-t border-gray-200 bg-white mt-12">
+  <div class="max-w-7xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
+    <p>Case Santander — Academia Data Master · <strong class="text-slate-600">Matheus Fideles Martins de Souza</strong></p>
+    <p>Airflow 2.9 · Spark 3.5 · Delta Lake 3.1 · Trino 448 · MinIO · k3s · Kafka 7.6</p>
   </div>
 </footer>
 

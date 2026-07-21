@@ -325,7 +325,7 @@ LIMIT 20
 
 ## FAQ Técnico por coluna
 
-Algumas colunas merecem defesa explícita:
+Algumas colunas merecem explicação técnica detalhada:
 
 | Coluna | Pergunta provável | Resposta |
 |---|---|---|

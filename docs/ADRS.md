@@ -117,7 +117,7 @@ Em produção AWS:
 
 ## Referências
 - Marz, N. & Warren, J. *Big Data: Principles and Best Practices of Scalable Realtime Data Systems*.
-- Kreps, J. *"Questioning the Lambda Architecture"* (defesa de Kappa) — referenciada para mostrar conhecimento dos dois lados.
+- Kreps, J. *"Questioning the Lambda Architecture"* (argumentação em favor de Kappa) — referenciada para mostrar conhecimento dos dois lados.
 
 ---
 
@@ -232,7 +232,7 @@ Resultado esperado: idêntico ao da primeira execução. Storage não cresce. Li
 
 Mesma execução com `ano_mes` diferente. A partição `(uf=SP, ano_mes=2023-12)` é sobrescrita; partições anteriores ficam intactas.
 
-**Cuidado:** se uma fonte mudou entre a primeira carga e o backfill (ex.: DataSUS publicou correção do arquivo), o backfill propaga a versão atual. Documentar é a única defesa: log do `_source_file` checksum em metadata permite identificar.
+**Cuidado:** se uma fonte mudou entre a primeira carga e o backfill (ex.: DataSUS publicou correção do arquivo), o backfill propaga a versão atual. Documentar é a única proteção: log do `_source_file` checksum em metadata permite identificar.
 
 ### Cenário 3: Reprocessamento ampliado por mudança de schema/lógica
 
@@ -272,7 +272,7 @@ Métricas e checks que validam a estratégia em runtime:
 
 - **Reexecução previsível** — é possível pedir "rode duas vezes" e ver o mesmo resultado
 - **Backfill seguro** — janela histórica reprocessável sem caos
-- **Defesa direta** para perguntas "e se Kafka reentregar?" e "e se DAG falhar no meio?"
+- **Resposta técnica** para perguntas "e se Kafka reentregar?" e "e se DAG falhar no meio?"
 - **Otimização inerente** — MERGE Delta evita reescrever quando nada mudou (`_row_hash`)
 
 ### Negativas (e mitigações)
@@ -542,7 +542,7 @@ Trino Lake Formation policies aplicam mascaramento na hora da query.
 **Por que foi rejeitada:**
 - Mascaramento no momento da consulta deixa o dado **em claro** no storage (Silver) — quem tem acesso direto ao MinIO bypassa a política
 - O case quer dado anonimizado **persistido**, não só visualizado anonimamente
-- Útil em produção como **camada extra** sobre dado já anonimizado, não como única defesa
+- Útil em produção como **camada extra** sobre dado já anonimizado, não como única proteção
 
 ## Decisão
 
@@ -585,7 +585,7 @@ Mesmo CPF original → mesmo nome Faker em todas as execuções. Diferentes CPFs
 ### Positivas
 
 - **Conformidade LGPD:** SHA-256 + salt é considerado anonimização aceitável pela ANPD desde que o salt não seja exposto e a chave da função hash seja gerenciada
-- **Defesa direta para 4 perguntas técnicas frequentes:**
+- **Respostas para 4 perguntas técnicas frequentes:**
   - "Como vocês mascaram CPF?" → hash com salt secreto
   - "E se alguém tiver acesso aos dados mascarados, consegue identificar a pessoa?" → não, porque o salt é segredo e SHA-256 é unidirecional
   - "Por que SHA-256 e não MD5?" → MD5 está formalmente quebrado para colisões; SHA-256 é o mínimo industrial
@@ -825,7 +825,7 @@ Cenários e comportamento:
 ### Positivas
 
 - Garantia **exactly-once efetivo** validável em smoke test
-- DLQ visível e analisável — defesa para "como você lida com dados ruins?"
+- DLQ visível e analisável — resposta para "como você lida com dados ruins?"
 - Restart automático graças ao checkpoint
 - Watermark **demonstrável ao vivo\*\*: emitir um evento atrasado e mostrar ele caindo na DLQ
 - Métricas Prometheus (`stream_dlq_count`, `stream_processing_lag`) cobrem requisito 4 (observabilidade)
