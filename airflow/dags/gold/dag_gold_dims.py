@@ -73,6 +73,8 @@ with DAG(
         dag=dag,
     )
 
+    # dim_municipio → dim_agravo → dim_vacina (tolerante a dados ausentes)
+    # dim_tempo é independente: gerado programaticamente, não depende de silver
     _dim_mun_sensor >> _dim_agr_submit
     _dim_agr_sensor >> _dim_vac_submit
-    _dim_vac_sensor >> _dim_tmp_submit
+    _dim_agr_sensor >> _dim_tmp_submit

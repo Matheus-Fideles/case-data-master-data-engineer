@@ -244,7 +244,7 @@ Dados sintéticos gerados localmente:
 OFFLINE_MODE=1 make run-demo-pipeline
 ```
 
-Com `OFFLINE_MODE=1`, todos os extratores leem de `data/raw/` em vez de chamar as APIs. Garante reprodutibilidade absoluta no dia da apresentação.
+Com `OFFLINE_MODE=1`, todos os extratores leem de `data/raw/` em vez de chamar as APIs. Garante reprodutibilidade absoluta em qualquer ambiente sem conectividade externa.
 
 ## Segurança e LGPD
 

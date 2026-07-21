@@ -33,11 +33,11 @@
       "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "textMode": "auto", "colorMode": "background" },
       "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"up{job=\"cadvisor\"}","legendFormat":"cAdvisor"}] },
 
-    { "id": 5, "type": "stat", "title": "Containers Ativos",
+    { "id": 5, "type": "stat", "title": "cGroups Ativos",
       "gridPos": {"x":12,"y":3,"w":4,"h":3},
       "fieldConfig": { "defaults": { "thresholds": {"steps":[{"value":0,"color":"red"},{"value":3,"color":"yellow"},{"value":7,"color":"green"}]}, "color": {"mode":"thresholds"}, "unit": "short" } },
       "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "background" },
-      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"count(container_last_seen{image!=\"\",name!=\"\"})","legendFormat":"Containers"}] },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"count(container_last_seen{id=~\"/docker/.*|/kubepods.*\"})","legendFormat":"cGroups"}] },
 
     { "id": 6, "type": "stat", "title": "Séries Prometheus",
       "gridPos": {"x":16,"y":3,"w":4,"h":3},
@@ -60,8 +60,8 @@
         "custom": {"lineWidth":2,"fillOpacity":10,"gradientMode":"opacity","showPoints":"never"} } },
       "options": { "tooltip": {"mode":"multi","sort":"desc"}, "legend": {"displayMode":"table","placement":"bottom","calcs":["mean","max"]} },
       "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},
-        "expr": "sum(rate(container_cpu_usage_seconds_total{name!=\"\",image!=\"\"}[2m])) by (name)",
-        "legendFormat": "{{name}}"}] },
+        "expr": "sum(rate(container_cpu_usage_seconds_total{id=~\"/docker/.*|/kubepods.*\"}[2m])) by (id)",
+        "legendFormat": "{{id}}"}] },
 
     { "id": 20, "type": "row", "title": "🧠 Memória por Container", "collapsed": false,
       "gridPos": {"x":0,"y":15,"w":24,"h":1} },
@@ -72,8 +72,8 @@
         "custom": {"lineWidth":2,"fillOpacity":8,"gradientMode":"opacity","showPoints":"never"} } },
       "options": { "tooltip": {"mode":"multi","sort":"desc"}, "legend": {"displayMode":"table","placement":"bottom","calcs":["mean","max"]} },
       "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},
-        "expr": "container_memory_working_set_bytes{name!=\"\",image!=\"\"}",
-        "legendFormat": "{{name}}"}] },
+        "expr": "container_memory_working_set_bytes{id=~\"/docker/.*|/kubepods.*\"}",
+        "legendFormat": "{{id}}"}] },
 
     { "id": 22, "type": "bargauge", "title": "Top Consumidores de Memória",
       "gridPos": {"x":16,"y":16,"w":8,"h":8},
@@ -83,8 +83,8 @@
       "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "orientation": "horizontal",
         "displayMode": "gradient", "showUnfilled": true },
       "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},
-        "expr": "topk(10, container_memory_working_set_bytes{name!=\"\",image!=\"\"})",
-        "legendFormat": "{{name}}"}] },
+        "expr": "topk(8, container_memory_working_set_bytes{id=~\"/docker/.*|/kubepods.*\"})",
+        "legendFormat": "{{id}}"}] },
 
     { "id": 30, "type": "row", "title": "🌐 Rede I/O", "collapsed": false,
       "gridPos": {"x":0,"y":24,"w":24,"h":1} },
@@ -95,8 +95,8 @@
         "custom": {"lineWidth":1,"fillOpacity":5,"showPoints":"never"} } },
       "options": { "tooltip": {"mode":"multi"}, "legend": {"displayMode":"list","placement":"bottom"} },
       "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},
-        "expr": "sum(rate(container_network_receive_bytes_total{name!=\"\"}[2m])) by (name)",
-        "legendFormat": "{{name}}"}] },
+        "expr": "sum(rate(container_network_receive_bytes_total{id=~\"/docker/.*|/kubepods.*\"}[2m])) by (id)",
+        "legendFormat": "{{id}}"}] },
 
     { "id": 32, "type": "timeseries", "title": "Enviado (bytes/s)",
       "gridPos": {"x":12,"y":25,"w":12,"h":7},
@@ -104,8 +104,8 @@
         "custom": {"lineWidth":1,"fillOpacity":5,"showPoints":"never"} } },
       "options": { "tooltip": {"mode":"multi"}, "legend": {"displayMode":"list","placement":"bottom"} },
       "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},
-        "expr": "sum(rate(container_network_transmit_bytes_total{name!=\"\"}[2m])) by (name)",
-        "legendFormat": "{{name}}"}] },
+        "expr": "sum(rate(container_network_transmit_bytes_total{id=~\"/docker/.*|/kubepods.*\"}[2m])) by (id)",
+        "legendFormat": "{{id}}"}] },
 
     { "id": 40, "type": "row", "title": "🪣 MinIO — Data Lake", "collapsed": false,
       "gridPos": {"x":0,"y":32,"w":24,"h":1} },
