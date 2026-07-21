@@ -74,9 +74,7 @@ class VacinacaoPniBronzeJob(BronzeJob):
 
     def _write(self, df: DataFrame, output_path: str, partition_val: str) -> None:
         """Uses dynamic replaceWhere because ano_mes is derived from data_vacina."""
-        parts = sorted(
-            r[0] for r in df.select(self.partition_col).distinct().collect() if r[0]
-        )
+        parts = sorted(r[0] for r in df.select(self.partition_col).distinct().collect() if r[0])
         if not parts:
             raise ValueError(f"No valid {self.partition_col} values in data")
         replace_where = " OR ".join(f"{self.partition_col} = '{p}'" for p in parts)

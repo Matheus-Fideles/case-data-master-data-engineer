@@ -26,7 +26,10 @@ def test_run_offline():
 
     mock_svc = _make_mock_service()
     # Patch in the module that imported the function (not the origin module)
-    with patch("apps.epidemiologico.jobs.extract_arboviroses.make_extraction_service", return_value=mock_svc):
+    with patch(
+        "apps.epidemiologico.jobs.extract_arboviroses.make_extraction_service",
+        return_value=mock_svc,
+    ):
         result = arboviroses.run(agravo="dengue", ano=2024)
 
     assert result["row_count"] == 5

@@ -14,14 +14,6 @@ import socket
 import pytest
 import requests
 
-
-def _port_open(host: str, port: int, timeout: float = 1.0) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
-
 from tests.smoke.conftest import (
     KAFKA_BOOTSTRAP,
     KAFKA_TOPIC,
@@ -30,6 +22,15 @@ from tests.smoke.conftest import (
     minio_client,
     pg_conn,
 )
+
+
+def _port_open(host: str, port: int, timeout: float = 1.0) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
 
 pytestmark = pytest.mark.smoke
 

@@ -27,7 +27,9 @@ class TestCnes:
         from apps.hospitalar.jobs import extract_cnes as cnes
 
         mock_svc = _mock_svc(row_count=10)
-        with patch("apps.hospitalar.jobs.extract_cnes.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "apps.hospitalar.jobs.extract_cnes.make_extraction_service", return_value=mock_svc
+        ):
             result = cnes.run(snapshot_date="20240101")
 
         assert result["row_count"] == 10
@@ -37,7 +39,9 @@ class TestCnes:
         from apps.hospitalar.jobs import extract_cnes as cnes
 
         mock_svc = _mock_svc()
-        with patch("apps.hospitalar.jobs.extract_cnes.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "apps.hospitalar.jobs.extract_cnes.make_extraction_service", return_value=mock_svc
+        ):
             cnes.run(snapshot_date="20240101")
 
         assert mock_svc.run.call_args.kwargs["fonte"] == "hospitalar/cnes"
@@ -46,7 +50,9 @@ class TestCnes:
         from apps.hospitalar.jobs import extract_cnes as cnes
 
         mock_svc = _mock_svc()
-        with patch("apps.hospitalar.jobs.extract_cnes.make_extraction_service", return_value=mock_svc):
+        with patch(
+            "apps.hospitalar.jobs.extract_cnes.make_extraction_service", return_value=mock_svc
+        ):
             cnes.run(snapshot_date=None)
 
         data_ref = mock_svc.run.call_args.kwargs["data_ref"]

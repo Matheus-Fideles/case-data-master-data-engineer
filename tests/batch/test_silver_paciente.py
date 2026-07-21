@@ -79,7 +79,9 @@ class TestPacienteTransform:
 
         with (
             patch.object(sp, "F", MagicMock()),
-            patch("apps.epidemiologico.jobs.silver_paciente.mask_paciente", return_value=df) as m_mask,
+            patch(
+                "apps.epidemiologico.jobs.silver_paciente.mask_paciente", return_value=df
+            ) as m_mask,
             patch("apps.epidemiologico.jobs.silver_paciente.validate_no_pii"),
         ):
             job.transform(df)

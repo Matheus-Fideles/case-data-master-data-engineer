@@ -132,7 +132,9 @@ def _write_gold_delta(microbatch: DataFrame, batch_id: int) -> None:
         )
     )
 
-    gold_df.write.format("delta").mode("append").option("mergeSchema", "true").partitionBy("ano_mes").save(GOLD_PATH)
+    gold_df.write.format("delta").mode("append").option("mergeSchema", "true").partitionBy(
+        "ano_mes"
+    ).save(GOLD_PATH)
     log.info("[gold/stream] batch=%d rows=%d path=%s", batch_id, gold_df.count(), GOLD_PATH)
 
 

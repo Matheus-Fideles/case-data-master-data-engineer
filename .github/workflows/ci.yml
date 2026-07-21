@@ -27,10 +27,10 @@ jobs:
         run: pip install ruff==0.4.9
 
       - name: Check formatting
-        run: ruff format --check pipelines/ airflow/ tests/
+        run: ruff format --check apps/ airflow/ tests/
 
       - name: Check lint
-        run: ruff check pipelines/ airflow/ tests/
+        run: ruff check apps/ airflow/ tests/
 
   # ── Unit tests ──────────────────────────────────────────────────────────────
   unit:
@@ -97,14 +97,14 @@ jobs:
 
       - name: Run bandit
         run: |
-          bandit -r pipelines/ \
+          bandit -r apps/ \
             --severity-level medium \
             --confidence-level medium \
             --skip B101,B311 \
             -f json \
             -o bandit-report.json || true
           # Falha apenas em HIGH severity
-          bandit -r pipelines/ \
+          bandit -r apps/ \
             --severity-level high \
             --confidence-level high \
             --skip B101
