@@ -75,7 +75,7 @@ class BronzeJob(ABC):
     # ── shared steps (do not override) ───────────────────────────────────────
 
     def _read(self, spark: SparkSession, input_path: str) -> DataFrame:
-        return spark.read.option("multiLine", "false").schema(self.schema).json(input_path)
+        return spark.read.option("multiLine", "true").schema(self.schema).json(input_path)
 
     def _add_metadata(self, df: DataFrame, source_url: str, batch_id: str) -> DataFrame:
         return (

@@ -70,3 +70,4 @@ great_expectations/uncommitted/
 # ── Gerado ───────────────────────────────────────────────────
 *.log
 *.pid
+apps.zip
