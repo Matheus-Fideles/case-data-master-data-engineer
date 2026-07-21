@@ -23,7 +23,8 @@ with DAG(
     snapshot_date = "{{ data_interval_start.strftime('%Y%m%d') }}"
     ano_mes = "{{ data_interval_start.strftime('%Y%m') }}"
 
-    # dim_municipio and dim_agravo can run in parallel
+    # Sequential to avoid k8s resource starvation on local dev cluster (10 GB).
+    # Each dim job: 1 driver + 1 executor = ~5 GB k8s requests.
     _dim_mun_submit, _dim_mun_sensor = make_spark_operator(
         task_id="gold_dim_municipio",
         template_name="gold-dims.yaml",
@@ -71,3 +72,7 @@ with DAG(
         },
         dag=dag,
     )
+
+    _dim_mun_sensor >> _dim_agr_submit
+    _dim_agr_sensor >> _dim_vac_submit
+    _dim_vac_sensor >> _dim_tmp_submit

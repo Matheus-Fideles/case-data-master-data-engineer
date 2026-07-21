@@ -38,17 +38,17 @@ spec:
     envFrom:
       - secretRef:
           name: minio-credentials
+      - secretRef:
+          name: postgres-credentials
     env:
       - name: OPENLINEAGE_URL
         value: "http://host.docker.internal:5010"
       - name: OPENLINEAGE_NAMESPACE
         value: "batch"
-      - secretRef:
-          name: postgres-credentials
   executor:
-    cores: 2
-    coreLimit: "2000m"
-    instances: 2
+    cores: 1
+    coreLimit: "1200m"
+    instances: 1
     memory: "2g"
     labels: {}
     envFrom:
