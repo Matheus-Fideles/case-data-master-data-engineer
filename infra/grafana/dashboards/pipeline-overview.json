@@ -1,50 +1,157 @@
 {
-  "title": "Pipeline Overview — Case Santander",
+  "title": "Case Santander — Pipeline Overview",
   "uid": "pipeline-overview",
   "schemaVersion": 38,
-  "version": 1,
-  "refresh": "1m",
+  "version": 2,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "tags": ["santander", "pipeline", "medallion"],
   "panels": [
-    {
-      "id": 1,
-      "type": "stat",
-      "title": "Airflow UP",
-      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 3},
-      "targets": [
-        {
-          "datasource": "Prometheus",
-          "expr": "up{job=\"airflow\"}",
-          "legendFormat": "Airflow"
-        }
-      ]
-    },
-    {
-      "id": 2,
-      "type": "stat",
-      "title": "MinIO UP",
-      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 3},
-      "targets": [
-        {
-          "datasource": "Prometheus",
-          "expr": "up{job=\"minio\"}",
-          "legendFormat": "MinIO"
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "type": "table",
-      "title": "Casos por Agravo (último mês)",
-      "gridPos": {"x": 0, "y": 3, "w": 12, "h": 8},
-      "targets": [
-        {
-          "datasource": "Postgres-Gold",
-          "rawSql": "SELECT agravo, COUNT(*) AS qtd_casos FROM gold_dw.fato_notificacao WHERE ano_mes = TO_CHAR(CURRENT_DATE - INTERVAL '1 month', 'YYYYMM') GROUP BY agravo ORDER BY qtd_casos DESC",
-          "format": "table"
-        }
-      ]
-    }
-  ],
-  "time": {"from": "now-30d", "to": "now"},
-  "timepicker": {}
+
+    { "id": 100, "type": "text", "title": "", "gridPos": {"x":0,"y":0,"w":24,"h":2},
+      "options": { "content": "# 🏅 Case Santander — Vigilância Epidemiológica\nPlataforma medallion: **Bronze → Silver → Gold** · Spark on k3s · Delta Lake · OpenLineage", "mode": "markdown" } },
+
+    { "id": 1, "type": "row", "title": "🟢 Status dos Serviços", "collapsed": false,
+      "gridPos": {"x":0,"y":2,"w":24,"h":1} },
+
+    { "id": 2, "type": "stat", "title": "Prometheus",
+      "gridPos": {"x":0,"y":3,"w":4,"h":3},
+      "fieldConfig": { "defaults": { "mappings": [{"type":"value","options":{"1":{"text":"UP","color":"green"},"0":{"text":"DOWN","color":"red"}}}], "thresholds": {"steps":[{"value":0,"color":"red"},{"value":1,"color":"green"}]}, "color": {"mode":"thresholds"} } },
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "textMode": "auto", "colorMode": "background" },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"up{job=\"prometheus\"}","legendFormat":"Prometheus"}] },
+
+    { "id": 3, "type": "stat", "title": "MinIO",
+      "gridPos": {"x":4,"y":3,"w":4,"h":3},
+      "fieldConfig": { "defaults": { "mappings": [{"type":"value","options":{"1":{"text":"UP","color":"green"},"0":{"text":"DOWN","color":"red"}}}], "thresholds": {"steps":[{"value":0,"color":"red"},{"value":1,"color":"green"}]}, "color": {"mode":"thresholds"} } },
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "textMode": "auto", "colorMode": "background" },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"up{job=\"minio\"}","legendFormat":"MinIO"}] },
+
+    { "id": 4, "type": "stat", "title": "cAdvisor",
+      "gridPos": {"x":8,"y":3,"w":4,"h":3},
+      "fieldConfig": { "defaults": { "mappings": [{"type":"value","options":{"1":{"text":"UP","color":"green"},"0":{"text":"DOWN","color":"red"}}}], "thresholds": {"steps":[{"value":0,"color":"red"},{"value":1,"color":"green"}]}, "color": {"mode":"thresholds"} } },
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "textMode": "auto", "colorMode": "background" },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"up{job=\"cadvisor\"}","legendFormat":"cAdvisor"}] },
+
+    { "id": 5, "type": "stat", "title": "Containers Ativos",
+      "gridPos": {"x":12,"y":3,"w":4,"h":3},
+      "fieldConfig": { "defaults": { "thresholds": {"steps":[{"value":0,"color":"red"},{"value":3,"color":"yellow"},{"value":7,"color":"green"}]}, "color": {"mode":"thresholds"}, "unit": "short" } },
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "background" },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"count(container_last_seen{image!=\"\",name!=\"\"})","legendFormat":"Containers"}] },
+
+    { "id": 6, "type": "stat", "title": "Séries Prometheus",
+      "gridPos": {"x":16,"y":3,"w":4,"h":3},
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": {"steps":[{"value":0,"color":"green"}]}, "color": {"mode":"thresholds"} } },
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "value" },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"prometheus_tsdb_head_series","legendFormat":"Séries"}] },
+
+    { "id": 7, "type": "stat", "title": "Uptime",
+      "gridPos": {"x":20,"y":3,"w":4,"h":3},
+      "fieldConfig": { "defaults": { "unit": "dtdurations", "thresholds": {"steps":[{"value":0,"color":"green"}]}, "color": {"mode":"thresholds"} } },
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "value" },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"time() - process_start_time_seconds{job=\"prometheus\"}","legendFormat":"Uptime"}] },
+
+    { "id": 10, "type": "row", "title": "⚡ CPU por Container", "collapsed": false,
+      "gridPos": {"x":0,"y":6,"w":24,"h":1} },
+
+    { "id": 11, "type": "timeseries", "title": "CPU Usage por Container",
+      "gridPos": {"x":0,"y":7,"w":24,"h":8},
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0,
+        "custom": {"lineWidth":2,"fillOpacity":10,"gradientMode":"opacity","showPoints":"never"} } },
+      "options": { "tooltip": {"mode":"multi","sort":"desc"}, "legend": {"displayMode":"table","placement":"bottom","calcs":["mean","max"]} },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},
+        "expr": "sum(rate(container_cpu_usage_seconds_total{name!=\"\",image!=\"\"}[2m])) by (name)",
+        "legendFormat": "{{name}}"}] },
+
+    { "id": 20, "type": "row", "title": "🧠 Memória por Container", "collapsed": false,
+      "gridPos": {"x":0,"y":15,"w":24,"h":1} },
+
+    { "id": 21, "type": "timeseries", "title": "Memória em Uso (Working Set)",
+      "gridPos": {"x":0,"y":16,"w":16,"h":8},
+      "fieldConfig": { "defaults": { "unit": "bytes", "min": 0,
+        "custom": {"lineWidth":2,"fillOpacity":8,"gradientMode":"opacity","showPoints":"never"} } },
+      "options": { "tooltip": {"mode":"multi","sort":"desc"}, "legend": {"displayMode":"table","placement":"bottom","calcs":["mean","max"]} },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},
+        "expr": "container_memory_working_set_bytes{name!=\"\",image!=\"\"}",
+        "legendFormat": "{{name}}"}] },
+
+    { "id": 22, "type": "bargauge", "title": "Top Consumidores de Memória",
+      "gridPos": {"x":16,"y":16,"w":8,"h":8},
+      "fieldConfig": { "defaults": { "unit": "bytes",
+        "thresholds": {"steps":[{"value":0,"color":"green"},{"value":536870912,"color":"yellow"},{"value":1610612736,"color":"red"}]},
+        "color": {"mode":"thresholds"} } },
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "orientation": "horizontal",
+        "displayMode": "gradient", "showUnfilled": true },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},
+        "expr": "topk(10, container_memory_working_set_bytes{name!=\"\",image!=\"\"})",
+        "legendFormat": "{{name}}"}] },
+
+    { "id": 30, "type": "row", "title": "🌐 Rede I/O", "collapsed": false,
+      "gridPos": {"x":0,"y":24,"w":24,"h":1} },
+
+    { "id": 31, "type": "timeseries", "title": "Recebido (bytes/s)",
+      "gridPos": {"x":0,"y":25,"w":12,"h":7},
+      "fieldConfig": { "defaults": { "unit": "Bps", "min": 0,
+        "custom": {"lineWidth":1,"fillOpacity":5,"showPoints":"never"} } },
+      "options": { "tooltip": {"mode":"multi"}, "legend": {"displayMode":"list","placement":"bottom"} },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},
+        "expr": "sum(rate(container_network_receive_bytes_total{name!=\"\"}[2m])) by (name)",
+        "legendFormat": "{{name}}"}] },
+
+    { "id": 32, "type": "timeseries", "title": "Enviado (bytes/s)",
+      "gridPos": {"x":12,"y":25,"w":12,"h":7},
+      "fieldConfig": { "defaults": { "unit": "Bps", "min": 0,
+        "custom": {"lineWidth":1,"fillOpacity":5,"showPoints":"never"} } },
+      "options": { "tooltip": {"mode":"multi"}, "legend": {"displayMode":"list","placement":"bottom"} },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},
+        "expr": "sum(rate(container_network_transmit_bytes_total{name!=\"\"}[2m])) by (name)",
+        "legendFormat": "{{name}}"}] },
+
+    { "id": 40, "type": "row", "title": "🪣 MinIO — Data Lake", "collapsed": false,
+      "gridPos": {"x":0,"y":32,"w":24,"h":1} },
+
+    { "id": 41, "type": "stat", "title": "Capacidade Total",
+      "gridPos": {"x":0,"y":33,"w":6,"h":4},
+      "fieldConfig": { "defaults": { "unit": "bytes", "thresholds": {"steps":[{"value":0,"color":"green"}]}, "color": {"mode":"thresholds"} } },
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "value" },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"minio_cluster_capacity_raw_total_bytes","legendFormat":"Total"}] },
+
+    { "id": 42, "type": "stat", "title": "Capacidade Usada",
+      "gridPos": {"x":6,"y":33,"w":6,"h":4},
+      "fieldConfig": { "defaults": { "unit": "bytes",
+        "thresholds": {"steps":[{"value":0,"color":"green"},{"value":53687091200,"color":"yellow"},{"value":85899345920,"color":"red"}]},
+        "color": {"mode":"thresholds"} } },
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "background" },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"minio_cluster_capacity_raw_used_bytes","legendFormat":"Usado"}] },
+
+    { "id": 43, "type": "stat", "title": "Total de Objetos",
+      "gridPos": {"x":12,"y":33,"w":6,"h":4},
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": {"steps":[{"value":0,"color":"green"}]}, "color": {"mode":"thresholds"} } },
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "value" },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"sum(minio_bucket_usage_object_total)","legendFormat":"Objetos"}] },
+
+    { "id": 44, "type": "stat", "title": "Req/s S3 API",
+      "gridPos": {"x":18,"y":33,"w":6,"h":4},
+      "fieldConfig": { "defaults": { "unit": "reqps", "thresholds": {"steps":[{"value":0,"color":"green"}]}, "color": {"mode":"thresholds"} } },
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "value" },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},"expr":"sum(rate(minio_s3_requests_total[2m]))","legendFormat":"req/s"}] },
+
+    { "id": 45, "type": "timeseries", "title": "Objetos por Bucket",
+      "gridPos": {"x":0,"y":37,"w":12,"h":7},
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0,
+        "custom": {"lineWidth":2,"fillOpacity":10,"showPoints":"never"} } },
+      "options": { "tooltip": {"mode":"multi"}, "legend": {"displayMode":"table","placement":"bottom","calcs":["last"]} },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},
+        "expr": "minio_bucket_usage_object_total",
+        "legendFormat": "{{bucket}}"}] },
+
+    { "id": 46, "type": "timeseries", "title": "Tamanho por Bucket",
+      "gridPos": {"x":12,"y":37,"w":12,"h":7},
+      "fieldConfig": { "defaults": { "unit": "bytes", "min": 0,
+        "custom": {"lineWidth":2,"fillOpacity":8,"showPoints":"never"} } },
+      "options": { "tooltip": {"mode":"multi"}, "legend": {"displayMode":"table","placement":"bottom","calcs":["last"]} },
+      "targets": [{"datasource":{"type":"prometheus","uid":"prometheus"},
+        "expr": "minio_bucket_usage_total_bytes",
+        "legendFormat": "{{bucket}}"}] }
+  ]
 }
