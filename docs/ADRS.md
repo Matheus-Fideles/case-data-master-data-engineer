@@ -85,7 +85,7 @@ Ignorar streaming completamente.
 **Por que foi rejeitada:**
 - Requisito 2 cita "tempo real" explicitamente.
 - Requisito 8 cita "demanda crescente por análises em tempo real".
-- A Pergunta esperada: como a solução lida com streaming.
+- Ponto de atenção técnica: como a solução lida com streaming.
 
 ## Decisão
 
@@ -98,8 +98,8 @@ Ignorar streaming completamente.
 ## Consequências
 
 ### Positivas
-- Resposta direta e correta às perguntas técnicas sobre Kappa vs Lambda.
-- Demonstração visual de dois pipelines distintos vivos na apresentação.
+- Justificativa técnica da escolha de Kappa vs Lambda.
+- Dois pipelines distintos ativos no ambiente.
 - Resiliência: falha em um caminho não interrompe o outro.
 - Fontes batch e stream tratadas conforme sua natureza real.
 
@@ -129,7 +129,7 @@ Em produção AWS:
 
 ## Contexto
 
-Pipelines de dados falham — rede cai, cluster reinicia, container morre. **Reexecutar a mesma carga sem corromper o resultado** é requisito mínimo de qualquer plataforma séria. A Pergunta relevante::
+Pipelines de dados falham — rede cai, cluster reinicia, container morre. **Reexecutar a mesma carga sem corromper o resultado** é requisito mínimo de qualquer plataforma séria. Ponto de atenção técnica:
 
 > *"Se o seu DAG do SIH-SUS rodar duas vezes para o mesmo mês, o que acontece com os dados? E se o consumer Kafka receber a mesma mensagem duplicada?"*
 
@@ -315,7 +315,7 @@ Fontes de dados externas mudam:
 - **CNES API** adicionou `tem_uti` em 2022 — campo novo entrou silenciosamente na resposta JSON
 - **IBGE Sidra** mantém compatibilidade, mas ocasionalmente publica novo agregado que substitui antigo
 
-Sem política, o pipeline quebra a cada mudança upstream e o backfill histórico fica refém. A Pergunta relevante::
+Sem política, o pipeline quebra a cada mudança upstream e o backfill histórico fica refém. Ponto de atenção técnica:
 
 > *"E se um arquivo do DataSUS chegar com schema diferente — uma coluna nova ou um tipo mudado?"*
 
@@ -491,7 +491,7 @@ O enunciado é literal sobre dois requisitos cruzados:
 >
 > **Requisito 6 (Mascaramento de Dados):** "Proponha técnicas e exemplos de como mascarar dados sensíveis, garantindo a privacidade e anonimização das informações utilizadas na análise."
 
-A camada `oltp.paciente` traz **PII verdadeiro** (CPF com checksum válido, nome, CEP, telefone, e-mail) gerado via Faker `pt_BR`. O Bronze contém esses dados em claro — propositadamente, para demonstrar a transição "raw → seguro" durante a apresentação. **A partir do Silver, ninguém pode mais ver PII em claro.**
+A camada `oltp.paciente` traz **PII verdadeiro** (CPF com checksum válido, nome, CEP, telefone, e-mail) gerado via Faker `pt_BR`. O Bronze contém esses dados em claro — propositadamente, para demonstrar a transição "raw → seguro" em ambiente de demonstração. **A partir do Silver, ninguém pode mais ver PII em claro.**
 
 Esta decisão registra **onde, como e por que** o mascaramento acontece, **quais técnicas** se aplicam a cada coluna sensível e **quais alternativas** foram avaliadas e rejeitadas.
 
@@ -878,7 +878,7 @@ Análises sérias **dependem do contexto da época** do fato:
 
 Sem SCD2, **toda análise histórica fica errada** — o lookup retorna o estado atual da dimensão, não o estado vigente na data do fato.
 
-A Pergunta relevante::
+Ponto de atenção técnica:
 
 > *"Como vocês tratam mudanças nas dimensões? Se um paciente mudar de endereço, o que acontece com as internações antigas dele?"*
 
