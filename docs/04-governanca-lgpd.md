@@ -117,14 +117,31 @@ def validate_no_pii(df: DataFrame, pii_cols: list[str] | None = None) -> None:
 
 RBAC granular por coluna (ex.: mascarar CPF para analistas externos) é evolução futura via Apache Ranger.
 
-### MinIO — Bucket Policies
+### MinIO — IAM Policies (Least-Privilege)
 
-| Bucket | Política | Acesso |
-|---|---|---|
-| `bronze` | Restrito | Apenas jobs Spark (service account) |
-| `silver` | Restrito | Apenas jobs Spark |
-| `gold` | Leitura ampla | Trino, Spark, analistas |
-| `landing` | Restrito | Apenas jobs de extração |
+O MinIO implementa controle de acesso baseado em políticas IAM compatíveis com AWS S3.
+Dois service accounts são criados automaticamente pelo `minio-init` na inicialização:
+
+| Usuário | Policy | Permissões | Usado por |
+|---|---|---|---|
+| `svc-pipeline` | `pipeline-rw` | `s3:GetObject`, `PutObject`, `DeleteObject`, `ListBucket` em todos os buckets | Spark jobs, Airflow |
+| `svc-serving` | `serving-ro` | `s3:GetObject`, `ListBucket` **somente em `gold`** | Trino, Metabase |
+
+**Nenhum serviço analítico tem acesso de escrita** — o Trino (e portanto o Metabase) só consegue ler o bucket `gold` via `svc-serving`, não podendo deletar ou sobrescrever dados.
+
+O usuário `minioadmin` (root) é usado apenas para administração do cluster MinIO e não é injetado em nenhum serviço de dados.
+
+**Políticas em JSON** — `infra/minio/init/create-buckets.sh`:
+
+```json
+// pipeline-rw
+{ "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject","s3:ListBucket","s3:GetBucketLocation"],
+  "Resource": ["arn:aws:s3:::landing/*","arn:aws:s3:::bronze/*","arn:aws:s3:::silver/*","arn:aws:s3:::gold/*"] }
+
+// serving-ro
+{ "Action": ["s3:GetObject","s3:ListBucket","s3:GetBucketLocation"],
+  "Resource": ["arn:aws:s3:::gold", "arn:aws:s3:::gold/*"] }
+```
 
 ---
 
