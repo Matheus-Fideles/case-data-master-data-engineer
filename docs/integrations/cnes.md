@@ -195,7 +195,7 @@ O DataSUS também publica **dump completo do CNES** mensalmente via FTP:
 ftp://ftp.datasus.gov.br/cnes/<AAMM>/BASE_DE_DADOS_CNES_<AAMM>.zip
 ```
 
-Esse ZIP traz dezenas de arquivos DBC. Se a API estiver instável ou o requisito da banca pedir outro formato, é uma alternativa de backup.
+Esse ZIP traz dezenas de arquivos DBC. Se a API estiver instável ou o requisito pedir outro formato, é uma alternativa de backup.
 
 **Recomendação:** usar a **API REST como primária** (cobre o requisito explícito de "API REST" do enunciado) e mencionar o FTP como alternativa demonstrada de robustez.
 

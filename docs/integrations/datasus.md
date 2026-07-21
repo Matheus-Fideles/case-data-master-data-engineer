@@ -188,7 +188,7 @@ data/raw/sih/sp/2024-01/
 
 Para a S1 (decidido no plano do twin-planner), commitar amostra de **10.000 linhas determinísticas** do SP/2024-01 em `data/raw/sih/sp/2024-01/RDSP2401_sample10k.csv` via Git LFS. O CSV completo fica fora do Git (vai no `.gitignore` de `data/raw/sih/**/*_full.csv`).
 
-Algoritmo de downsample sugerido (para o candidato implementar):
+Algoritmo de downsample sugerido (para implementar):
 1. Ler CSV completo em pandas
 2. Aplicar `df.sample(n=10000, random_state=42)` — seed fixo
 3. Ordenar por `N_AIH` para reprodutibilidade visual

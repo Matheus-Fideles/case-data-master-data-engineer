@@ -455,7 +455,7 @@ airflow/
 - **4 DAGs Maintenance**
 - **TOTAL: 30 DAGs**
 
-**Prioridade de implementação para a banca:**
+**Prioridade de implementação:**
 
 | Sprint | DAGs obrigatórias | Cobertura |
 |---|---|---|
@@ -466,7 +466,7 @@ airflow/
 
 ---
 
-## Defesa em banca
+## FAQ Técnico
 
 | Pergunta | Resposta de 30s |
 |---|---|

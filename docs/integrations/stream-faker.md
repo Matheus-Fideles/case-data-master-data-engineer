@@ -7,7 +7,7 @@
 
 Esta "fonte" é um **producer Python rodando como container** que publica **eventos sintéticos de atendimentos** (consultas, atendimentos de pronto-socorro, internações sendo abertas) em um tópico Kafka, simulando um sistema hospitalar emitindo eventos em tempo real.
 
-É o **caminho speed da arquitetura Lambda** — sem ele, o case fica unilateralmente batch e a banca pergunta "cadê o tempo real?".
+É o **caminho speed da arquitetura Lambda** — sem ele, a arquitetura fica exclusivamente batch.
 
 **Por que stream simulado em vez de fonte real:**
 - Não existe stream público real e estável de saúde para se conectar (CNS/RNDS exige autenticação institucional)
@@ -75,10 +75,10 @@ Esta "fonte" é um **producer Python rodando como container** que publica **even
 | Simplicidade | ✅ alta | média |
 | Schema validation | manual ou Pydantic | nativa via registry |
 | Tamanho do payload | 2–3x maior | compacto |
-| Defesa em banca | "fui pragmático" | "padrão de mercado" |
+| FAQ Técnico | "fui pragmático" | "padrão de mercado" |
 | Esforço de setup | baixo | adiciona Schema Registry no Compose |
 
-**Recomendação:** começar com **JSON + Pydantic** para validação client-side (cabe em S3); deixar Avro como **evolução futura** documentada no slide. Não vale a pena pagar o custo do Schema Registry em laptop para a banca.
+**Recomendação:** começar com **JSON + Pydantic** para validação client-side; Avro documentado como evolução futura.
 
 ## 4. Estratégia de produção
 
@@ -125,7 +125,7 @@ O container `stream-producer` deve:
 
 ### Particionamento
 
-- Tópico `atendimentos.raw` com **3 partições** (defende escalabilidade na banca)
+- Tópico `atendimentos.raw` com **3 partições** (suporta escalabilidade horizontal)
 - **Chave = `id_paciente`** garante que eventos do mesmo paciente caem na mesma partição (ordem preservada para Spark)
 - `id_paciente` UUID seria pior (espalha tudo); usar o int da OLTP
 
@@ -179,7 +179,7 @@ Stream não é "cacheável" no mesmo sentido que CSV/API — é tempo real por n
 | Tópico não criado antes do producer iniciar | `UNKNOWN_TOPIC_OR_PARTITION` | KAFKA_AUTO_CREATE_TOPICS_ENABLE=true (S1 default) ou criar explicitamente no startup |
 | Schema mudou e producer/consumer divergem | Bronze cresce mas Silver não processa | Versionamento de schema (`schema_version` no payload) + log de versões observadas |
 
-## 10. Defesa em banca (perguntas previsíveis)
+## 10. FAQ Técnico (perguntas previsíveis)
 
 | Pergunta | Resposta curta |
 |---|---|

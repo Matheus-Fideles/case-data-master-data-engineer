@@ -32,7 +32,7 @@
 
 - **Status:** Aceito
 - **Data:** 2026-05-07
-- **Decisores:** Candidato (responsável pelo case)
+- **Autor:** Matheus Fideles Martins de Souza
 - **Contexto do case:** Academia Santander — Engenharia de Dados
 
 ## Contexto
@@ -48,7 +48,7 @@ O case exige que a solução seja capaz de ingerir dados de múltiplas fontes (C
 | Postgres OLTP (cadastro de pacientes simulado) | Mudanças contínuas (CDC) | Linhas por minuto |
 | Stream simulado de atendimentos (Faker) | Eventos contínuos (tempo real) | Eventos por segundo |
 
-A banca menciona explicitamente "arquiteturas Kappa, Lambda" no requisito 2 (Ingestão), portanto a decisão precisa ser **declarada e justificada**.
+A o case menciona explicitamente "arquiteturas Kappa, Lambda" no requisito 2 (Ingestão), portanto a decisão precisa ser **declarada e justificada**.
 
 ## Opções avaliadas
 
@@ -61,7 +61,7 @@ Dois caminhos paralelos com convergência no Gold:
 - **Convergência:** Trino consulta Gold (batch) + Gold (speed) na mesma camada lógica; Metabase exibe ambos em dashboards.
 
 **Vantagens neste case:**
-- Honra a natureza real das fontes: DataSUS publica em lote consolidado mensal; forçar streaming nesse caminho é artificial e indefensável na banca.
+- Honra a natureza real das fontes: DataSUS publica em lote consolidado mensal; forçar streaming nesse caminho é artificial e tecnicamente inconsistente.
 - Permite mostrar **dois pipelines distintos** funcionando ao vivo na demo de 1h30, evidenciando domínio dos dois paradigmas.
 - Falha de um caminho não derruba o outro (resiliência).
 
@@ -74,9 +74,9 @@ Dois caminhos paralelos com convergência no Gold:
 Único caminho via streaming. CSVs do DataSUS seriam "rebobinados" (replay) através de Kafka como se fossem eventos.
 
 **Por que foi rejeitada:**
-- Modelo conceitualmente forçado: arquivos do DataSUS são publicações batch consolidadas mensais, não eventos contínuos. Ingerir 30 dias num único Kafka topic e fingir que são eventos compromete corretude técnica e é difícil de defender na banca.
+- Modelo conceitualmente forçado: arquivos do DataSUS são publicações batch consolidadas mensais, não eventos contínuos. Ingerir 30 dias num único Kafka topic e fingir que são eventos compromete corretude técnica e é difícil de justificar tecnicamente.
 - Infraestrutura mais cara: backfill histórico via stream exige Kafka com retenção longa (TB) — inviável em laptop.
-- Esconde a competência batch (orquestração, dependências entre tarefas, idempotência) que a banca espera ver.
+- Esconde a competência batch (orquestração, dependências entre tarefas, idempotência) que a é esperado ver.
 
 ### Opção C — Apenas batch (rejeitada)
 
@@ -85,7 +85,7 @@ Ignorar streaming completamente.
 **Por que foi rejeitada:**
 - Requisito 2 cita "tempo real" explicitamente.
 - Requisito 8 cita "demanda crescente por análises em tempo real".
-- A banca **vai** perguntar como a solução lida com streaming.
+- A Pergunta esperada: como a solução lida com streaming.
 
 ## Decisão
 
@@ -98,7 +98,7 @@ Ignorar streaming completamente.
 ## Consequências
 
 ### Positivas
-- Resposta direta e correta às perguntas da banca sobre Kappa vs Lambda.
+- Resposta direta e correta às perguntas técnicas sobre Kappa vs Lambda.
 - Demonstração visual de dois pipelines distintos vivos na apresentação.
 - Resiliência: falha em um caminho não interrompe o outro.
 - Fontes batch e stream tratadas conforme sua natureza real.
@@ -125,11 +125,11 @@ Em produção AWS:
 
 - **Status:** Aceito
 - **Data:** 2026-05-07
-- **Decisores:** Candidato
+- **Autor:** Matheus Fideles Martins de Souza
 
 ## Contexto
 
-Pipelines de dados falham — rede cai, cluster reinicia, container morre. **Reexecutar a mesma carga sem corromper o resultado** é requisito mínimo de qualquer plataforma séria. A banca certamente vai perguntar:
+Pipelines de dados falham — rede cai, cluster reinicia, container morre. **Reexecutar a mesma carga sem corromper o resultado** é requisito mínimo de qualquer plataforma séria. A Pergunta relevante::
 
 > *"Se o seu DAG do SIH-SUS rodar duas vezes para o mesmo mês, o que acontece com os dados? E se o consumer Kafka receber a mesma mensagem duplicada?"*
 
@@ -270,7 +270,7 @@ Métricas e checks que validam a estratégia em runtime:
 
 ### Positivas
 
-- **Reexecução previsível** — banca pode pedir "rode duas vezes" e ver o mesmo resultado
+- **Reexecução previsível** — é possível pedir "rode duas vezes" e ver o mesmo resultado
 - **Backfill seguro** — janela histórica reprocessável sem caos
 - **Defesa direta** para perguntas "e se Kafka reentregar?" e "e se DAG falhar no meio?"
 - **Otimização inerente** — MERGE Delta evita reescrever quando nada mudou (`_row_hash`)
@@ -289,7 +289,7 @@ Métricas e checks que validam a estratégia em runtime:
 - **ADR 0001 Lambda vs Kappa** (define batch vs streaming) — [`./0001-lambda-vs-kappa.md`](./0001-lambda-vs-kappa.md)
 - **ADR 0006 SCD Tipo 2** (consumidor desta política para dimensões) — [`./0006-scd2.md`](./0006-scd2.md)
 
-## Apêndice — defesa em banca
+## Apêndice — FAQ técnico
 
 | Pergunta | Resposta de 30s |
 |---|---|
@@ -305,7 +305,7 @@ Métricas e checks que validam a estratégia em runtime:
 
 - **Status:** Aceito
 - **Data:** 2026-05-07
-- **Decisores:** Candidato
+- **Autor:** Matheus Fideles Martins de Souza
 
 ## Contexto
 
@@ -315,7 +315,7 @@ Fontes de dados externas mudam:
 - **CNES API** adicionou `tem_uti` em 2022 — campo novo entrou silenciosamente na resposta JSON
 - **IBGE Sidra** mantém compatibilidade, mas ocasionalmente publica novo agregado que substitui antigo
 
-Sem política, o pipeline quebra a cada mudança upstream e o backfill histórico fica refém. A banca certamente vai perguntar:
+Sem política, o pipeline quebra a cada mudança upstream e o backfill histórico fica refém. A Pergunta relevante::
 
 > *"E se um arquivo do DataSUS chegar com schema diferente — uma coluna nova ou um tipo mudado?"*
 
@@ -442,7 +442,7 @@ Permite identificar linhas processadas com versão antiga após upgrade. Reproce
 - Bronze aceita ambas via `mergeSchema=true`
 - Silver promove apenas as 19 colunas canonicalizadas — colunas extras ficam dormentes no Bronze para futura promoção
 
-## Defesa em banca
+## FAQ Técnico
 
 | Pergunta | Resposta de 30s |
 |---|---|
@@ -480,7 +480,7 @@ Permite identificar linhas processadas com versão antiga após upgrade. Reproce
 
 - **Status:** Aceito
 - **Data:** 2026-05-07
-- **Decisores:** Candidato
+- **Autor:** Matheus Fideles Martins de Souza
 - **Contexto do case:** Academia Santander — Engenharia de Dados
 
 ## Contexto
@@ -532,7 +532,7 @@ Delta Lake suporta criptografia de colunas via Parquet Modular Encryption (PME).
 **Por que foi rejeitada:**
 - PME é complexo: KMS, key rotation, política de acesso por footer
 - **Reversível por design** (criptografia, não anonimização) → não atende ao requisito de **anonimização** literal do enunciado
-- Footprint operacional alto para o ganho — banca pode aceitar como evolução, mas não como ponto de partida
+- Footprint operacional alto para o ganho — pode ser considerado como como evolução, mas não como ponto de partida
 - Em laptop com MinIO sem KMS real, vira teatro
 
 ### Opção D — Trino views com `mask_fn` — rejeitada
@@ -558,7 +558,7 @@ Trino Lake Formation policies aplicam mascaramento na hora da query.
 | `telefone` | **Supressão (NULL)** | — | — | Idem |
 | `endereco_completo` (não está no schema atual mas se entrar) | **Supressão** | — | — | Idem |
 
-### Algoritmo de hash (defesa em banca)
+### Algoritmo de hash (FAQ técnico)
 
 ```
 hash_cpf = SHA-256( salt || cpf_normalizado )
@@ -585,7 +585,7 @@ Mesmo CPF original → mesmo nome Faker em todas as execuções. Diferentes CPFs
 ### Positivas
 
 - **Conformidade LGPD:** SHA-256 + salt é considerado anonimização aceitável pela ANPD desde que o salt não seja exposto e a chave da função hash seja gerenciada
-- **Defesa direta para 4 perguntas previsíveis da banca:**
+- **Defesa direta para 4 perguntas técnicas frequentes:**
   - "Como vocês mascaram CPF?" → hash com salt secreto
   - "E se alguém tiver acesso aos dados mascarados, consegue identificar a pessoa?" → não, porque o salt é segredo e SHA-256 é unidirecional
   - "Por que SHA-256 e não MD5?" → MD5 está formalmente quebrado para colisões; SHA-256 é o mínimo industrial
@@ -644,7 +644,7 @@ Mudança de técnica de mascaramento = nova versão = novo reprocessamento. **Li
 - **k-anonymity (Sweeney, 2002):** referência clássica para reidentificação por quasi-identifiers
 - **Decisão relacionada:** [Modelo dimensional Gold](../data-model.md) define que dimensões só recebem dados pós-masking
 
-## Apêndice — perguntas da banca + resposta-padrão
+## Apêndice — perguntas técnicas + resposta
 
 | Pergunta provável | Resposta de 30s |
 |---|---|
@@ -661,11 +661,11 @@ Mudança de técnica de mascaramento = nova versão = novo reprocessamento. **Li
 
 - **Status:** Aceito
 - **Data:** 2026-05-07
-- **Decisores:** Candidato
+- **Autor:** Matheus Fideles Martins de Souza
 
 ## Contexto
 
-A camada **speed** da arquitetura Lambda processa eventos de atendimentos publicados em Kafka pelo `stream-producer` simulado ([`stream-faker.md`](../../integrations/stream-faker.md)). Em sistemas reais, esses eventos chegam **fora de ordem** — origens espalhadas, redes intermitentes, retries do producer, replays operacionais. A banca quase certamente vai perguntar:
+A camada **speed** da arquitetura Lambda processa eventos de atendimentos publicados em Kafka pelo `stream-producer` simulado ([`stream-faker.md`](../../integrations/stream-faker.md)). Em sistemas reais, esses eventos chegam **fora de ordem** — origens espalhadas, redes intermitentes, retries do producer, replays operacionais. Pergunta técnica relevante:
 
 > *"O que acontece se um evento chegar 30 minutos atrasado? E 5 horas? E 3 dias?"*
 
@@ -696,7 +696,7 @@ Eventos com `ts_evento` mais antigo que `max(ts_evento_observado_até_agora) - 1
 - Atraso > 1h tipicamente indica **problema operacional sério** (producer parado por horas, replay manual) — preferimos tratar via reprocessamento batch que via streaming
 - Demonstrável na demo: emitir evento com `ts_evento - 30min` ainda é aceito; com `ts_evento - 2h`, vai pra DLQ
 
-**Quando reconsiderar:** se a banca questionar especificamente, mencionar que em produção real o watermark é **negociado com o time produtor** (SLA de pontualidade).
+**Quando reconsiderar:** em produção real em produção real o watermark é **negociado com o time produtor** (SLA de pontualidade).
 
 ### Trigger interval = **30 segundos** (processing time)
 
@@ -827,7 +827,7 @@ Cenários e comportamento:
 - Garantia **exactly-once efetivo** validável em smoke test
 - DLQ visível e analisável — defesa para "como você lida com dados ruins?"
 - Restart automático graças ao checkpoint
-- Watermark **demonstrável ao vivo** na banca: emitir um evento atrasado e mostrar ele caindo na DLQ
+- Watermark **demonstrável ao vivo\*\*: emitir um evento atrasado e mostrar ele caindo na DLQ
 - Métricas Prometheus (`stream_dlq_count`, `stream_processing_lag`) cobrem requisito 4 (observabilidade)
 
 ### Negativas (e mitigações)
@@ -837,7 +837,7 @@ Cenários e comportamento:
 - **Trigger 30s** introduz latência mínima de 30s — aceitável para o caso (saúde pública não exige tempo real <1s)
 - **DLQ infinita** se ninguém olhar — política: reprocessar/expirar mensalmente
 
-## Defesa em banca
+## FAQ Técnico
 
 | Pergunta | Resposta de 30s |
 |---|---|
@@ -864,7 +864,7 @@ Cenários e comportamento:
 
 - **Status:** Aceito
 - **Data:** 2026-05-07
-- **Decisores:** Candidato
+- **Autor:** Matheus Fideles Martins de Souza
 
 ## Contexto
 
@@ -878,7 +878,7 @@ Análises sérias **dependem do contexto da época** do fato:
 
 Sem SCD2, **toda análise histórica fica errada** — o lookup retorna o estado atual da dimensão, não o estado vigente na data do fato.
 
-A banca certamente vai perguntar:
+A Pergunta relevante::
 
 > *"Como vocês tratam mudanças nas dimensões? Se um paciente mudar de endereço, o que acontece com as internações antigas dele?"*
 
@@ -1074,7 +1074,7 @@ Janela: a `dim_paciente` é atualizada via DAG batch diária. Eventos de atendim
 ### Positivas
 
 - **Análise histórica correta:** quantas internações ocorreram quando o HC ainda não tinha UTI? Pergunta resolvida.
-- **Defesa em banca clara:** "mudou o paciente de cidade — fato antigo aponta para versão antiga; fato novo aponta para versão nova"
+- **FAQ Técnico clara:** "mudou o paciente de cidade — fato antigo aponta para versão antiga; fato novo aponta para versão nova"
 - **Hash de atributos** evita rewrites desnecessários — só cria nova versão quando algo realmente mudou
 - **`is_current` flag** acelera queries "estado atual" sem precisar comparar `valid_to` com 9999-12-31
 
@@ -1094,7 +1094,7 @@ Smoke test (vide [`smoke-test.md`](../../specs/smoke-test.md), a ser escrita) de
 3. **`dt_fim` da versão antiga = `dt_inicio` da versão nova** quando há transição (sem gap nem overlap)
 4. **`is_current=true` ⟺ `dt_fim >= '9999-01-01'`** (consistência interna)
 
-## Defesa em banca
+## FAQ Técnico
 
 | Pergunta | Resposta de 30s |
 |---|---|
@@ -1136,7 +1136,7 @@ A solução precisa de um engine de processamento distribuído para transformaç
 | Escalabilidade demonstrável | Apenas vertical (mais RAM/CPU no container) | **Horizontal — novos executor pods por job** |
 | Gerenciamento de recursos | Manual (`SPARK_WORKER_MEMORY`) | **ResourceQuota + LimitRange do k8s** |
 | Integração com Airflow | `SparkSubmitOperator` (SSH-like) | **`SparkKubernetesOperator` (CRD declarativo)** |
-| Diferencial para a banca | Baixo | **Alto — demonstra domínio além do Compose** |
+| Diferencial técnico | Baixo | **Alto — demonstra domínio além do Compose** |
 | Risco de demo | Baixo | Médio (mais partes, mas controlado) |
 
 ## Decisão
@@ -1188,7 +1188,7 @@ Pré-requisito do avaliador: **Rancher Desktop instalado e rodando** (documentad
 - Imagem Spark custom (`Dockerfile.spark`) inclui JARs: delta-core, hadoop-aws, openlineage-spark
 - RAM do Rancher Desktop precisa de ≥ 8 GB alocados (configurado no Rancher Desktop Preferences)
 
-## Defesa em banca
+## FAQ Técnico
 
 *"Spark standalone existe apenas para desenvolvimento unitário sem infraestrutura. Em qualquer ambiente real — cloud ou on-premises — Spark roda no Kubernetes. Usar Rancher Desktop demonstra que a solução é cloud-ready: a mesma SparkApplication YAML que roda local sobe em EKS, GKE ou AKS sem alteração de código — apenas mudando o kubeconfig."*
 
@@ -1284,7 +1284,7 @@ Faker (Python container)
 - O pool `extraction_pool` (8 slots) limita concorrência de chamadas API
 - O pool `spark_pool` (4 slots) limita jobs Spark concorrentes no k8s
 
-## Defesa em banca
+## FAQ Técnico
 
 *"Separar extração de transformação segue o princípio de responsabilidade única. A extração é I/O serial — chamar uma API, paginar, salvar em landing. Não há dado suficiente em memória para justificar a JVM do Spark. Já a transformação Bronze→Gold é computação distribuída sobre dados estruturados — exatamente o que Spark foi projetado para fazer. Misturar os dois em um único job Spark tornaria a extração mais lenta e o job mais difícil de testar."*
 

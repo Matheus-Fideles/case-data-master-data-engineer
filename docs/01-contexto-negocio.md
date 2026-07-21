@@ -30,7 +30,7 @@ O Brazil enfrenta desafios críticos na gestão de dados de saúde pública:
 - Rastreabilidade e auditoria obrigatórias
 
 **Desafios de Confiabilidade:**
-- Fontes externas offline ou instáveis no dia da demo
+- Fontes externas offline ou instáveis na execução local
 - Pipelines que falham precisam ser reexecutados sem corromper o dado
 - Schema das APIs governamentais muda sem aviso
 
@@ -76,7 +76,7 @@ A plataforma implementa **Data Mesh** com 6 domínios de negócio (ver [ADR-009]
 
 ## 4. Escopo Técnico — Componentes da Solução
 
-**Princípio orientador:** a banca avalia **corretude técnica + clareza + reprodutibilidade**. Cada serviço extra cobra custo: RAM, tempo de boot, configuração e debug.
+**Princípio orientador:** a avaliação considera **corretude técnica + clareza + reprodutibilidade**. Cada serviço extra cobra custo: RAM, tempo de boot, configuração e debug.
 
 Critério de inclusão: **um serviço entra como obrigatório se cobre um requisito explícito do enunciado**.
 
@@ -131,14 +131,14 @@ make up-core          # postgres + minio + airflow
 make up-all           # todos os profiles → demo completo
 make k8s-setup        # provisiona namespace spark + spark-operator no Rancher Desktop
 make smoke            # testes E2E completos
-make warmup           # docker pull de todas as imagens (10 min antes da banca)
+make warmup           # docker pull de todas as imagens (10 min antes)
 ```
 
 ---
 
 ## 6. Decisão sobre Fontes de Dados
 
-**Estratégia de cache offline:** depender de internet no dia da demo é risco inaceitável. `make seed` baixa e armazena amostras em `data/raw/` na primeira execução. Demos subsequentes usam cache offline.
+**Estratégia de cache offline:** depender de internet na execução local é risco inaceitável. `make seed` baixa e armazena amostras em `data/raw/` na primeira execução. Demos subsequentes usam cache offline.
 
 | Fonte | Endpoint | Cache local |
 |---|---|---|

@@ -14,7 +14,7 @@
 - [6. Especificação dos DAGs Airflow](#6-especificação-dos-dags-airflow)
 - [7. Schemas Bronze — Especificação](#7-schemas-bronze--especificação)
 - [8. Smoke Tests E2E](#8-smoke-tests-e2e)
-- [9. Defesa em Banca](#9-defesa-em-banca)
+- [9. FAQ Técnico](#9. FAQ Técnico)
 
 ---
 
@@ -370,7 +370,7 @@ pytest tests/smoke/test_03_silver_masking.py -v -m smoke
 
 ---
 
-## 9. Defesa em Banca
+## 9. FAQ Técnico
 
 **"Como você monitora que um pipeline Spark falhou?"**
 > "Três camadas: (1) Airflow Task Logs mostram o stacktrace do job; (2) Prometheus alerta via `airflow_task_failure_total > 0` em 15 min e o alerta `SparkJobFailed` dispara no Grafana; (3) Marquez registra o RunEvent como FAILED com o estado do DAG. Para pipelines streaming, o consumer lag no Kafka alerta se o Spark parou de consumir."

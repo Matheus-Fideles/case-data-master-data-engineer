@@ -7,7 +7,7 @@
 
 Esta "fonte" é interna: um **Postgres simulando um sistema OLTP de cadastro de pacientes e estabelecimentos**, populado por seeds com a biblioteca **Faker**. A razão de existir é **fornecer PII real (CPF, nome, endereço, telefone)** para demonstrar a camada de **segurança e mascaramento** que o enunciado exige.
 
-Diferente das outras fontes (DataSUS, CNES, IBGE), aqui **o candidato controla 100% dos dados**: pode definir volume, distribuição e até inserir **mudanças temporais** que validam o **SCD Tipo 2** das dimensões `dim_paciente` e `dim_estabelecimento`.
+Diferente das outras fontes (DataSUS, CNES, IBGE), aqui **o desenvolvedor controla 100% dos dados**: pode definir volume, distribuição e até inserir **mudanças temporais** que validam o **SCD Tipo 2** das dimensões `dim_paciente` e `dim_estabelecimento`.
 
 **Por que está no case:**
 - Cobre o requisito de extração via **banco relacional** (variedade)
@@ -55,7 +55,7 @@ pip install Faker faker-commerce
 ```
 
 Recomendações:
-- **Sempre setar seed** (`Faker.seed(42)` e `random.seed(42)`) — reproducibilidade é critério da banca
+- **Sempre setar seed** (`Faker.seed(42)` e `random.seed(42)`) — reproducibilidade é critério
 - **Usar locale `pt_BR`** — gera nomes brasileiros, CEPs reais, CPFs com checksum válido
 - **Bulk insert via COPY** ou `psycopg.executemany` para performance — 1000 INSERTs simples levam minutos
 
@@ -174,7 +174,7 @@ Em situações onde Postgres não esteja disponível (improvável no nosso fluxo
 ```
 make up-s1                     # sobe postgres-source vazio
 ↓
-scripts/seed_data.sh           # candidato implementa: roda script Python que insere via Faker
+scripts/seed_data.sh           # desenvolvedor implementa: roda script Python que insere via Faker
                                #   - 1k pacientes (S1) ou 50k (S2)
                                #   - 50 estabelecimentos
                                #   - opcional: simulate_changes() para SCD2

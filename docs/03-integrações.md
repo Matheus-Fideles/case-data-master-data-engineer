@@ -19,7 +19,7 @@
 
 ## Princípios Comuns
 
-1. **Modo offline por default** (`OFFLINE_MODE=1`). O candidato não pode depender de internet no dia da demo. Cada extrator respeita esse flag e usa o cache local em `data/raw/<fonte>/`.
+1. **Modo offline por default** (`OFFLINE_MODE=1`). O projeto não pode depender de internet na execução local. Cada extrator respeita esse flag e usa o cache local em `data/raw/<fonte>/`.
 2. **Determinismo:** fixtures e geradores Faker usam seed fixo declarado em `.env` para que reexecuções produzam o mesmo dataset.
 3. **Idempotência:** repetir extração não gera duplicação; padrão `MERGE` por chave natural no Bronze.
 4. **Metadados padrão em Bronze:** `_ingestion_ts`, `_batch_id`, `ano_mes` em todas as tabelas.

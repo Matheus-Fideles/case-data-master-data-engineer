@@ -15,7 +15,7 @@
 - [7. Auditoria e Lineage](#7-auditoria-e-lineage)
 - [8. Dicionário de Dados — Camada Gold](#8-dicionário-de-dados--camada-gold)
 - [9. Padrões de Engenharia — Pre-commit Hooks](#9-padrões-de-engenharia--pre-commit-hooks)
-- [10. Defesa em Banca](#10-defesa-em-banca)
+- [10. FAQ Técnico](#10. FAQ Técnico)
 
 ---
 
@@ -322,7 +322,7 @@ pre-commit run --all-files   # validar em todos os arquivos após clone
 
 ---
 
-## 10. Defesa em Banca
+## 10. FAQ Técnico
 
 **"Como você garante que o CPF não vaza para o Gold?"**
 > "O mascaramento acontece no Silver, em `apps/shared/masking.py`. O job Silver chama `validate_no_pii()` obrigatoriamente antes de escrever — ele levanta `ValueError` se qualquer coluna PII sobreviver. Adicionalmente, o hook anti-PII no pre-commit bloqueia referências a campos PII em código fora dos dois arquivos autorizados. Temos também smoke tests que verificam que nenhuma coluna PII existe nas tabelas Bronze streaming e Gold."

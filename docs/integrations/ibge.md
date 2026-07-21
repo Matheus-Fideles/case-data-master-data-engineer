@@ -11,7 +11,7 @@ Para o case usamos:
 - **População estimada por município** (agregado 6579) — base para calcular **taxas de internação por 100 mil habitantes**, métrica clássica em saúde pública
 - **Hierarquia regional** (regiões geográficas, UFs, mesorregiões, microrregiões, municípios) — alimenta `dim_municipio`
 
-**Por que essa fonte:** transforma contagens absolutas em **indicadores comparáveis** (a banca certamente vai apreciar quando a métrica `internacoes_por_100k_hab` aparecer no dashboard, em vez de só contagens brutas).
+**Por que essa fonte:** transforma contagens absolutas em **indicadores comparáveis** (o indicador a métrica `internacoes_por_100k_hab` aparece no dashboard, em vez de contagens absolutas.
 
 ## 2. Onde buscar
 

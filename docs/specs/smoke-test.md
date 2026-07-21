@@ -8,7 +8,7 @@
 
 Smoke test **não substitui unit ou integration tests** — ele responde a uma pergunta única e crítica:
 
-> *"O fluxo end-to-end está funcionando ou eu vou descobrir que quebrou na frente da banca?"*
+> *"O fluxo end-to-end está funcionando ou eu vou descobrir que quebrou na frente?"*
 
 Por isso:
 - ✅ Cobre o **caminho feliz** com dados de fixture
@@ -23,7 +23,7 @@ Por isso:
 |---|---|---|
 | Local (`make smoke`) | < 3 min | Fluxo de feedback rápido para o engenheiro |
 | CI GitHub Actions | < 5 min | Cobre overhead de boot do compose no runner |
-| Pre-demo (`make smoke-full`) | < 10 min | Verificação completa antes da banca |
+| Pre-demo (`make smoke-full`) | < 10 min | Verificação completa antes |
 
 ## Estrutura de arquivos
 
@@ -202,7 +202,7 @@ Cobre `silver → gold.dim_paciente` (SCD2). Asserts derivados de [ADR 0006](../
 |---|---|---|
 | **Mínima** (`make smoke-min`) | Pre-commit, push para branch dev | 01, 02, 03, 06, 08 |
 | **Completa** (`make smoke`) | PR para main, CI | 01–08 |
-| **Pre-demo** (`make smoke-full`) | Antes da banca | tudo + load test leve (1000 eventos streaming) |
+| **Pre-demo** (`make smoke-full`) | Antes | tudo + load test leve (1000 eventos streaming) |
 
 ## Fixtures determinísticas
 
@@ -253,7 +253,7 @@ Cache:
 - `docker/build-push-action` com cache de imagens
 - LFS pull antes do compose up
 
-## Defesa em banca
+## FAQ Técnico
 
 | Pergunta | Resposta de 30s |
 |---|---|

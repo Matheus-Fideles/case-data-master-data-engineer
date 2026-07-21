@@ -1,6 +1,6 @@
 # Data Dictionary — Camada Gold
 
-> **Audiência:** banca avaliadora · analistas · candidato em defesa
+> **Audiência: avaliadores · analistas · desenvolvedores
 > **Cobertura:** todas as tabelas Gold (dimensões + fatos), todas as colunas, regra de derivação, regra de negócio.
 > **Princípio:** quem ler este documento entende **o que cada coluna significa, de onde vem e como foi calculada**, sem precisar abrir o código.
 
@@ -236,7 +236,7 @@ Cada linha = um evento de atendimento (PS, ambulatorial, etc.).
 
 ---
 
-## Views/queries notáveis para a banca
+## Views/queries de referência
 
 A seguir, queries que viram **dashboards Metabase** ou **demos ao vivo**:
 
@@ -323,7 +323,7 @@ LIMIT 20
 
 ---
 
-## Defesa em banca por coluna
+## FAQ Técnico por coluna
 
 Algumas colunas merecem defesa explícita:
 
