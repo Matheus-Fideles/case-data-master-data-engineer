@@ -108,9 +108,12 @@ def make_spark_operator(
         dag=dag,
     )
 
+    def _noop(**_context):
+        pass
+
     sensor = PythonOperator(
         task_id=f"{task_id}_sensor",
-        python_callable=lambda **_: None,
+        python_callable=_noop,
         dag=dag,
     )
 

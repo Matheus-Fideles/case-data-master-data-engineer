@@ -39,7 +39,7 @@ up-serving: ## Adiciona hive-metastore + trino + metabase (serving layer via Del
 up-observability: ## Adiciona prometheus + grafana + marquez
 	$(COMPOSE) --profile observability up -d
 
-up-all: ## Sobe todos os profiles (demo completa)
+up-all: spark-local-setup ## Sobe todos os profiles (demo completa) + prepara Spark local
 	$(COMPOSE) --profile core --profile streaming --profile serving --profile observability up -d
 	@echo "Aguardando Airflow healthy (max 90s)..."
 	@until curl -sf http://localhost:8080/health 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('metadatabase',{}).get('status')=='healthy' and d.get('scheduler',{}).get('status')=='healthy' else 1)" 2>/dev/null; do sleep 3; done
@@ -229,11 +229,30 @@ airflow-setup: ## Cria conexões, variáveis e pools no Airflow
 	$(AIRFLOW_CLI) pools set extraction_pool 8 "Slots para extratores REST"
 	$(AIRFLOW_CLI) pools set dw_load_pool 2 "Slots para carga no DW Gold"
 
-run-demo-pipeline: ## Trigger manual do pipeline E2E (dengue → silver → gold)
+run-demo-pipeline: ## Trigger pipeline E2E completo: bronze → silver → gold
+	@echo "=== [1/3] Bronze ==="
 	$(AIRFLOW_CLI) dags trigger dag_bronze_dengue
+	$(AIRFLOW_CLI) dags trigger dag_bronze_zika
+	$(AIRFLOW_CLI) dags trigger dag_bronze_chikungunya
 	$(AIRFLOW_CLI) dags trigger dag_bronze_municipios
 	$(AIRFLOW_CLI) dags trigger dag_bronze_vacinacao_pni
-	@echo "Pipelines iniciados. Acompanhe em http://localhost:8080"
+	$(AIRFLOW_CLI) dags trigger dag_bronze_sim_obitos
+	@echo "Aguardando Bronze finalizar (120s)..."
+	@sleep 120
+	@echo "=== [2/3] Silver ==="
+	$(AIRFLOW_CLI) dags trigger dag_silver_notificacao
+	$(AIRFLOW_CLI) dags trigger dag_silver_municipio
+	$(AIRFLOW_CLI) dags trigger dag_silver_vacinacao_pni
+	$(AIRFLOW_CLI) dags trigger dag_silver_sim_obitos
+	@echo "Aguardando Silver finalizar (120s)..."
+	@sleep 120
+	@echo "=== [3/3] Gold ==="
+	$(AIRFLOW_CLI) dags trigger dag_gold_dims
+	$(AIRFLOW_CLI) dags trigger dag_gold_fato_notificacao
+	$(AIRFLOW_CLI) dags trigger dag_gold_fato_obito
+	$(AIRFLOW_CLI) dags trigger dag_gold_fato_vacinacao
+	@echo ""
+	@echo "Pipelines E2E iniciados. Acompanhe em http://localhost:8080"
 
 # ── Dados ─────────────────────────────────────────────────────────────────────
 .PHONY: seed seed-clean
