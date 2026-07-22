@@ -34,6 +34,11 @@ x-airflow-common: &airflow-common
     API_BASE_URL: ${API_BASE_URL}
     OPENLINEAGE_URL: ${OPENLINEAGE_URL:-http://marquez:5000}
     OPENLINEAGE_NAMESPACE: ${OPENLINEAGE_NAMESPACE:-batch}
+    # Docker-based Spark execution (substitui SparkKubernetesOperator)
+    HOST_WORK_DIR: ${PWD}
+    SPARK_LOCAL_IMAGE: spark-custom:3.5-delta
+    SPARK_DOCKER_NETWORK: lake
+    _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-docker>=3.0.0
   volumes:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/plugins:/opt/airflow/plugins
@@ -41,6 +46,7 @@ x-airflow-common: &airflow-common
     - ./data:/opt/airflow/data
     - ./k8s:/opt/k8s:ro
     - airflow-logs:/opt/airflow/logs
+    - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
   depends_on:
     postgres:
       condition: service_healthy
@@ -461,5 +467,4 @@ volumes:
 networks:
   lake:
     driver: bridge
-    # Spark pods no k3s acessam serviços via host.docker.internal
-    # Ver: docs/architecture/decisions/0007-spark-on-kubernetes.md
+    name: lake  # nome fixo para que o DockerOperator use network_mode=lake de forma determinística

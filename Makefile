@@ -5,6 +5,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose
 K8S_NAMESPACE := spark
 SPARK_IMAGE := registry.rancher.com:5000/spark-custom:3.5-delta
+SPARK_LOCAL_IMAGE := spark-custom:3.5-delta
 SPARK_OPERATOR_CHART := spark-operator/spark-operator
 SPARK_OPERATOR_VERSION := 1.4.6
 AIRFLOW_CLI := $(COMPOSE) exec airflow-scheduler airflow
@@ -71,16 +72,19 @@ health-check: ## Verifica saúde de todos os serviços via curl
 
 demo: ## One command: compose up + airflow setup + smoke-min + open UIs
 	@printf '\n\033[1;36m━━━  Case Santander — Data Master Demo  ━━━\033[0m\n\n'
-	@echo "[1/4] Starting core services (Postgres, MinIO, Airflow)..."
+	@echo "[0/5] Preparing Spark local execution (image + apps.zip)..."
+	@$(MAKE) --no-print-directory spark-local-setup
+	@echo ""
+	@echo "[1/5] Starting core services (Postgres, MinIO, Airflow)..."
 	@$(MAKE) --no-print-directory up-core
 	@echo ""
-	@echo "[2/4] Configuring Airflow (connections, pools, variables)..."
+	@echo "[2/5] Configuring Airflow (connections, pools, variables)..."
 	@$(MAKE) --no-print-directory airflow-setup
 	@echo ""
-	@echo "[3/4] Running smoke tests (quality gates, security invariants)..."
+	@echo "[3/5] Running smoke tests (quality gates, security invariants)..."
 	@$(MAKE) --no-print-directory smoke-min
 	@echo ""
-	@echo "[4/4] Opening browser tabs..."
+	@echo "[4/5] Opening browser tabs..."
 	@open http://localhost:8080 2>/dev/null || xdg-open http://localhost:8080 2>/dev/null || true
 	@open http://localhost:9001 2>/dev/null || xdg-open http://localhost:9001 2>/dev/null || true
 	@printf '\n\033[1;32m━━━  Demo ready!  ━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n'
@@ -114,6 +118,40 @@ smoke-min: ## Roda smoke mínimo: infra + bronze + masking + idempotência + seg
 		tests/smoke/test_06_idempotency.py \
 		tests/smoke/test_08_security_invariants.py \
 		-v --tb=short -m smoke
+
+# ── Spark local (Docker sem k8s) ─────────────────────────────────────────────
+.PHONY: apps-zip spark-image-local spark-local-setup
+
+apps-zip: ## Empacota apps/ em apps.zip para --py-files do spark-submit
+	@rm -f apps.zip
+	@zip -r apps.zip apps/ -x "*.pyc" -x "*/__pycache__/*" -x "*.egg-info/*"
+	@echo "apps.zip criado."
+
+spark-image-local: ## Build da imagem Spark local (spark-custom:3.5-delta) se não existir
+	@if docker image inspect $(SPARK_LOCAL_IMAGE) >/dev/null 2>&1; then \
+		echo "$(SPARK_LOCAL_IMAGE) já existe, pulando build."; \
+	else \
+		echo "Baixando JARs e construindo $(SPARK_LOCAL_IMAGE)..."; \
+		mkdir -p infra/spark/jars; \
+		[ -f infra/spark/jars/delta-spark_2.12-3.1.0.jar ] || \
+		  curl -fL -o infra/spark/jars/delta-spark_2.12-3.1.0.jar \
+		    "https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/3.1.0/delta-spark_2.12-3.1.0.jar"; \
+		[ -f infra/spark/jars/delta-storage-3.1.0.jar ] || \
+		  curl -fL -o infra/spark/jars/delta-storage-3.1.0.jar \
+		    "https://repo1.maven.org/maven2/io/delta/delta-storage/3.1.0/delta-storage-3.1.0.jar"; \
+		[ -f infra/spark/jars/hadoop-aws-3.3.4.jar ] || \
+		  curl -fL -o infra/spark/jars/hadoop-aws-3.3.4.jar \
+		    "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar"; \
+		[ -f infra/spark/jars/aws-java-sdk-bundle-1.12.367.jar ] || \
+		  curl -fL -o infra/spark/jars/aws-java-sdk-bundle-1.12.367.jar \
+		    "https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.367/aws-java-sdk-bundle-1.12.367.jar"; \
+		[ -f infra/spark/jars/openlineage-spark_2.12-1.9.1.jar ] || \
+		  curl -fL -o infra/spark/jars/openlineage-spark_2.12-1.9.1.jar \
+		    "https://repo1.maven.org/maven2/io/openlineage/openlineage-spark_2.12/1.9.1/openlineage-spark_2.12-1.9.1.jar"; \
+		docker build -t $(SPARK_LOCAL_IMAGE) -f infra/spark/Dockerfile .; \
+	fi
+
+spark-local-setup: apps-zip spark-image-local ## Prepara ambiente Spark Docker local (apps.zip + imagem)
 
 # ── Kubernetes / Spark ────────────────────────────────────────────────────────
 .PHONY: k8s-check k8s-setup k8s-spark-image k8s-namespace k8s-spark-install
