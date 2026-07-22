@@ -35,7 +35,6 @@ x-airflow-common: &airflow-common
     OPENLINEAGE_URL: ${OPENLINEAGE_URL:-http://marquez:5000}
     OPENLINEAGE_NAMESPACE: ${OPENLINEAGE_NAMESPACE:-batch}
     # Docker-based Spark execution (substitui SparkKubernetesOperator)
-    HOST_WORK_DIR: ${PWD}
     SPARK_LOCAL_IMAGE: spark-custom:3.5-delta
     SPARK_DOCKER_NETWORK: lake
     _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-docker>=3.0.0
@@ -44,9 +43,11 @@ x-airflow-common: &airflow-common
     - ./airflow/plugins:/opt/airflow/plugins
     - ./apps:/opt/airflow/apps
     - ./data:/opt/airflow/data
-    - ./k8s:/opt/k8s:ro
+    - ./k8s:/opt/airflow/k8s:ro
     - airflow-logs:/opt/airflow/logs
     - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
+  group_add:
+    - "${DOCKER_GID:-999}"  # grupo docker do host (Linux: 999, Rancher Desktop: 102)
   depends_on:
     postgres:
       condition: service_healthy

@@ -19,12 +19,10 @@ from pathlib import Path
 import yaml
 from airflow.operators.python import PythonOperator
 from airflow.providers.docker.operators.docker import DockerOperator
-from docker.types import Mount
 
-_TEMPLATES_DIR = Path(__file__).parents[3] / "k8s" / "sparkapplications"
+_TEMPLATES_DIR = Path(__file__).parents[2] / "k8s" / "sparkapplications"
 _SPARK_IMAGE = os.environ.get("SPARK_LOCAL_IMAGE", "spark-custom:3.5-delta")
 _NETWORK = os.environ.get("SPARK_DOCKER_NETWORK", "lake")
-_HOST_WORK_DIR = os.environ.get("HOST_WORK_DIR", "")
 
 
 def _load_template(template_name: str) -> dict:
@@ -36,10 +34,11 @@ def _build_spark_command(spec: dict) -> list[str]:
     """Builds spark-submit args from the SparkApplication YAML spec."""
     main_file = spec.get("mainApplicationFile", "").replace("local://", "")
     args = spec.get("arguments", [])
+    # No --py-files needed: PYTHONPATH=/opt/spark/work-dir is set in the image
+    # and apps/ is baked in at that path by the Dockerfile COPY step.
     return [
         "/opt/spark/bin/spark-submit",
         "--master", "local[2]",
-        "--py-files", "/opt/spark/work-dir/apps.zip",
         "--conf", "spark.sql.shuffle.partitions=4",
         "--conf", "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension",
         "--conf",
@@ -75,10 +74,6 @@ def make_spark_operator(
 
     command = _build_spark_command(app_dict.get("spec", {}))
 
-    mounts = []
-    if _HOST_WORK_DIR:
-        mounts.append(Mount(source=_HOST_WORK_DIR, target="/opt/spark/work-dir", type="bind"))
-
     submit = DockerOperator(
         task_id=task_id,
         image=_SPARK_IMAGE,
@@ -87,7 +82,6 @@ def make_spark_operator(
         auto_remove=True,
         do_xcom_push=False,
         network_mode=_NETWORK,
-        mounts=mounts,
         mount_tmp_dir=False,
         environment={
             "MINIO_ROOT_USER": os.environ.get("MINIO_ROOT_USER", ""),
