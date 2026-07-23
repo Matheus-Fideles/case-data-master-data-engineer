@@ -6,7 +6,7 @@ metadata:
 spec:
   type: Python
   mode: cluster
-  image: registry.rancher.com:5000/spark-custom:3.5-delta
+  image: spark-custom:3.5-delta
   imagePullPolicy: IfNotPresent
   mainApplicationFile: local:///opt/spark/work-dir/apps/epidemiologico/jobs/bronze_arboviroses.py
   arguments:
@@ -19,11 +19,11 @@ spec:
   sparkConf:
     spark.extraListeners: io.openlineage.spark.agent.OpenLineageSparkListener
     spark.openlineage.transport.type: http
-    spark.openlineage.transport.url: "http://host.docker.internal:5010"
+    spark.openlineage.transport.url: "http://marquez:5010"
     spark.openlineage.namespace: "batch"
     spark.sql.extensions: io.delta.sql.DeltaSparkSessionExtension
     spark.sql.catalog.spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
-    spark.hadoop.fs.s3a.endpoint: http://host.docker.internal:9000
+    spark.hadoop.fs.s3a.endpoint: http://minio:9000
     spark.hadoop.fs.s3a.path.style.access: "true"
     spark.hadoop.fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
     spark.hadoop.fs.s3a.connection.ssl.enabled: "false"
@@ -39,7 +39,7 @@ spec:
           name: minio-credentials
     env:
       - name: OPENLINEAGE_URL
-        value: "http://host.docker.internal:5010"
+        value: "http://marquez:5010"
       - name: OPENLINEAGE_NAMESPACE
         value: "batch"
   executor:

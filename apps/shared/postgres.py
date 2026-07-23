@@ -12,7 +12,7 @@ def make_pg_connection() -> tuple[str, dict]:
     """Returns (jdbc_url, properties) ready for df.write.jdbc(...)."""
     url = os.environ.get(
         "POSTGRES_JDBC_URL",
-        "jdbc:postgresql://host.docker.internal:5432/postgres",
+        "jdbc:postgresql://postgres:5432/postgres",
     )
     props = {
         "user": os.environ.get("POSTGRES_USER", "gold_engineer"),
