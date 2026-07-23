@@ -1,7 +1,7 @@
 # Especificação dos DAGs Airflow
 
 > **Audiência:** quem vai codar `airflow/dags/*.py`.
-> **Status:** Spec narrativa (revisada 2026-07-13 — migração de DataSUS CSV para REST API, Spark em k8s).
+> **Status:** Spec narrativa (revisada 2026-07-22 — migração de DataSUS CSV para REST API, Spark via DockerOperator local[2]).
 > **Não contém código** — descreve nome, schedule, tarefas, dependências e responsabilidades.
 
 ## Convenções gerais
@@ -41,7 +41,7 @@
 │  pre_check                                                          │
 │    → extract          [PythonOperator → landing/]                  │
 │      → validate_raw   [PythonOperator — sanity check em landing/]  │
-│        → ingest       [SparkKubernetesOperator → bronze/ Delta]    │
+│        → ingest       [DockerOperator (Spark local[2]) → bronze/]  │
 │          → quality_gate                                             │
 │            → emit_lineage                                           │
 │              → end                                                  │
@@ -55,13 +55,13 @@
 | `pre_check` | `PythonOperator` | Verifica cache offline (`OFFLINE_MODE=1`), conectividade |
 | `extract` | `PythonOperator` | Chama `pipelines/extraction/<fonte>.py` → salva JSON/NDJSON em `s3a://landing/<fonte>/` |
 | `validate_raw` | `PythonOperator` | Assert `row_count > 0`, schema mínimo presente — falha rápido antes de subir JVM Spark |
-| `ingest` | `SparkKubernetesOperator` | Submete `SparkApplication` CRD ao k3s; job lê landing/, escreve Delta em `s3a://bronze/` |
+| `ingest` | `DockerOperator` | Executa `spark-submit local[2]` no container `spark-custom:3.5-delta`; job lê landing/, escreve Delta em `s3a://bronze/` |
 | `quality_gate` | `PythonOperator` ou `GreatExpectationsOperator` | Suite de validação Bronze |
 | `emit_lineage` | `PythonOperator` | OpenLineage emit explícito via Marquez |
 
 > **Por que `PythonOperator` na extração?** Chamada HTTP paginada é I/O serial — sem dado em memória para justificar JVM Spark. Startup do Spark (10–30s) tornaria a extração mais lenta. Detalhado em [ADR 0008](../architecture/decisions/0008-ingestion-layers.md).
 
-> **Por que `SparkKubernetesOperator` na ingestão?** Escrita Delta ACID, schema enforcement, `partitionBy` e `MERGE` são operações nativas Spark. Distribuição real para Bronze→Silver→Gold. O operador submete um `SparkApplication` YAML ao k3s (Rancher Desktop) e monitora até conclusão.
+> **Por que `DockerOperator` na ingestão?** Escrita Delta ACID, schema enforcement, `partitionBy` e `MERGE` são operações nativas Spark. O operador executa `spark-submit local[2]` em container `spark-custom:3.5-delta` na rede `lake`, acessando MinIO e Postgres por DNS. Sem pré-requisito além do Docker. Ver [ADR-0012](../ADRS.md#adr-0012--spark-via-dockeroperator-local2-substitui-adr-0007).
 
 ### Padrão de tarefa em DAGs Silver/Gold
 
@@ -75,7 +75,7 @@
 | Task | Operador | Responsabilidade |
 |---|---|---|
 | `wait_upstream` | `ExternalTaskSensor` | Aguarda DAG upstream (Bronze ou Silver) completar |
-| `ingest` | `SparkKubernetesOperator` | Spark job Bronze→Silver (com mascaramento) ou Silver→Gold (com lookup dims) |
+| `ingest` | `DockerOperator` | Spark job Bronze→Silver (com mascaramento) ou Silver→Gold (com lookup dims) |
 | `quality_gate` | `PythonOperator` | Suite GE específica da camada |
 | `emit_lineage` | `PythonOperator` | Registra dataset output no Marquez |
 
@@ -89,7 +89,7 @@
 | Pool | Slots | Uso |
 |---|---|---|
 | `default_pool` | 32 | Default — tarefas leves |
-| `spark_pool` | 4 | `SparkKubernetesOperator` — limite de jobs Spark concorrentes no k3s |
+| `spark_pool` | 4 | `DockerOperator` Spark — limite de containers Spark concorrentes |
 | `extraction_pool` | 8 | `PythonOperator` de extração (rate limit API) |
 | `dw_load_pool` | 2 | Cargas finais no Postgres-DW (escrita serializada) |
 
@@ -100,7 +100,7 @@
 ### Camada Bronze
 
 Cada DAG Bronze cobre uma fonte REST da API `apidadosabertos.saude.gov.br`.  
-Todas seguem o padrão **`extract` (PythonOperator) + `ingest` (SparkKubernetesOperator)** do ADR 0008.
+Todas seguem o padrão **`extract` (PythonOperator) + `ingest` (DockerOperator Spark local[2])** do ADR 0008.
 
 #### `dag_bronze_dengue`
 
@@ -281,15 +281,15 @@ Todas seguem o padrão **`extract` (PythonOperator) + `ingest` (SparkKubernetesO
 
 ### Streaming (Spark Structured Streaming no k8s)
 
-O streaming **não é um DAG batch** — é um `SparkApplication` de longa duração rodando em k3s.
+O streaming **não é um DAG batch** — é um container Spark Structured Streaming de longa duração rodando na rede Docker `lake`.
 
 #### `dag_maint_streaming_supervisor`
 
 - **Schedule:** `*/5 * * * *`
-- **Tarefa única:** `PythonOperator` faz `kubectl get sparkapplication notificacoes-stream-consumer -n spark` e verifica `status.applicationState.state == RUNNING`. Se não estiver, submete novo `SparkApplication` CRD via `SparkKubernetesOperator`.
+- **Tarefa única:** `PythonOperator` verifica se o container Spark Structured Streaming está ativo via Docker SDK. Se não estiver, submete novo container via `DockerOperator`.
 - **Métricas:** `streaming_consumer_restarts_total` no Prometheus
 
-> **Diferença da versão anterior:** o consumer de streaming não é mais um container persistente no Docker Compose. Roda como pod k8s gerenciado pelo `spark-on-k8s-operator`, ganhando isolamento e restart automático via CRD. Ver [ADR 0007](../architecture/decisions/0007-spark-on-kubernetes.md).
+> **Nota:** o consumer de streaming roda como container Docker na rede `lake`, gerenciado pelo DockerOperator do Airflow. Ver [ADR-0012](../ADRS.md#adr-0012--spark-via-dockeroperator-local2-substitui-adr-0007).
 
 ---
 
@@ -402,7 +402,7 @@ airflow/
 │   ├── _common/
 │   │   ├── default_args.py
 │   │   ├── lineage_emit.py
-│   │   ├── spark_k8s.py          # helper: monta SparkApplication YAML + SparkKubernetesOperator
+│   │   ├── spark_k8s.py          # helper: monta config Spark + DockerOperator (lê YAML de k8s/sparkapplications/)
 │   │   └── pools.py
 │   ├── bronze/
 │   │   ├── dag_bronze_dengue.py
@@ -441,7 +441,7 @@ airflow/
 │       └── dag_maint_lgpd_erasure.py
 └── plugins/
     └── operators/
-        └── (nenhum custom necessário — SparkKubernetesOperator via apache-airflow-providers-cncf-kubernetes)
+        └── (nenhum custom necessário — DockerOperator via apache-airflow-providers-docker)
 ```
 
 ---
@@ -471,18 +471,19 @@ airflow/
 | Pergunta | Resposta de 30s |
 |---|---|
 | Por que `PythonOperator` para extração e não Spark direto? | Chamada HTTP paginada é I/O serial — não há dado em memória para justificar a JVM Spark. Startup do Spark (10–30s) tornaria a extração mais lenta sem nenhum benefício. Detalhado no ADR 0008. |
-| Por que `SparkKubernetesOperator` e não `SparkSubmitOperator`? | Spark roda em k3s (Rancher Desktop), não em cluster Standalone. `SparkKubernetesOperator` submete um `SparkApplication` CRD ao k8s, que é monitorado pelo spark-on-k8s-operator — isolamento por job, sem acoplamento ao Airflow. |
+| Por que `DockerOperator` e não `SparkSubmitOperator` ou `SparkKubernetesOperator`? | Spark roda em modo `local[2]` dentro de um container Docker na rede `lake` — sem Rancher Desktop nem Helm. `DockerOperator` isola cada job em container próprio e acessa MinIO/Postgres por DNS. Ver ADR-0012. |
 | Como você lida com dependências entre DAGs? | `ExternalTaskSensor` aguarda upstream; opcionalmente `Dataset` API do Airflow 2.4+ (declarativo). |
 | Por que `catchup=False`? | Evita "tempestade de catchup" no primeiro deploy. Backfill é manual e controlado. |
-| Streaming não tem DAG normal — como você gerencia? | SparkApplication CRD rodando no k3s. DAG supervisor a cada 5min verifica o pod via `kubectl`; se não estiver `RUNNING`, submete novo CRD. Métricas de uptime no Grafana. |
+| Streaming não tem DAG normal — como você gerencia? | Container Spark Structured Streaming rodando na rede `lake`. DAG supervisor a cada 5min verifica o container via Docker SDK; se não estiver `running`, submete novo via `DockerOperator`. Métricas de uptime no Grafana. |
 | Como você testa os DAGs sem rodar o Spark? | `OFFLINE_MODE=1` + dados em `data/raw/` — o `extract` usa cache local; o `ingest` pode ser testado com `--dry-run`. Suite de unit tests em `tests/dags/` com `dag.test()` (Airflow 2.5+). |
 
 ## Referências
 
-- **ADR 0007:** [Spark on Kubernetes](../architecture/decisions/0007-spark-on-kubernetes.md)
+- **ADR 0007:** [Spark on Kubernetes (supersedido)](../ADRS.md#adr-007--spark-on-kubernetes-rancher-desktop)
+- **ADR-0012:** [Spark via DockerOperator local[2]](../ADRS.md#adr-0012--spark-via-dockeroperator-local2-substitui-adr-0007)
 - **ADR 0008:** [Separação de Camadas de Ingestão](../architecture/decisions/0008-ingestion-layers.md)
 - **ADR 0004:** [Mascaramento PII](../architecture/decisions/0004-pii-masking.md)
 - **ADR 0006:** [SCD2](../architecture/decisions/0006-scd2.md)
 - **Airflow Best Practices:** <https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html>
-- **SparkKubernetesOperator:** <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/stable/operators/spark_kubernetes.html>
+- **DockerOperator:** <https://airflow.apache.org/docs/apache-airflow-providers-docker/stable/operators/docker.html>
 - **OpenLineage Airflow:** <https://openlineage.io/docs/integrations/airflow/>

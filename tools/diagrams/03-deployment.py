@@ -41,7 +41,7 @@ NODE_ATTR = {
 MINIO = f"{ICONS}/minio.png"
 
 with Diagram(
-    "Deployment Local — Docker Compose Profiles + Rancher Desktop k3s",
+    "Deployment Local — Docker Compose Profiles + Spark DockerOperator",
     filename="docs/assets/03-deployment",
     outformat="png",
     graph_attr=GRAPH_ATTR,
@@ -71,14 +71,10 @@ with Diagram(
         grafana = Grafana("Grafana\n:3000\nDashboards·SLOs")
         marquez = Jaeger("Marquez\nOpenLineage\n:5000·:5001")
 
-    # ─── K3S ─────────────────────────────────────────────────────────
-    with Cluster("Rancher Desktop — k3s  (make k8s-setup)"):
-        k3s      = K3S("k3s\nns:spark\nSA+RBAC\npii-secret")
-        spark_op = Spark("Spark Operator\nHelm 1.1.27\nSparkApp CRDs")
-
-        with Cluster("SparkApplication  (k8s/)"):
-            sp_batch  = Spark("Spark Batch\nDriver 2GB\nExec 4GB×2\n+GreatExpect.")
-            sp_stream = Spark("Spark Stream\ncheckpoint s3a\nwatermark 1h\nDelta append")
+    # ─── SPARK ───────────────────────────────────────────────────────
+    with Cluster("Spark — DockerOperator  (rede: lake)"):
+        sp_batch  = Spark("Spark Batch\nspark-custom:3.5-delta\nlocal[2]  Delta ACID")
+        sp_stream = Spark("Spark Stream\nStructured Streaming\nwatermark 1h  Delta")
 
     # ─── MAPEAMENTO AWS ──────────────────────────────────────────────
     with Cluster("Mapeamento 1:1 AWS"):

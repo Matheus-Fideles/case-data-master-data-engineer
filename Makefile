@@ -225,7 +225,7 @@ airflow-setup: ## Cria conexões, variáveis e pools no Airflow
 		--conn-extra '{"in_cluster": false, "kube_config_path": "/opt/airflow/.kube/config", "context": "rancher-desktop"}' || true
 	$(COMPOSE) exec airflow-scheduler bash -c 'airflow variables set OFFLINE_MODE "$${OFFLINE_MODE:-0}"'
 	$(COMPOSE) exec airflow-scheduler bash -c 'airflow variables set DATA_REF_ANO "$${DATA_REF_ANO:-2024}"'
-	$(AIRFLOW_CLI) pools set spark_pool 4 "Slots para SparkKubernetesOperator"
+	$(AIRFLOW_CLI) pools set spark_pool 4 "Slots para DockerOperator Spark"
 	$(AIRFLOW_CLI) pools set extraction_pool 8 "Slots para extratores REST"
 	$(AIRFLOW_CLI) pools set dw_load_pool 2 "Slots para carga no DW Gold"
 

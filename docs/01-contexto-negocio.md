@@ -87,7 +87,7 @@ Critério de inclusão: **um serviço entra como obrigatório se cobre um requis
 | **Postgres** (schemas: oltp, airflow, gold_dw) | Extração + Armazenamento | Source OLTP + backend Airflow + SCD2 Gold |
 | **MinIO** | Armazenamento + Arquitetura | Data Lake S3-compatível; buckets `bronze/silver/gold` |
 | **Kafka** (KRaft, sem Zookeeper) | Ingestão streaming | Backbone de streaming; tópico `notificacoes.raw` |
-| **Airflow** | Ingestão + Arquitetura | Orquestração batch; `PythonOperator` + `SparkKubernetesOperator` |
+| **Airflow** | Ingestão + Arquitetura | Orquestração batch; `PythonOperator` + `DockerOperator (Spark local[2])` |
 | **stream-producer** (apps/streaming/producer) | Ingestão streaming | Faker → Kafka; processo contínuo separado do Airflow |
 | **Hive Metastore** | Serving Layer | Catálogo thrift para Trino descobrir tabelas Delta no MinIO |
 | **Trino** | Armazenamento + Arquitetura | Query federada sobre Delta Lake + RBAC por catálogo |
@@ -95,16 +95,16 @@ Critério de inclusão: **um serviço entra como obrigatório se cobre um requis
 | **Grafana** | Observabilidade | Dashboards provisionados automaticamente |
 | **Marquez** (+OpenLineage) | Observabilidade | Lineage de dados — "rastrear fluxo de dados" |
 
-### Núcleo obrigatório — Rancher Desktop (k3s)
+### Núcleo obrigatório — Spark via Docker (local[2])
 
-> **Pré-requisito do avaliador:** Rancher Desktop instalado e rodando. Ver [ADR-007](./ADRS.md#adr-007--spark-on-kubernetes-rancher-desktop).
+> **Sem pré-requisito adicional:** Spark roda como container Docker na rede `lake`. Ver [ADR-0012](./ADRS.md#adr-0012--spark-via-dockeroperator-local2-substitui-adr-0007).
 
 | Componente | Cobre requisito | Justificativa |
 |---|---|---|
-| **spark-on-k8s-operator** (Helm) | Ingestão + Escalabilidade | Gerencia SparkApplication CRDs no k3s local |
-| **Spark driver + executors** (pods) | Ingestão + Escalabilidade | Processamento distribuído Bronze→Silver→Gold + Structured Streaming |
+| **spark-custom:3.5-delta** (imagem local) | Ingestão + Escalabilidade | Build por `make spark-image-local`; Delta, Hadoop-AWS, OpenLineage incluídos |
+| **DockerOperator** (Airflow provider) | Ingestão | Executa `spark-submit local[2]` em container isolado por job |
 
-**Spark não entra no Docker Compose** — decisão formal em [ADR-007](./ADRS.md#adr-007--spark-on-kubernetes-rancher-desktop).
+**Spark roda dentro do Docker Compose** (rede `lake`) em modo `local[2]`. Decisão formal em [ADR-0012](./ADRS.md#adr-0012--spark-via-dockeroperator-local2-substitui-adr-0007).
 
 ### Evolução Futura (fora do entregável)
 
@@ -129,7 +129,6 @@ Critério de inclusão: **um serviço entra como obrigatório se cobre um requis
 ```bash
 make up-core          # postgres + minio + airflow
 make up-all           # todos os profiles → demo completo
-make k8s-setup        # provisiona namespace spark + spark-operator no Rancher Desktop
 make smoke            # testes E2E completos
 make warmup           # docker pull de todas as imagens (10 min antes)
 ```
@@ -156,9 +155,7 @@ make warmup           # docker pull de todas as imagens (10 min antes)
 
 | Dimensão | Valor |
 |---|---|
-| Serviços Docker Compose | 10 (sem Spark) |
-| Pods k8s (Rancher Desktop) | driver + 2 executors por job Spark |
-| RAM Compose | ~8 GB |
-| RAM Rancher Desktop | ≥ 8 GB alocados |
+| Serviços Docker Compose | 10 + containers Spark por job |
+| RAM Docker | ~8 GB |
 | Boot completo (`make up-all`) | ~5 min |
 | Pontos de falha externa na demo | 0 (tudo cacheável) |

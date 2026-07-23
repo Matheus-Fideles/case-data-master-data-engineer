@@ -3,7 +3,7 @@
 > Instruções completas para os avaliadores reproduzirem a plataforma do zero, em ordem.
 
 **Repositório:** https://github.com/Matheus-Fideles/case-data-master-data-engineer  
-**Stack:** Airflow · Spark on k3s · Delta Lake · MinIO · Trino · Metabase · Prometheus · Grafana · Marquez
+**Stack:** Airflow · Spark DockerOperator (local[2]) · Delta Lake · MinIO · Trino · Metabase · Prometheus · Grafana · Marquez
 
 ---
 
@@ -11,14 +11,12 @@
 
 | Requisito | Versão mínima | Verificação |
 |---|---|---|
-| Docker Desktop / Rancher Desktop | 4.x / 1.x | `docker --version` |
+| Docker Desktop / Docker Engine | 24+ | `docker --version` |
 | Docker Compose v2 | 2.20+ | `docker compose version` |
-| kubectl | 1.28+ | `kubectl version --client` |
 | Python | 3.10+ | `python3 --version` |
 | make | any | `make --version` |
 
-> **Rancher Desktop** é recomendado pois já inclui k3s (Kubernetes local) necessário para o Spark.  
-> Configure: *Preferences → Kubernetes → Enable Kubernetes*.
+> Não é necessário Rancher Desktop, kubectl ou Helm. Spark roda como container Docker na rede `lake` via `DockerOperator` — ver ADR-0012.
 
 ---
 
@@ -97,17 +95,7 @@ docker run --rm --network host --entrypoint /bin/sh minio/mc:latest -c "
 
 ---
 
-## 4. Aplicar secrets no Kubernetes
-
-```bash
-make k8s-secrets
-# equivale a: envsubst < k8s/minio-secret.yaml | kubectl apply -f -
-#             envsubst < k8s/pii-secret.yaml    | kubectl apply -f -
-```
-
----
-
-## 5. Executar o pipeline
+## 4. Executar o pipeline
 
 ### Via Airflow UI (http://localhost:8080)
 
@@ -234,8 +222,8 @@ SELECT municipio, SUM(total_obitos) FROM delta.gold.kpi_mortalidade GROUP BY 1 O
 ### Spark job falha com ExitCode 1
 
 ```bash
-# Ver logs do driver pod
-kubectl logs -n spark -l spark-role=driver --tail=100
+# Ver logs do container Spark (DockerOperator)
+docker logs $(docker ps -lq --filter ancestor=spark-custom:3.5-delta) --tail=100
 
 # Problema comum: data malformada do DataSUS
 # Solução já aplicada: spark.sql.legacy.timeParserPolicy: CORRECTED no SparkApplication YAML

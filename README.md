@@ -14,17 +14,17 @@ REST API (apidadosabertos.saude.gov.br)
     │
     └──[PythonOperator · Airflow]──────────────────→  MinIO  landing/{domínio}/   (JSON)
                 │
-                └──[SparkKubernetesOperator · k3s]──→  MinIO  bronze/{domínio}/   (Delta ACID)
+                └──[DockerOperator · local[2]]──────→  MinIO  bronze/{domínio}/   (Delta ACID)
                               │
-                              └──[SparkKubernetesOperator · k3s]──→  MinIO  silver/{domínio}/   (Delta + PII masking)
+                              └──[DockerOperator · local[2]]──────→  MinIO  silver/{domínio}/   (Delta + PII masking)
                                             │
-                                            └──[SparkKubernetesOperator · k3s]──→  MinIO  gold/{domínio}/   (Delta star schema)
+                                            └──[DockerOperator · local[2]]──────→  MinIO  gold/{domínio}/   (Delta star schema)
                                                                                        │
                                                                           Hive Metastore (thrift:9083)
                                                                                        │
                                                                              Trino 448 (catalog: delta)
 
-Faker container ──→ Kafka ──→ [Spark Structured Streaming · k3s] ──→ bronze/streaming/ ──→ gold/streaming/
+Faker container ──→ Kafka ──→ [Spark Structured Streaming · Docker] ──→ bronze/streaming/ ──→ gold/streaming/
 ```
 
 ### Data Mesh + Medallion
@@ -56,7 +56,7 @@ apps/{domínio}/
 | Requisito | Solução |
 |---|---|
 | **Extração de dados** | 7 endpoints REST + OLTP Faker + Kafka stream |
-| **Ingestão** | Airflow DAGs (PythonOperator + SparkKubernetesOperator) |
+| **Ingestão** | Airflow DAGs (PythonOperator + DockerOperator (Spark local[2])) |
 | **Armazenamento** | MinIO (Delta Lake) — todo o Gold no lake, não em Postgres |
 | **Serving layer** | Trino 448 + Hive Metastore (thrift) |
 | **Organização** | Data Mesh (domínios) + Arquitetura Hexagonal (Ports & Adapters) |
@@ -64,23 +64,19 @@ apps/{domínio}/
 | **Segurança de dados** | RBAC (Postgres roles + Trino ACL) + TLS (evolução) |
 | **Mascaramento de dados** | SHA-256+salt (CPF), generalização (data nasc.), supressão (telefone) |
 | **Arquitetura de dados** | Lambda + Star Schema + SCD Tipo 2 + Delta ACID |
-| **Escalabilidade** | Spark on Kubernetes + mapeamento 1:1 para AWS (S3+EMR+MSK) |
+| **Escalabilidade** | Spark DockerOperator (local[2]) → escalável via k8s em produção + mapeamento 1:1 para AWS (S3+EMR+MSK) |
 
 ## Pré-requisitos
 
 | Ferramenta | Versão mínima | Instalação |
 |---|---|---|
 | Docker Desktop / Docker Engine | 24+ | [docs.docker.com](https://docs.docker.com/get-docker/) |
-| Rancher Desktop (k3s) | 1.12+ | [rancherdesktop.io](https://rancherdesktop.io) |
-| `kubectl` | 1.28+ | incluso no Rancher Desktop |
-| Helm | 3.14+ | `brew install helm` |
 | Python | 3.11+ | `brew install python@3.11` |
 | `make` | qualquer | incluso no macOS (Xcode CLI Tools) |
 
 RAM mínima recomendada:
-- **Docker Compose:** 8 GB alocados
-- **Rancher Desktop (k3s):** 8 GB alocados
-- **Total:** 16 GB RAM
+- **Docker:** 8 GB alocados
+- **Total:** 8 GB RAM
 
 ## Quick start
 
@@ -119,7 +115,7 @@ make demo-stop              # stops containers, preserves volumes
 make demo-reset             # wipes volumes and starts fresh
 ```
 
-### Manual setup (full stack + Kubernetes)
+### Manual setup (full stack)
 
 ```bash
 # 1. Initial setup
@@ -127,10 +123,7 @@ pip install pre-commit && pre-commit install
 make seed                   # download API samples for offline mode
 
 # 2. Infrastructure
-make k8s-check              # verify Rancher Desktop is running
-make up-all                 # all Compose profiles
-make k8s-setup              # spark-operator + namespace + secrets
-make k8s-spark-image        # build + push custom Spark image
+make up-all                 # all Compose profiles (includes spark-local-setup)
 
 # 3. Airflow
 make airflow-setup          # connections, variables, pools
@@ -175,9 +168,7 @@ make warmup   # pre-pull Docker + k8s images
 | `make smoke` | Full smoke test suite |
 | `make smoke-min` | Minimal smoke: infra + bronze + masking + idempotency + security |
 | `make seed` | Download API samples to `data/raw/` (offline mode) |
-| `make k8s-check` | Verify Rancher Desktop connectivity |
-| `make k8s-setup` | Install spark-operator + create spark namespace + secrets |
-| `make k8s-spark-image` | Build + push custom Spark image to local registry |
+| `make spark-image-local` | Build local Spark image (spark-custom:3.5-delta) |
 | `make run-demo-pipeline` | Manually trigger E2E pipeline via Airflow CLI |
 | `make warmup` | Pré-pull de imagens Docker + k8s |
 | `make logs` | Tail logs from all services |
@@ -192,7 +183,7 @@ make warmup   # pre-pull Docker + k8s images
 │   ├── 03-integrações.md        # Resumo das fontes de dados (índice para integrations/)
 │   ├── 04-governanca-lgpd.md    # LGPD, mascaramento PII, RBAC e padrões de código
 │   ├── 05-observabilidade-sre.md # Prometheus, Grafana, Marquez, runbook e smoke tests
-│   ├── ADRS.md                  # Todas as 11 decisões arquiteturais (ADR-001 a ADR-011)
+│   ├── ADRS.md                  # Todas as 12 decisões arquiteturais (ADR-001 a ADR-012)
 │   ├── data-dictionary.md       # Dicionário coluna-a-coluna das tabelas Gold
 │   ├── assets/                  # Diagramas PNG (arquitetura, fluxo, stack tecnológica)
 │   ├── integrations/            # Guias detalhados por fonte (CNES, SINAN, PNI, OLTP, Kafka)
@@ -205,7 +196,7 @@ make warmup   # pre-pull Docker + k8s images
 │   ├── vacinal/                 # PNI doses aplicadas
 │   ├── streaming/
 │   │   ├── producer/            # Faker → Kafka (container Docker standalone)
-│   │   └── jobs/                # Spark Structured Streaming consumer (k3s)
+│   │   └── jobs/                # Spark Structured Streaming consumer (Docker)
 │   └── oltp/                    # Snapshot Postgres OLTP (PII source)
 ├── data-products/               # Descritores Data Mesh por domínio
 │   ├── epidemiologico/          # dengue/, notificacao/, paciente/
@@ -269,22 +260,23 @@ Mascaramento ocorre na transição **Bronze → Silver**. Gold nunca vê PII.
 | [0004](docs/ADRS.md#adr-004--estratégia-de-mascaramento-de-pii) | Mascaramento PII → **SHA-256+salt no Silver** |
 | [0005](docs/ADRS.md#adr-005--watermark-e-tratamento-de-eventos-atrasados) | Watermark → **1 hora** |
 | [0006](docs/ADRS.md#adr-006--implementação-de-scd-tipo-2) | SCD Tipo 2 → **dt_inicio/dt_fim + is_current** |
-| [0007](docs/ADRS.md#adr-007--spark-on-kubernetes-rancher-desktop) | Spark → **k3s via Rancher Desktop** |
+| [0007](docs/ADRS.md#adr-007--spark-on-kubernetes-rancher-desktop) | Spark → **DockerOperator local[2]** (supersede k3s) |
 | [0008](docs/ADRS.md#adr-008--separação-de-camadas-de-ingestão) | Ingestão → **Python extrai, Spark transforma** |
 | [0009](docs/ADRS.md#adr-009--data-mesh-organização-por-domínios) | Organização → **Data Mesh por domínio de negócio** |
 | [0010](docs/ADRS.md#adr-010--arquitetura-hexagonal-ports--adapters) | Design → **Hexagonal (Ports & Adapters)** |
 | [0011](docs/ADRS.md#adr-011--serving-layer-trino--hms--delta-lake) | Serving → **Trino + Hive Metastore + Delta Lake** |
+| [0012](docs/ADRS.md#adr-0012--spark-via-dockeroperator-local2-substitui-adr-0007) | Spark exec → **DockerOperator (local[2])** |
 
 ## Escalabilidade para cloud
 
 A arquitetura é desenhada com mapeamento 1:1 para AWS — migração é configuração, não rewrite:
 
-| Local (Compose + k3s) | AWS equivalente |
+| Local (Compose + Docker) | AWS equivalente |
 |---|---|
 | MinIO (Delta Lake) | S3 + Delta Lake OSS |
 | Hive Metastore (thrift) | AWS Glue Data Catalog |
 | Kafka KRaft | MSK Serverless |
-| Spark on k3s | EMR Serverless / EKS |
+| DockerOperator local[2] | EMR Serverless / EKS |
 | Airflow | MWAA |
 | Postgres | RDS Aurora PostgreSQL |
 | Trino | Athena / Trino on EKS |

@@ -5,8 +5,7 @@ in Delta Lake in the Bronze layer (s3://bronze/arboviroses/dengue/).
 
 Flow:
   extract_dengue (PythonOperator)
-      → bronze_dengue_spark (SparkKubernetesOperator)
-      → bronze_dengue_spark_sensor (SparkKubernetesSensor)
+      → bronze_dengue_spark (DockerOperator)
       → emit_lineage (PythonOperator — registers in Marquez)
 
 OpenLineage:

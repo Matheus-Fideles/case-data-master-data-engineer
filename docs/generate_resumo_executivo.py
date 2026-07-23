@@ -202,8 +202,8 @@ def build():
     pdf.section_title("2. Arquitetura da Solução")
     pdf.body(
         "A plataforma adota o padrão Medallion em três camadas sobre Delta Lake armazenado no MinIO "
-        "(S3-compatible). O processamento é feito por Spark 3.x rodando como SparkApplication CRDs "
-        "em k3s (Rancher Desktop), orquestrado pelo Airflow via SparkKubernetesOperator."
+        "(S3-compatible). O processamento é feito por Spark 3.5 rodando via DockerOperator (local[2]) "
+        "na rede Docker, orquestrado pelo Airflow (ADR-0012)."
     )
 
     layers = [
@@ -240,8 +240,8 @@ def build():
 
     stack = [
         ("Componente", "Tecnologia", "Versão", "Papel"),
-        ("Orquestração", "Apache Airflow", "2.9.3", "17 DAGs; SparkKubernetesOperator"),
-        ("Processamento", "Apache Spark", "3.5", "SparkApplication CRDs em k3s"),
+        ("Orquestração", "Apache Airflow", "2.9.3", "17 DAGs; DockerOperator (Spark local[2])"),
+        ("Processamento", "Apache Spark", "3.5", "DockerOperator na rede Docker (lake)"),
         ("Data Lake", "Delta Lake + MinIO", "3.x / 2024-07", "Storage S3-compat + ACID"),
         ("Catálogo", "Hive Metastore", "3.1.3", "Metastore para Trino"),
         ("Query Engine", "Trino", "448", "SQL federado sobre Delta"),
@@ -249,7 +249,6 @@ def build():
         ("Mensageria", "Apache Kafka", "7.6.1 (KRaft)", "Tópico notificacoes.raw"),
         ("Linhagem", "Marquez / OpenLineage", "0.47.0", "Rastreabilidade de datasets"),
         ("Monitoramento", "Prometheus + Grafana", "2.52 / 10.4", "Métricas infra e pipeline"),
-        ("Kubernetes", "k3s (Rancher Desktop)", "1.28", "Cluster local para Spark"),
         ("IaC", "Docker Compose", "v2", "4 perfis: core/streaming/serving/obs"),
     ]
     widths = [38, 42, 30, 60]

@@ -21,7 +21,7 @@
 ```
 REST API
   └─[PythonOperator]──→ data/raw/<fonte>/<ano_mes>.ndjson  (cache local)
-       └─[SparkKubernetesOperator]──→ s3://bronze/<tabela>/<partição>/  (Delta)
+       └─[DockerOperator · local[2]]──→ s3://bronze/<tabela>/<partição>/  (Delta)
 ```
 
 A extração (Python) e a ingestão Bronze (Spark) são jobs separados conforme [ADR 0008](../architecture/decisions/0008-ingestion-layers.md).

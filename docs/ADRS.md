@@ -9,8 +9,9 @@
 
 ### Arquitetura de Processamento
 - [ADR-001 — Arquitetura Lambda vs Kappa](#adr-001--arquitetura-lambda-vs-kappa)
-- [ADR-007 — Spark on Kubernetes (Rancher Desktop)](#adr-007--spark-on-kubernetes-rancher-desktop)
+- [ADR-007 — Spark on Kubernetes (Rancher Desktop) — supersedido](#adr-007--spark-on-kubernetes-rancher-desktop)
 - [ADR-008 — Separação de Camadas de Ingestão](#adr-008--separação-de-camadas-de-ingestão)
+- [ADR-0012 — Spark via DockerOperator (local[2])](#adr-0012--spark-via-dockeroperator-local2-substitui-adr-0007)
 
 ### Qualidade e Confiabilidade de Dados
 - [ADR-002 — Estratégia de Idempotência e MERGE](#adr-002--estratégia-de-idempotência-e-merge)
@@ -1118,7 +1119,7 @@ Smoke test (vide [`smoke-test.md`](../../specs/smoke-test.md), a ser escrita) de
 
 # ADR 0007 — Spark on Kubernetes (Rancher Desktop) em vez de Spark Standalone
 
-- **Status:** Aceito
+- **Status:** Supersedido por ADR-0012
 - **Data:** 2026-07-13
 - **Contexto:** decidir onde executar os jobs Spark (Bronze→Silver→Gold + Structured Streaming)
 
@@ -1222,7 +1223,7 @@ O pipeline de dados passa por etapas com características técnicas distintas. A
 
 ### Etapa 2 — Bronze: `landing/` → `s3://bronze/` (Delta)
 
-**Ferramenta escolhida: PySpark via `SparkKubernetesOperator`**
+**Ferramenta escolhida: PySpark via `DockerOperator`** (local[2] — ver ADR-0012)
 
 | Critério | Python (pandas/polars) | **PySpark** |
 |---|---|---|
@@ -1263,26 +1264,26 @@ REST API (7 endpoints)
     │
     └──[PythonOperator · Airflow]──────────────────→ s3://landing/  (JSON/NDJSON)
               │
-              └──[SparkKubernetesOperator · k8s]──→ s3://bronze/   (Delta)
+              └──[DockerOperator · local[2]]──→ s3://bronze/   (Delta)
                           │
-                          └──[SparkKubernetesOperator · k8s]──→ s3://silver/  (Delta + masking)
+                          └──[DockerOperator · local[2]]──→ s3://silver/  (Delta + masking)
                                         │
-                                        └──[SparkKubernetesOperator · k8s]──→ s3://gold/ + postgres.gold_dw
+                                        └──[DockerOperator · local[2]]──→ s3://gold/ + postgres.gold_dw
 
 Faker (Python container)
     │
     └──[Producer]──→ Kafka topic: notificacoes.raw
                           │
-                          └──[Spark Structured Streaming · k8s]──→ s3://bronze/stream/ ──→ s3://gold/
+                          └──[Spark Structured Streaming · Docker]──→ s3://bronze/stream/ ──→ s3://gold/
 ```
 
 ## Consequências
 
-- DAGs têm dois tipos de task: `PythonOperator` (extração) + `SparkKubernetesOperator` (transformação)
-- Extratores vivem em `pipelines/extraction/` — Python puro, sem dependência Spark
-- Jobs Spark vivem em `pipelines/batch/` e `pipelines/streaming/` — PySpark puro
+- DAGs têm dois tipos de task: `PythonOperator` (extração) + `DockerOperator` (transformação Spark)
+- Extratores vivem em `apps/pipelines/` — Python puro, sem dependência Spark
+- Jobs Spark vivem em `apps/bronze/`, `apps/silver/`, `apps/gold/` — PySpark puro
 - O pool `extraction_pool` (8 slots) limita concorrência de chamadas API
-- O pool `spark_pool` (4 slots) limita jobs Spark concorrentes no k8s
+- O pool `spark_pool` (4 slots) limita containers Docker Spark concorrentes
 
 ## FAQ Técnico
 
@@ -1510,6 +1511,47 @@ minio    (healthy) ──→ hive-metastore
 | Trino + Iceberg (Nessie catalog) | Iceberg exigiria reescrever todos os jobs Spark (já em Delta); migração custosa |
 | Manter Postgres como serving | Gold no Postgres não é Data Lake; Postgres não escala para analytics |
 | AWS Glue como metastore local | Não existe versão local do Glue; dependência de cloud |
+
+---
+
+# ADR 0012 — Spark via DockerOperator (local[2]) em vez de SparkKubernetesOperator
+
+- **Status:** Aceito
+- **Data:** 2026-07-22
+- **Substitui:** ADR-0007
+
+## Contexto
+
+O `SparkKubernetesOperator` exigia Rancher Desktop + Helm + kubeconfig no avaliador. Em Mac com Lima/sshfs (Rancher Desktop), bind mounts de SSDs externos apareciam vazios nos containers. O custo de reprodutibilidade era alto demais para uma demo de 1h30.
+
+## Decisão
+
+Jobs Spark rodam via `DockerOperator` do Airflow em modo `local[2]` dentro de um container `spark-custom:3.5-delta` na rede Docker `lake`.
+
+- Imagem construída localmente por `make spark-image-local` (incluído em `make demo`)
+- `apps/` copiado diretamente na imagem via Dockerfile COPY — sem bind mount
+- Todos os serviços acessíveis por nome DNS na rede `lake`: `minio:9000`, `postgres:5432`
+- Pool `spark_pool` (4 slots) agora limita containers Docker concorrentes
+
+## O que não mudou
+
+- Assinatura de `make_spark_operator()` — todos os 17 DAGs sem alteração
+- Templates YAML em `k8s/sparkapplications/` usados como config (mainApplicationFile + arguments)
+- Separação `extract` (PythonOperator) ↔ `ingest` (DockerOperator Spark) — ADR-0008 mantido
+- Delta ACID, MERGE idempotente, particionamento, mascaramento PII
+
+## Trade-offs
+
+| Critério | DockerOperator local[2] | SparkKubernetesOperator k3s |
+|---|---|---|
+| Reprodutibilidade (avaliador) | **Máxima — só Docker** | Rancher Desktop + Helm obrigatório |
+| Realismo de produção | Médio — single-node | Alto — pods reais |
+| Delta ACID | **Sim** | Sim |
+| Pré-requisito adicional | Nenhum | Rancher Desktop + Helm + kubeconfig |
+
+## Defesa em banca
+
+*"Substituímos `SparkKubernetesOperator` por `DockerOperator` em `local[2]` para garantir reprodutibilidade em qualquer ambiente com Docker. As garantias importantes estão preservadas: Delta ACID, MERGE idempotente, mascaramento PII. Em produção, basta substituir o operator — o YAML de configuração é o mesmo."*
 
 ---
 

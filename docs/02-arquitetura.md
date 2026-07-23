@@ -28,13 +28,12 @@ Este case implementa uma **Modern Data Platform** baseada em três pilares:
 
 | Camada | Tecnologia | Papel |
 |---|---|---|
-| Ingestão batch | Apache Airflow | Orquestração; `PythonOperator` (extração) + `SparkKubernetesOperator` (transformação) |
+| Ingestão batch | Apache Airflow | Orquestração; `PythonOperator` (extração) + `DockerOperator` (transformação Spark local[2]) |
 | Ingestão streaming | Apache Kafka + Spark Structured Streaming | Eventos em tempo real → Bronze Delta |
-| Processamento | Apache Spark 3.5 (k8s) | Bronze→Silver→Gold; mascaramento PII; SCD2 |
+| Processamento | Apache Spark 3.5 (Docker local[2]) | Bronze→Silver→Gold; mascaramento PII; SCD2 |
 | Storage | MinIO (S3-compatible) + Delta Lake | Data lake medalhão; ACID; time travel |
 | Catalog | Hive Metastore 4.0 (thrift) | Registro de tabelas Delta para Trino |
 | Serving | Trino 448 | Query federada sobre Delta Lake; RBAC |
-| Orquestração k8s | Rancher Desktop (k3s) + spark-operator | SparkApplication CRDs; escalabilidade local |
 | Observabilidade | Prometheus + Grafana + Marquez | Métricas, dashboards, lineage |
 | Qualidade | Great Expectations (`gx/`) | Validações sobre fixtures Pandas |
 
@@ -82,7 +81,7 @@ Este case implementa uma **Modern Data Platform** baseada em três pilares:
 
 ![Fluxo de Dados](./assets/02-fluxo-dados.png)
 
-> Deployment (Docker Compose + k3s): `docs/assets/03-deployment.png`
+> Deployment (Docker Compose): `docs/assets/03-deployment.png`
 
 ```mermaid
 flowchart TB
@@ -162,7 +161,7 @@ Data products com SLOs documentados em `data-products/{domínio}/{produto}/datap
 
 ### 4.3 Arquitetura Lambda (ADR-001)
 
-- **Camada batch:** Airflow → Python extração → Spark k8s transformação → Delta Lake
+- **Camada batch:** Airflow → Python extração → Spark DockerOperator local[2] transformação → Delta Lake
 - **Camada speed:** Kafka → Spark Structured Streaming → Bronze Delta (foreachBatch)
 - **Convergência:** Trino consulta Gold batch + Gold speed na mesma camada lógica
 
@@ -298,20 +297,20 @@ erDiagram
 | Structured Streaming | ✅ nativo | ✅ (melhor para streaming puro) | Não |
 | Delta Lake nativo | ✅ | Parcial | Não |
 | Comunidade + docs | Muito grande | Grande | Menor |
-| Operação k8s | spark-operator maduro | Flink k8s operator | N/A |
+| Operação k8s | spark-operator maduro (produção) | Flink k8s operator | N/A |
 
-**Decisão: PySpark.** Cobre batch e streaming no mesmo runtime, integração Delta nativa, e spark-operator facilita o deploy em k3s.
+**Decisão: PySpark.** Cobre batch e streaming no mesmo runtime, integração Delta nativa. Em desenvolvimento/demo roda via DockerOperator local[2]; em produção, spark-operator facilita o deploy em k8s.
 
 ### Orquestração
 
 | Critério | **Airflow** ✅ | Dagster | Prefect |
 |---|---|---|---|
 | Maturidade | Muito alta | Alta | Alta |
-| `SparkKubernetesOperator` | ✅ nativo | Via hooks | Via blocks |
+| `DockerOperator` | ✅ nativo | Via hooks | Via blocks |
 | Backend Postgres | ✅ padrão | ✅ | ✅ |
 | Curva de aprendizado | Média | Baixa | Baixa |
 
-**Decisão: Airflow.** Requisito implícito do enunciado (menciona Airflow explicitamente); `SparkKubernetesOperator` pronto; maior ecossistema de operadores.
+**Decisão: Airflow.** Requisito implícito do enunciado (menciona Airflow explicitamente); `DockerOperator` pronto; maior ecossistema de operadores.
 
 ### Serving layer
 

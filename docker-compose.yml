@@ -1,8 +1,8 @@
 ---
 # Docker Compose — Data Lake Medalhão · Vigilância Epidemiológica
 #
-# Spark NÃO está aqui — roda em Rancher Desktop (k3s).
-# Ver: docs/architecture/decisions/0007-spark-on-kubernetes.md
+# Spark roda como container Docker via DockerOperator na rede lake (local[2]).
+# Ver: docs/ADRS.md#adr-0012--spark-via-dockeroperator-local2-substitui-adr-0007
 #
 # Uso:
 #   make up-core          → postgres + minio + airflow
@@ -28,7 +28,6 @@ x-airflow-common: &airflow-common
     AIRFLOW__SCHEDULER__STATSD_PORT: "9125"
     AIRFLOW__WEBSERVER__WORKERS: "1"
     PYTHONPATH: /opt/airflow
-    KUBECONFIG: /opt/k8s/kubeconfig-airflow.yaml
     OFFLINE_MODE: ${OFFLINE_MODE:-0}
     PII_SALT: ${PII_SALT}
     API_BASE_URL: ${API_BASE_URL}

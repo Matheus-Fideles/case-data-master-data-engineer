@@ -160,9 +160,7 @@ Todos os jobs Python/Spark emitem logs JSON estruturado para stdout:
 | Docker Compose | v2+ (plugin) | `docker compose version` |
 | GNU Make | 3.81+ | `make --version` |
 | Python | 3.11+ | `python3 --version` |
-| Rancher Desktop | 1.9+ (k3s) | `kubectl version` |
-| RAM livre (Compose) | ~8 GB | `vm_stat` (macOS) |
-| RAM Rancher Desktop | ≥ 8 GB alocados | Rancher Desktop > Preferences > Virtual Machine |
+| RAM livre (Docker) | ~8 GB | `vm_stat` (macOS) |
 | Disco livre | ~10 GB | `df -h .` |
 
 Portas no host: **5432, 9000, 9001, 9083, 9092, 8080, 8085, 3000, 5000**.
@@ -181,10 +179,6 @@ make up-streaming           # kafka + stream-producer
 make up-serving             # hive-metastore + trino
 make up-observability       # prometheus + grafana + marquez
 make up-all                 # todos os profiles
-
-# Kubernetes (Spark)
-make k8s-setup              # namespace spark + spark-operator (Helm)
-make k8s-spark-image        # build + push imagem Spark custom
 
 # Operação
 make ps                     # status de todos os containers
@@ -226,11 +220,11 @@ docker compose exec airflow airflow dags list
 docker compose exec airflow airflow dags test dag_bronze_dengue 2024-01-15
 ```
 
-**Spark job falha no k8s:**
+**Spark job falha (DockerOperator):**
 ```bash
-kubectl get sparkapplications -n spark
-kubectl describe sparkapplication bronze-dengue -n spark
-kubectl logs -n spark -l spark-role=driver
+docker ps -a | grep spark
+docker logs <container-id>
+# Ver também Airflow Task Logs em http://localhost:8080
 ```
 
 ---
@@ -272,7 +266,7 @@ pre_check → extract [Python] → validate_raw [Python] → ingest [SparkK8s] �
 | `pre_check` | PythonOperator | Verifica cache offline, conectividade |
 | `extract` | PythonOperator | Chama `apps/{domínio}/jobs/extract_*.py` → `s3a://landing/{fonte}/` |
 | `validate_raw` | PythonOperator | Assert `row_count > 0`, schema mínimo presente |
-| `ingest` | SparkKubernetesOperator | Submete SparkApplication CRD; lê landing → Bronze Delta |
+| `ingest` | DockerOperator | Executa `spark-submit local[2]` em container `spark-custom:3.5-delta`; lê landing → Bronze Delta |
 | `quality_gate` | PythonOperator | Suite Great Expectations |
 | `emit_lineage` | PythonOperator | OpenLineage emit via Marquez |
 
