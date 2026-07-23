@@ -108,10 +108,10 @@ demo-reset: ## Wipe volumes and restart a fresh demo
 .PHONY: smoke smoke-min
 
 smoke: ## Roda suite completa de smoke tests (tests/smoke/)
-	KEEP_COMPOSE=1 python -m pytest tests/smoke/ -v --tb=short -m smoke
+	KEEP_COMPOSE=1 python3 -m pytest tests/smoke/ -v --tb=short -m smoke
 
 smoke-min: ## Roda smoke mínimo: infra + bronze + masking + idempotência + segurança
-	KEEP_COMPOSE=1 python -m pytest \
+	KEEP_COMPOSE=1 python3 -m pytest \
 		tests/smoke/test_01_infra_health.py \
 		tests/smoke/test_02_bronze_ingestion.py \
 		tests/smoke/test_03_silver_masking.py \
@@ -274,7 +274,7 @@ lint: ## Roda pre-commit em todos os arquivos
 	pre-commit run --all-files
 
 test-unit: ## Roda testes unitários (sem infraestrutura)
-	python -m pytest tests/extraction/ tests/batch/ -v
+	python3 -m pytest tests/extraction/ tests/batch/ -v
 
 test-smoke: smoke ## Alias para smoke tests (requer docker compose up)
 
